@@ -2470,7 +2470,7 @@ function triggerDowned(){
   push(ref(realtimeDB,"chat/world"),{uid,name:"시스템",t:`${place}에 누군가 쓰러졌다. 아직 숨이 붙어있다.`,at:now,sys:"downed",place}).catch(e=>console.warn("downedChat",e));
  }
  try{opts.save(cp(snap()))}catch(e){}
- syncPresence(true);updateDownedBar();renderAll();try{render()}catch(e){}subscribeOwnDowned();
+ syncPresence(true);updateDownedBar();bag();renderAll();try{render()}catch(e){}subscribeOwnDowned();
  logChar("downed",`쓰러짐 · ${why==="hunger"?"허기 0":why==="hp"?"HP 0":"원인 불명"} · ${place}`,{why,hp:me.hp.slice(),hunger:me.hunger.slice(),place,area:me.area,sub:me.sub||"",fx:(me.fx||[]).map(f=>f&&(f.label||f.n)),expedition:expLog,travel:travLog,rest:restLog,expLogs:(me.expLogs||[]).slice(-10)});
  toast("쓰러졌다… 90분 안에 소생이 필요하다.");
 }
@@ -2561,7 +2561,7 @@ const closePop=()=>{$("pop").hidden=true};
 $("pbtn").onclick=e=>{const b=e.target.closest("[data-k]");if(!b)return;const f=popF[+b.dataset.k];closePop();if(f.fn)f.fn()};
 
 function bag(){$("bag").textContent=`${usedSlots()}/${cap()}`;$("gold").textContent=me.gold+" G";invRender();rideRender()}
-function btns(x,i){const n=nm(x),it=info(n),B=(a,t)=>`<button class="sm2" data-a="${a}" data-i="${i}">${t}</button>`;let h="";
+function btns(x,i){const n=nm(x),it=info(n),dis=me.travel?" disabled":"",B=(a,t)=>`<button class="sm2" data-a="${a}" data-i="${i}"${dis}>${t}</button>`;let h="";
  if(["w","a","c","k"].includes(it.t))h+=B("equip","착용하기");
  if(["f","g"].includes(it.t))h+=B("eat",it.sub==="요리"||it.t==="g"?"먹기":"사용");
  if(it.t==="b")h+=B("read","읽기");
@@ -2570,14 +2570,15 @@ function btns(x,i){const n=nm(x),it=info(n),B=(a,t)=>`<button class="sm2" data-a
  if(!it.bound)h+=B("gift","선물하기")+B("drop","버리기")+B("destroy","파기");
  return h}
 function invRender(){
- const eq=SLOTS.map(([k,l])=>{const x=me.equipped[k];return `<div class="eqr" data-eq="${k}"><span class="dim">${l}</span><b>${x?esc(nm(x))+dura(x):"<i class='dim'>비어 있음</i>"}</b></div>`}).join("");
+ const eq=SLOTS.map(([k,l])=>{const x=me.equipped[k];return `<div class="eqr" data-eq="${k}"${me.travel?' style="opacity:.55"':''}><span class="dim">${l}</span><b>${x?esc(nm(x))+dura(x):"<i class='dim'>비어 있음</i>"}</b></div>`}).join("");
  const rows=[],seen={};me.inv.forEach((x,i)=>{if(typeof x==="string"){const key=nm(x);if(seen[key]!=null)rows[seen[key]].q++;else{seen[key]=rows.length;rows.push({x,q:1,i})}}else rows.push({x,q:1,i})});
  const list=rows.map(r=>`<div class="irow"><div class="ihead" data-i="${r.i}">${esc(nm(r.x))}${r.q>1?` ×${r.q}`:""}${dura(r.x)}${info(nm(r.x)).bound?`<span class="bd">귀속</span>`:""}</div><div class="ibtn">${btns(r.x,r.i)}</div></div>`).join("")||`<p class="dim">소지품이 없다.</p>`;
- $("v-inv").innerHTML=`<h2>착용 중</h2><div class="eq">${eq}</div><h2 style="margin-top:14px">소지품 <span class="cnt">${usedSlots()}/${cap()}</span></h2><div class="ilist">${list}</div><div class="rcp"><span><b>레시피</b></span><button class="btn" id="rcpOpen">레시피 확인하기</button></div>`}
+ const lockNote=me.travel?`<p class="dim" style="margin:0 0 8px">이동 중에는 소지품을 사용할 수 없습니다.</p>`:"";
+ $("v-inv").innerHTML=`${lockNote}<h2>착용 중</h2><div class="eq">${eq}</div><h2 style="margin-top:14px">소지품 <span class="cnt">${usedSlots()}/${cap()}</span></h2><div class="ilist">${list}</div><div class="rcp"><span><b>레시피</b></span><button class="btn" id="rcpOpen"${me.travel?" disabled":""}>레시피 확인하기</button></div>`}
 function showItem(x){const n=nm(x),it=info(n);pop(n,`<p>${esc(it.d||"")}</p><p><b>효과 :</b> ${effText(n)}</p>${it.bound?`<p class="dim">귀속 아이템 (선물·버리기·파기 불가)</p>`:""}${typeof x==="object"&&x.dur!=null?`<p class="dim">내구도 ${x.dur}/${x.max}</p>`:""}`,[{t:"닫기"}])}
 function doEquip(i,slot){const x=me.inv.splice(i,1)[0],old=me.equipped[slot];me.equipped[slot]=x;if(old)me.inv.push(old);
  if(usedSlots()>cap()){me.equipped[slot]=old||null;if(old)me.inv.pop();me.inv.splice(i,0,x);modal("공간 부족","소지품 칸이 부족해서 교체할 수 없다.");return}bag();syncVitals()}
-function unequip(k){const x=me.equipped[k];if(!x)return;me.equipped[k]=null;
+function unequip(k){if(me.travel)return toast("이동 중에는 장비를 해제할 수 없습니다.");const x=me.equipped[k];if(!x)return;me.equipped[k]=null;
  if(!canAdd(x)){me.equipped[k]=x;modal("공간 부족","소지품 칸이 부족해서 해제할 수 없다.");return}me.inv.push(x);bag();syncVitals()}
 function openBox(x){
  const tier=x.tier==="78"?"78":"45",star=tier==="78"?8:5;
@@ -2597,7 +2598,7 @@ function qtyHtml(max){
 function qtyVal(max){const el=$("qty");let v=Math.floor(+((el&&el.value)||1));if(!isFinite(v)||v<1)v=1;if(v>max)v=max;if(el)el.value=v;return v}
 function qtyClick(e,max){const b=e.target.closest("[data-q]");if(!b)return;const el=$("qty");if(!el)return;let v=Math.floor(+el.value||1);v+=(b.dataset.q==="-1"?-1:1);v=Math.max(1,Math.min(max,v));el.value=v}
 function takeItems(n,qty,prefer){const out=[];if(qty===1&&prefer!=null){const ix=me.inv.indexOf(prefer);if(ix>=0){out.push(me.inv.splice(ix,1)[0]);return out}}for(let k=0;k<qty;k++){const ix=me.inv.findIndex(y=>nm(y)===n);if(ix<0)break;out.push(me.inv.splice(ix,1)[0])}return out}
-function invAct(a,i){const x=me.inv[i];if(x==null)return;const n=nm(x),it=info(n);
+function invAct(a,i){if(me.travel)return toast("이동 중에는 소지품을 사용할 수 없습니다.");const x=me.inv[i];if(x==null)return;const n=nm(x),it=info(n);
  if(a==="eat"){const act=it.sub==="요리"||it.t==="g"?"먹기":"사용";pop(act,`<p><b>${esc(n)}</b></p><p>효과 : ${effText(n)}</p>`,[{t:act,c:"",fn:()=>{if(n==="소생약"&&me.downed){closePop();selfRevive();return}if(n==="해독제"&&!me.fx.some(s=>["poison","foodPoison","herbPoison","paralysis"].includes(s.id)))return toast("해독할 상태이상이 없습니다.");const f=it.fx||{},mult=1+Math.max(0,traitTotal("foodBonus")),ap=(a,v)=>{a[0]=Math.min(a[1],a[0]+healVal((v||0)*mult))};ap(me.hunger,f.hunger);ap(me.mp,f.mind);ap(me.hp,f.hp);me.inv.splice(me.inv.indexOf(x),1);applyItemStatus(n,it);barsRender();bag();sfx("ok");if((f.hunger||0)>0)tryGoodTrait("대식가")}},{t:"취소"}]);}
  else if(a==="read")pop(n,`<p style="white-space:pre-wrap">${esc(it.txt||"")}</p>`,[{t:"닫기"}]);
  else if(a==="equip"){
@@ -2661,7 +2662,7 @@ $("v-inv").onclick=e=>{const t=e.target;let b;
  if(b=t.closest("[data-a]"))invAct(b.dataset.a,+b.dataset.i);
  else if(b=t.closest(".ihead"))showItem(me.inv[+b.dataset.i]);
  else if(b=t.closest("[data-eq]")){const x=me.equipped[b.dataset.eq];if(x)pop(nm(x),`<p>${esc(info(nm(x)).d||"")}</p><p><b>효과 :</b> ${effText(nm(x))}</p>${dura(x)}`,[{t:"해제하기",c:"",fn:()=>unequip(b.dataset.eq)},{t:"닫기"}])}
- else if(t.closest("#rcpOpen"))recipes(null)};
+ else if(t.closest("#rcpOpen")){if(me.travel)return toast("이동 중에는 제작할 수 없습니다.");recipes(null)}};
 // ---- 설정 / 효과음 / 장비 비교 ----
 let sfxOn=true;try{sfxOn=localStorage.getItem("alive_sfx")!=="0"}catch(e){}
 let ac=null;
@@ -2719,7 +2720,7 @@ function groundRender(){
  const items=g.map((x,i)=>`<div class="irow"><div class="ihead" style="cursor:default">${esc(nm(x))}${dura(x)}</div><div class="ibtn"><button class="sm2" data-g="${i}">줍기</button></div></div>`).join("");
  $("gl").innerHTML=rows.join("")+items||`<span class="dim">아무것도 없다.</span>`;
 }
-$("gl").onclick=e=>{const gv=e.target.closest("[data-grave]");if(gv){openGrave(gv.dataset.grave);return}const b=e.target.closest("[data-g]");if(!b)return;const k=gkey(),g=me.ground[k]||[],i=+b.dataset.g,x=g[i];if(x==null)return;
+$("gl").onclick=e=>{const gv=e.target.closest("[data-grave]");if(gv){openGrave(gv.dataset.grave);return}const b=e.target.closest("[data-g]");if(!b)return;if(me.travel)return toast("이동 중에는 소지품을 만질 수 없습니다.");const k=gkey(),g=me.ground[k]||[],i=+b.dataset.g,x=g[i];if(x==null)return;
  if(!canAdd(x)){modal("가방이 가득 찼다","더 들 수 없다.");return}g.splice(i,1);if(!g.length)delete me.ground[k];addItem(x);bag();groundRender()};
 function openGrave(gid){
  const gr=graveData[gid];if(!gr)return;
@@ -2736,6 +2737,7 @@ function openGrave(gid){
   if(e.target.closest("[data-gmourn]")){graveMourn(gid,"mourn")}};
 }
 async function graveTake(gid,i){
+ if(me.travel)return toast("이동 중에는 유품을 가져갈 수 없습니다.");
  const gr=graveData[gid];if(!gr)return;
  if(gr.taken&&gr.taken[i])return toast("이미 가져간 유품입니다.");
  const items=Array.isArray(gr.items)?gr.items:[],x=items[i];if(x==null)return;
@@ -2941,8 +2943,8 @@ $("mvno").onclick=()=>$("mvmodal").hidden=true;
 const consume=(n,c)=>{for(let i=0;i<c;i++)me.inv.splice(me.inv.findIndex(x=>nm(x)===n),1)};
 $("mvgo").onclick=()=>{const q=quote(mv.kind,mv.n,mv.mode,mv.baseMin);if(count("먹이")<q.food||(q.fuel&&airFuel()<q.fuel))return;
  consume("먹이",q.food);if(q.fuel){const a=airShip();if(a)a.fuel=Math.max(0,airFuel()-q.fuel)}
- me.travel={end:Date.now()+q.min*60000,dest:mv.dest,label:mv.label};$("mvmodal").hidden=true;bag();renderAll()};
-function arrive(){sfx("ok");const d=me.travel.dest;me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub;const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:d.sub;if(Math.random()<.25)applyStatus("fatigue",{silent:true});renderAll();try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){}}
+ me.travel={end:Date.now()+q.min*60000,dest:mv.dest,label:mv.label};$("mvmodal").hidden=true;bag();renderAll();try{render()}catch(e){}};
+function arrive(){sfx("ok");const d=me.travel.dest;me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub;const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:d.sub;if(Math.random()<.25)applyStatus("fatigue",{silent:true});bag();renderAll();try{render()}catch(e){};try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){}}
 T(()=>{if(me.travel){Date.now()>=me.travel.end?arrive():renderAll()}},1000);
 T(checkExpAct,1000);
 tickStatus();T(()=>{tickStatus();tickHunger();tickPet()},15000);
@@ -2996,7 +2998,7 @@ const GM=!!opts.admin;
 $("dev").innerHTML=GM?"테스트용 순간이동: ":"";
 $("dev").hidden=!GM;$("skip").hidden=!GM;$("expskip").hidden=!GM;
 if(GM)$("dev").insertAdjacentHTML("beforeend",Object.keys(WORLD).map(r=>`<button data-r="${r}">${r}</button>`).join(" "));
-$("dev").onclick=e=>{if(!GM)return;const b=e.target.closest("button");if(!b)return;me.cont=b.dataset.r;me.area="cap";me.sub=null;me.travel=null;me.expedition=null;me.rest=null;view.area=null;view.sel="cap";renderAll()};
+$("dev").onclick=e=>{if(!GM)return;const b=e.target.closest("button");if(!b)return;me.cont=b.dataset.r;me.area="cap";me.sub=null;me.travel=null;me.expedition=null;me.rest=null;view.area=null;view.sel="cap";bag();renderAll();try{render()}catch(e){}};
 
 // ---- 탐사 / 전투 ----
 const pick=a=>a[Math.floor(Math.random()*a.length)];
@@ -3418,7 +3420,8 @@ const PEOPLE_TTL=600000;
 const chatData={local:[],world:[],notice:[],whisper:[]};
 const chatUnsub={local:null,world:null,notice:null,whisper:null};
 const chatPaths={};
-let cur="local",sending=false,whisperUser=null;
+let cur="local",sending=false,whisperUser=null,whisperPingUnsub=null;
+const seenPingAt={};
 
 function chatPath(tab){
  if(tab==="local")return "chat/cont/"+me.cont;
@@ -3659,12 +3662,27 @@ function subscribeChat(tab,force){
   if(cur===tab)$("log").innerHTML=`<div class="dim" style="padding:8px">채팅을 불러오지 못했어요. Firebase Realtime Database 규칙을 확인해 주세요.</div>`;
  });
 }
+function subscribeWhisperPing(){
+ if(!uid)return;
+ if(whisperPingUnsub){try{whisperPingUnsub()}catch(e){}whisperPingUnsub=null}
+ let first=true;
+ whisperPingUnsub=onValue(ref(realtimeDB,"whisperPing/"+uid),s=>{
+  const v=s.val()||{};let unread=0;
+  Object.entries(v).forEach(([from,p])=>{
+   if(!p||typeof p!=="object"||!isFinite(+p.at)||from===uid)return;
+   if(whisperUser&&whisperUser.uid===from&&cur==="whisper"){try{remove(ref(realtimeDB,"whisperPing/"+uid+"/"+from)).catch(()=>{})}catch(e){}return}
+   if(first){unread++;return}
+   if(+p.at>(+seenPingAt[from]||0)){seenPingAt[from]=+p.at;toast(`귓속말 · ${String(p.name||"상대")}: ${String(p.t||"").slice(0,40)}`)}
+  });
+  if(first){first=false;if(unread)toast(`읽지 않은 귓속말 ${unread}건`)}
+ },err=>console.warn("whisperPing",err));
+}
 
 async function resetAllChat(){
  if(!me.isAdmin)return toast("GM 계정만 사용할 수 있습니다.");
  try{
-  await Promise.all([remove(ref(realtimeDB,"chat")),remove(ref(realtimeDB,"whispers"))]);
-  Object.keys(chatData).forEach(k=>chatData[k]=[]);
+  await Promise.all([remove(ref(realtimeDB,"chat")),remove(ref(realtimeDB,"whispers")),remove(ref(realtimeDB,"whisperPing"))]);
+  Object.keys(chatData).forEach(k=>chatData[k]=[]);Object.keys(seenPingAt).forEach(k=>delete seenPingAt[k]);
   subscribeChat("local",true);subscribeChat("world",true);subscribeChat("notice",true);
   if(whisperUser)subscribeChat("whisper",true);
   try{render()}catch(e){}
@@ -3688,13 +3706,13 @@ function decorateNames(){
 }
 document.addEventListener("everfall-theme",decorateNames);
 function render(){
- const lock=(cur==="notice"&&!me.isAdmin)||!!me.downed||!!me.deadPending,noWhisper=cur==="whisper"&&!whisperUser;
+ const lock=(cur==="notice"&&!me.isAdmin)||!!me.downed||!!me.deadPending||(cur==="local"&&!!me.travel),noWhisper=cur==="whisper"&&!whisperUser;
  $("log").innerHTML=(chatData[cur]||[]).filter(m=>cur==="notice"||cur==="whisper"||!me.blocked.includes(m.name)).map(m=>{
   const name=m.name||"무명",c=colorOf(m.c||(name===me.name?me.color:"#CB3533")),sys=m.sys==="downed";
   return `<div class="msg ${cur==="notice"?"notice":""} ${sys?"sys":""}">${sys?`<span class="who">시스템</span>`:`<span class="who js-name" data-uid="${esc(m.uid||"")}" data-u="${esc(name)}" title="캐릭터 정보 보기" style="--name-color:${c}">${esc(name)}</span>`}<span class="txt">${esc(m.t)}</span><span class="when">${chatTime(m.at)}</span></div>`}).join("")||`<div class="dim" style="padding:8px">${noWhisper?"귓속말을 보낼 상대를 선택하세요.":"아직 메시지가 없습니다."}</div>`;
  $("log").scrollTop=1e9;
  $("inp").disabled=lock||noWhisper||sending;$("btn").disabled=lock||noWhisper||sending;
- $("inp").placeholder=(me.downed||me.deadPending)?"쓰러진 상태에서는 채팅할 수 없습니다.":lock?"공지는 관리자만 작성할 수 있어요":cur==="whisper"?(whisperUser?`${whisperUser.name}에게 귓속말…`:"귓속말 상대를 선택하세요"):"메시지 입력…";
+ $("inp").placeholder=(me.downed||me.deadPending)?"쓰러진 상태에서는 채팅할 수 없습니다.":(cur==="local"&&me.travel)?"이동 중에는 현장 채팅을 사용할 수 없습니다.":lock?"공지는 관리자만 작성할 수 있어요":cur==="whisper"?(whisperUser?`${whisperUser.name}에게 귓속말…`:"귓속말 상대를 선택하세요"):"메시지 입력…";
  decorateNames()}
 $("log").onclick=e=>{const b=e.target.closest(".who");if(!b||cur==="notice")return;openPlayerProfile(b.dataset.uid,b.dataset.u)};
 function askBlock(name){if(!name||name===me.name)return;pop("계정 차단",`<p><b>${esc(name)}</b> 님을 차단하시겠습니까?</p><p class="dim">차단하면 이 계정의 채팅이 보이지 않아요. 설정에서 해제할 수 있어요.</p>`,[{t:"차단",c:"bad",fn:()=>{if(!me.blocked.includes(name))me.blocked.push(name);render();toast("차단했습니다")}},{t:"취소"}])}
@@ -3703,6 +3721,7 @@ async function openPlayerProfile(targetUid,name){
  let d=null;if(targetUid){try{d=await S.getDowned(targetUid)}catch(e){}}
  if(d&&(+d.until<=Date.now()||d.dead))d=null;
  const self=(!!targetUid&&targetUid===uid)||(!targetUid&&name===me.name)||name===me.name;
+ if(p&&self&&!okPhoto(p.photo)&&okPhoto(char.photo))p.photo=char.photo;
  const buttons=[];
  if(!self&&name)buttons.push({t:"차단",c:"ghost",left:true,fn:()=>askBlock(name)});
  if(!self&&targetUid&&name){
@@ -3723,6 +3742,7 @@ function startWhisper(targetUid,name){
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 귓속말을 보낼 수 없습니다.");
  if(!targetUid||targetUid===uid)return toast("자신에게는 귓속말을 보낼 수 없습니다.");
  whisperUser={uid:targetUid,name:name||"플레이어"};
+ try{if(uid)remove(ref(realtimeDB,"whisperPing/"+uid+"/"+targetUid)).catch(()=>{})}catch(e){}
  const tab=$("wtab");if(!tab)return;
  tab.hidden=false;tab.innerHTML=`귓속말 <span class="dim">· ${esc(whisperUser.name)}</span>`;tab.title=`${whisperUser.name}에게 귓속말`;
  cur="whisper";
@@ -3741,16 +3761,21 @@ $("ctabs").onclick=e=>{const b=e.target.closest(".ctab");if(!b)return;switchChat
 async function send(){const v=$("inp").value.trim();if(!v||$("inp").disabled||sending)return;
  if(me.downed||me.deadPending){toast("쓰러진 상태에서는 채팅할 수 없습니다.");return}
  if(!uid){toast("로그인 정보를 확인할 수 없어 메시지를 보낼 수 없어요.");return}
+ if(cur==="local"&&me.travel){toast("이동 중에는 현장 채팅을 사용할 수 없습니다.");return}
  if(cur==="whisper"&&!whisperUser){toast("귓속말을 보낼 상대를 선택하세요.");return}
  const path=chatPath(cur);if(!path)return;
  sending=true;render();
  const base={uid,name:me.name,t:v.slice(0,200),at:Date.now(),...(cur==="whisper"?{to:whisperUser.uid}:{})};
- try{try{await push(ref(realtimeDB,path),{...base,c:me.color})}catch(err){await push(ref(realtimeDB,path),base)}$("inp").value="";render()}
+ try{
+  try{await push(ref(realtimeDB,path),{...base,c:me.color})}catch(err){await push(ref(realtimeDB,path),base)}
+  if(cur==="whisper"&&whisperUser&&whisperUser.uid){try{set(ref(realtimeDB,"whisperPing/"+whisperUser.uid+"/"+uid),{from:uid,to:whisperUser.uid,name:me.name,t:v.slice(0,200),at:base.at,c:me.color}).catch(()=>{})}catch(err){}}
+  $("inp").value="";render()
+ }
  catch(e){console.warn(e);toast("메시지를 보내지 못했어요. Firebase 규칙을 확인해 주세요.")}
  finally{sending=false;render()}}
 $("btn").onclick=send;$("inp").onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing)send()};
 render();
-if(uid){syncPresence(true);subscribeChat("world");subscribeChat("notice");subscribeDownedMap();subscribeGraves();T(()=>syncPresence(true),60000)}
+if(uid){syncPresence(true);subscribeChat("world");subscribeChat("notice");subscribeDownedMap();subscribeGraves();subscribeWhisperPing();T(()=>syncPresence(true),60000)}
 
 // ---- 시간 / 시장 (한국 표준시 기준) ----
 const KST=o=>new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",...o});
@@ -4145,7 +4170,7 @@ function subscribeTradeInvites(){
 }
 if(uid){subscribeHeals();subscribeTradeInvites()}
 
-const pubProfile=()=>({name:me.name,job:me.job,origin:me.origin,day:me.day,color:me.color,avatarColor:okColor(char.avatarColor)?char.avatarColor:null,hp:me.hp.slice(),mp:me.mp.slice(),hunger:me.hunger.slice(),gold:me.gold,lv:me.lv,xp:me.xp,traits:me.traits.slice(),stats:me.stats.slice(),skills:{...me.skills},equipped:cp(me.equipped),partyId:me.partyId,partyLeader:me.partyLeader,guild:me.guild,intro:me.intro,debuffs:me.fx.filter(f=>f&&f.t==="debuff").map(f=>String(f.n||"")),debuffInfo:me.fx.filter(f=>f&&f.t==="debuff").map(f=>({n:String(f.n||""),label:f.label||f.n,remain:fxRemainMs(f)})),cont:me.cont,area:me.area,sub:me.sub,place:locText()});
+const pubProfile=()=>({name:me.name,job:me.job,origin:me.origin,day:me.day,color:me.color,avatarColor:okColor(char.avatarColor)?char.avatarColor:null,photo:okPhoto(char.photo)?char.photo:null,hp:me.hp.slice(),mp:me.mp.slice(),hunger:me.hunger.slice(),gold:me.gold,lv:me.lv,xp:me.xp,traits:me.traits.slice(),stats:me.stats.slice(),skills:{...me.skills},equipped:cp(me.equipped),partyId:me.partyId,partyLeader:me.partyLeader,guild:me.guild,intro:me.intro,debuffs:me.fx.filter(f=>f&&f.t==="debuff").map(f=>String(f.n||"")),debuffInfo:me.fx.filter(f=>f&&f.t==="debuff").map(f=>({n:String(f.n||""),label:f.label||f.n,remain:fxRemainMs(f)})),cont:me.cont,area:me.area,sub:me.sub,place:locText()});
 let lastProfile=JSON.stringify(pubProfile()),profileAt=0;
 if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(uid,p).catch(()=>{})}
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
@@ -4270,7 +4295,7 @@ applyOfflineHunger();
 renderStatus();
 render();bag();renderAll();clock();
 if(me.expedition&&Date.now()>=me.expedition.end)setTimeout(resolveExp,400);
-return{stop(){_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);window.removeEventListener("focus",checkExpAct);if(rosterUnsub)rosterUnsub();if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(presenceRef)remove(presenceRef).catch(()=>{})}};
+return{stop(){_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);window.removeEventListener("focus",checkExpAct);if(rosterUnsub)rosterUnsub();if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};if(whisperPingUnsub)try{whisperPingUnsub()}catch(e){};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(presenceRef)remove(presenceRef).catch(()=>{})}};
 
 
 }
