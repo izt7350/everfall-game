@@ -302,12 +302,12 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .dot{width:8px;height:8px;background:var(--name-color,var(--ok))}
 
 /* chat — 이름과 본문을 한 줄에, 시간은 오른쪽 위 고정 */
-#gameRoot .chat{padding:0;min-height:440px}
+#gameRoot .chat{padding:0;height:440px;min-height:440px}
 #gameRoot .ctabs{border-bottom:1px solid var(--line);padding:0 20px;gap:8px}
 #gameRoot .ctab{flex:0 0 auto;height:48px;padding:0 4px;border:0;background:none;color:var(--dim);font-size:14px;line-height:22px;font-weight:500;position:relative}
 #gameRoot .ctab[aria-selected="true"]{color:var(--accent-text);border-bottom:0}
 #gameRoot .ctab[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px;background:var(--accent)}
-#gameRoot .log{display:block;padding:4px 20px 8px;font-size:14px;line-height:20px;gap:0}
+#gameRoot .log{display:block;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 20px 8px;font-size:14px;line-height:20px;gap:0}
 #gameRoot .msg{position:relative;display:block;padding:8px 64px 8px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:20px;color:var(--text);letter-spacing:-0.1px}
 #gameRoot .msg:last-child{border-bottom:0}
 #gameRoot .msg .who{display:inline-block;margin-right:6px;font-weight:500;color:var(--name-color,var(--accent-text));white-space:nowrap}
