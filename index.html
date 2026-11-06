@@ -1163,6 +1163,9 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.expLogs=Array.isArray(c.expLogs)?c.expLogs.filter(l=>l&&typeof l.text==="string"&&isFinite(+l.at)).slice(-200):[];
  o.expMeta=c.expMeta&&typeof c.expMeta==="object"?c.expMeta:null;
  o.expArchive=Array.isArray(c.expArchive)?c.expArchive.filter(r=>r&&typeof r==="object"&&Array.isArray(r.logs)).slice(0,1).map(r=>({meta:r.meta&&typeof r.meta==="object"?{...r.meta}:null,logs:r.logs.filter(l=>l&&typeof l.text==="string"&&isFinite(+l.at)).slice(-200)})):[];
+ o.walkDay=typeof c.walkDay==="string"?c.walkDay:"";
+ o.walkMin=Math.max(0,+c.walkMin||0);
+ o.walkRolls=Math.max(0,Math.floor(+c.walkRolls||0));
  o.traits=Array.isArray(c.traits)?c.traits.filter(t=>typeof t==="string"&&TRAITS[t]):(c.trait&&TRAITS[c.trait]?[c.trait]:[]);
  o.lastTraitDay=typeof c.lastTraitDay==="string"?c.lastTraitDay:"";
  o.rest=c.rest&&typeof c.rest==="object"&&isFinite(+c.rest.end)?{start:Math.max(0,+c.rest.start||0),end:+c.rest.end,min:Math.max(0,+c.rest.min||0),hp:Math.max(0,+c.rest.hp||0),mp:Math.max(0,+c.rest.mp||0),lowHp:!!c.rest.lowHp,lowMp:!!c.rest.lowMp}:null;
@@ -1431,7 +1434,8 @@ const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||cha
  hungerAt:isFinite(+char.hungerAt)?+char.hungerAt:Date.now(),
  downed:opts.downed!==undefined?opts.downed:(char.downed&&typeof char.downed==="object"&&isFinite(+char.downed.until)?{...char.downed}:null),deadPending:false,
  expLogs:cp(Array.isArray(char.expLogs)?char.expLogs.slice(-200):[]),expMeta:char.expMeta&&typeof char.expMeta==="object"?{...char.expMeta}:null,
- expArchive:cp(Array.isArray(char.expArchive)?char.expArchive.slice(0,1):[])};
+ expArchive:cp(Array.isArray(char.expArchive)?char.expArchive.slice(0,1):[]),
+ walkDay:typeof char.walkDay==="string"?char.walkDay:"",walkMin:Math.max(0,+char.walkMin||0),walkRolls:Math.max(0,Math.floor(+char.walkRolls||0))};
 const uid=opts.uid||null;
 // ---- 관리자 전용 활동 로그 (캐릭터별 링 버퍼) ----
 const LOG_SLOTS=200,charId=Math.max(0,Math.floor(+char.createdAt||0));
@@ -3597,8 +3601,20 @@ $("mvno").onclick=()=>$("mvmodal").hidden=true;
 const consume=(n,c)=>{for(let i=0;i<c;i++)me.inv.splice(me.inv.findIndex(x=>nm(x)===n),1)};
 $("mvgo").onclick=()=>{const q=quote(mv.kind,mv.n,mv.mode,mv.baseMin);if(count("먹이")<q.food||(q.fuel&&airFuel()<q.fuel))return;
  consume("먹이",q.food);if(q.fuel){const a=airShip();if(a)a.fuel=Math.max(0,airFuel()-q.fuel)}
- me.travel={end:Date.now()+q.min*60000,dest:mv.dest,label:mv.label};$("mvmodal").hidden=true;bag();renderAll();try{render()}catch(e){}};
-function arrive(){sfx("ok");playCompleteSound();const d=me.travel.dest;me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub;const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:d.sub;if(Math.random()<.25)applyStatus("fatigue",{silent:true});bag();renderAll();try{render()}catch(e){};try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){}}
+ me.travel={end:Date.now()+q.min*60000,dest:mv.dest,label:mv.label,min:q.min,mode:mv.mode};$("mvmodal").hidden=true;bag();renderAll();try{render()}catch(e){}};
+const walkDayKey=()=>{try{return new Intl.DateTimeFormat("sv",{timeZone:"Asia/Seoul"}).format(new Date())}catch(e){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}};
+function addWalkMinutes(min){
+ const add=Math.max(0,+min||0);if(!add)return;
+ const key=walkDayKey();
+ if(me.walkDay!==key){me.walkDay=key;me.walkMin=0;me.walkRolls=0}
+ me.walkMin+=add;
+ const target=Math.floor(me.walkMin/120);
+ while(me.walkRolls<target){
+  me.walkRolls++;
+  if(Math.random()<.10)applyStatus("fatigue");
+ }
+}
+function arrive(){sfx("ok");playCompleteSound();const d=me.travel.dest,walkMin=Math.max(0,+me.travel.min||0);me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub;const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:d.sub;addWalkMinutes(walkMin);bag();renderAll();try{render()}catch(e){};try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){}}
 T(()=>{if(me.travel){Date.now()>=me.travel.end?arrive():renderAll()}},1000);
 T(checkExpAct,1000);
 tickStatus();T(()=>{tickStatus();tickHunger();tickPet()},15000);
@@ -4055,8 +4071,7 @@ $("explore").onclick=()=>{const used=exploreUsed();if(used>=EXPLORE_DAILY_LIMIT)
  else modal("아무것도 없음","주변을 샅샅이 뒤졌지만 쓸 만한 것은 없다.");
  if(!battle&&!metMonster){
   if(Math.random()<.05)applyStatus("wound",{silent:true});
-  if(Math.random()<.03)applyStatus("fatigue",{silent:true});
-  if(me.hunger[0]<=0)applyStatus("starvation",{silent:true});
+    if(me.hunger[0]<=0)applyStatus("starvation",{silent:true});
  }
  bag()};
 function exploreCd(){const b=$("explore");if(!b)return;const used=exploreUsed(),dayDone=used>=EXPLORE_DAILY_LIMIT,left=EXPLORE_COOLDOWN-(Date.now()-(me.lastExplore||0)),busy=!!me.travel||!!me.expedition;b.disabled=busy||dayDone||left>0;b.textContent=dayDone?"오늘 탐사 완료":left>0?`탐사하기 (${Math.ceil(left/1000)})`:"탐사하기";const st=$("explorest");if(st)st.textContent=` (${used}/${EXPLORE_DAILY_LIMIT})`}
@@ -5105,7 +5120,7 @@ const pubProfile=()=>({name:me.name,job:me.job,origin:me.origin,day:me.day,color
 let lastProfile=JSON.stringify(pubProfile()),profileAt=0;
 if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(uid,p).catch(()=>{})}
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls});
 // 기존 캐릭터 1회 지급: 이동속도 증가 포션 20개
 const SPEED_POTION_GRANT_CUTOFF=Date.parse("2026-11-07T23:59:59+09:00");
 if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
