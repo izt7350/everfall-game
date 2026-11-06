@@ -1070,7 +1070,10 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.guild=typeof c.guild==="string"?c.guild.trim().slice(0,16):"";
  o.intro=typeof c.intro==="string"?c.intro.trim().slice(0,80):"";
  if(!okPhoto(c.photo))o.photo=null;o.blocked=a(c.blocked,[]).filter(x=>typeof x==="string");
- if(!c.v2)Object.assign(o,kit(c.job));else{o.equipped=c.equipped&&typeof c.equipped==="object"?c.equipped:{};o.vehicles=a(c.vehicles,[]);o.pet=c.pet&&typeof c.pet==="object"?c.pet:null;o.ground=c.ground&&typeof c.ground==="object"?c.ground:{}}
+ if(!c.v2)Object.assign(o,kit(c.job));else{o.equipped=c.equipped&&typeof c.equipped==="object"?c.equipped:{};o.vehicles=a(c.vehicles,[]);o.ground=c.ground&&typeof c.ground==="object"?c.ground:{}}
+ const pet=c.pet&&typeof c.pet==="object"?c.pet:null;
+ o.pet=pet?{species:pet.species==="고양이"?"고양이":"강아지",name:String(pet.name||pet.species||"강아지").slice(0,10),hunger:Math.max(0,Math.min(100,Math.floor(isFinite(+pet.hunger)?+pet.hunger:100))),affection:Math.max(0,Math.min(100,Math.floor(isFinite(+pet.affection)?+pet.affection:50))),petAt:isFinite(+pet.petAt)?+pet.petAt:0,hungerAt:isFinite(+pet.hungerAt)?+pet.hungerAt:Date.now(),affectionAt:isFinite(+pet.affectionAt)?+pet.affectionAt:Date.now()}:null;
+ o.petAdoptLockUntil=Math.max(0,+c.petAdoptLockUntil||0);
  if(!c.testCleanup){
   const legacyCompanion=(o.vehicles||[]).some(isLegacyTestVehicle)||isLegacyTestPet(o.pet);
   const legacyStatuses=(o.fx||[]).filter(isLegacyTestStatus).length;
@@ -1271,8 +1274,8 @@ S|난파선 무덤|8|해안에 좌초된 선박들이 겹겹이 쌓여 있는 �
 #마왕성
 C|뒤집힌 성채|세계의 동쪽에 갑자기 솟아난 정체불명의 거대한 성채. 처음 나타났을 때부터 성의 일부가 하늘을 향해 거꾸로 뒤집혀 있었으며, 주변의 지형과 공간마저 비정상적으로 뒤틀려 있다. 마왕성의 출현 이후 세계 곳곳에 공간 균열이 발생하고 괴물들이 쏟아져 나오기 시작했다. 현재는 누구도 제대로 접근하지 못하는 재앙의 근원으로 여겨진다.|15
 P|cap:50,27;stair:51,14;bone:50,37;valley:48,46;pred:39,29
-E|cap-stair;cap-bone;cap-valley;valley-pred
-L|stair,cap,valley,pred;cap,bone
+E|cap-stair;cap-bone;bone-valley;cap-pred
+L|stair,cap,pred;cap,bone,valley
 A|stair|역방향 계단||13~14|중력과 방향의 법칙이 뒤틀린 기이한 계단 지대. 계단은 아래로 이어지는 것처럼 보이지만 끝없이 위로 올라가거나, 때로는 발을 내딛는 순간 몸이 반대 방향으로 끌려간다. 공간 균열의 영향이 특히 강한 곳으로, 길을 잃은 탐험가들이 흔적도 없이 사라지곤 한다.
 S|천장 위의 층계참|13|바닥과 천장의 구분이 뒤집힌 공간.
 S|끝없는 나선로|14|같은 장소를 반복해서 지나게 되는 나선형 통로.
@@ -1295,7 +1298,7 @@ S|버려진 원정대 야영지(거점)|0|골짜기를 조사하러 왔다가 �
 S|왕의 굴|12|골짜기에서 가장 강력한 포식자가 머무는 깊은 동굴.`;
 const day=Math.floor((Date.now()-(char.createdAt||Date.now()))/864e5)+1,cp=o=>JSON.parse(JSON.stringify(o));
 const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||char.origin,area:char.area||"cap",sub:char.sub||null,travel:char.travel||null,gold:char.gold??100,
- inv:cp(char.items||[]),equipped:cp(char.equipped||{}),vehicles:cp(char.vehicles||[]),pet:cp(char.pet||null),ground:cp(char.ground||{}),blocked:cp(char.blocked||[]),
+ inv:cp(char.items||[]),equipped:cp(char.equipped||{}),vehicles:cp(char.vehicles||[]),pet:cp(char.pet||null),petAdoptLockUntil:Math.max(0,+char.petAdoptLockUntil||0),ground:cp(char.ground||{}),blocked:cp(char.blocked||[]),
  hp:cp(char.hp||[100,100]),mp:cp(char.mp||[100,100]),hunger:cp(char.hunger||[100,100]),isAdmin:!!opts.admin,fx:cp(char.fx||[]),
  color:/^#[0-9a-fA-F]{6}$/.test(char.color||"")?char.color:"#CB3533",
  traits:cp(Array.isArray(char.traits)?char.traits:(char.trait?[char.trait]:[])),
@@ -1837,7 +1840,7 @@ const HUNGER_PER_HOUR=2,HUNGER_CATCHUP_MIN=30,OFFLINE_HUNGER_CAP_MIN=12*60;
 let hungerCarry=0;
 function tickHunger(){
  const now=Date.now();
- if(me.downed||me.deadPending){me.hungerAt=now;hungerCarry=0;return}
+ if(me.downed||me.deadPending){if(now-(+me.hungerAt||0)>60000)me.hungerAt=now;hungerCarry=0;return}
  const last=+me.hungerAt||now;
  const mins=Math.min(HUNGER_CATCHUP_MIN,(now-last)/60000);
  if(mins<1)return;
@@ -2420,7 +2423,7 @@ if(me.downed){subscribeOwnDowned();updateDownedBar();if(me.downed.revive)setTime
 
 // 팝업
 let popF=[];
-function pop(t,h,b,lock){$("pt").textContent=t;$("pb").innerHTML=h;popF=b;$("pbtn").innerHTML=b.map((x,k)=>`<button class="btn ${x.c===undefined?"alt":x.c}" data-k="${k}">${x.t}</button>`).join("");$("pop").dataset.lock=lock?"1":"";$("pop").hidden=false}
+function pop(t,h,b,lock){$("pt").textContent=t;$("pb").innerHTML=h;popF=b;$("pbtn").innerHTML=b.map((x,k)=>`<button class="btn ${x.c===undefined?"alt":x.c}" data-k="${k}"${x.disabled?" disabled":""}>${x.t}</button>`).join("");$("pop").dataset.lock=lock?"1":"";$("pop").hidden=false}
 const closePop=()=>{$("pop").hidden=true};
 $("pbtn").onclick=e=>{const b=e.target.closest("[data-k]");if(!b)return;const f=popF[+b.dataset.k];closePop();if(f.fn)f.fn()};
 
@@ -2621,6 +2624,90 @@ async function graveMourn(gid,kind){
 }
 // 애완동물 / 탈것
   const fmtWait=ms=>{const m=Math.max(1,Math.ceil(ms/60000));return m>=60?(Math.floor(m/60)+"시간"+(m%60?" "+(m%60)+"분":"")):m+"분"};
+// 애완동물 발견 / 성장 / 이탈
+const PET_HUNGER_PER_HOUR=2,PET_AFFECTION_PER_HOUR=1/3,PET_OFFLINE_CAP_MIN=12*60,PET_ADOPT_LOCK_MS=3*864e5;
+let petHungerCarry=0,petAffectionCarry=0;
+function tickPet(){
+ const p=me.pet;if(!p)return;
+ const now=Date.now();
+ if(me.downed||me.deadPending){if(now-(+p.hungerAt||0)>60000){p.hungerAt=now;p.affectionAt=now}petHungerCarry=0;petAffectionCarry=0;return}
+ let changed=false;
+ const hMins=Math.min(HUNGER_CATCHUP_MIN,(now-(+p.hungerAt||now))/60000);
+ if(hMins>=1){
+  p.hungerAt=now;petHungerCarry+=hMins*(PET_HUNGER_PER_HOUR/60);
+  const lose=Math.floor(petHungerCarry);
+  if(lose>0){petHungerCarry-=lose;p.hunger=Math.max(0,p.hunger-lose);changed=true}
+ }
+ const aMins=Math.min(HUNGER_CATCHUP_MIN,(now-(+p.affectionAt||now))/60000);
+ if(aMins>=1){
+  p.affectionAt=now;petAffectionCarry+=aMins*(PET_AFFECTION_PER_HOUR/60);
+  const lose=Math.floor(petAffectionCarry);
+  if(lose>0){petAffectionCarry-=lose;p.affection=Math.max(0,p.affection-lose);changed=true}
+ }
+ if(changed){try{rideRender()}catch(e){};checkPetLeave()}
+}
+function applyOfflinePet(){
+ const p=me.pet;if(!p)return;
+ const now=Date.now();
+ if(me.downed||me.deadPending){p.hungerAt=now;p.affectionAt=now;return}
+ const hMins=Math.min(PET_OFFLINE_CAP_MIN,Math.max(0,(now-(+p.hungerAt||now))/60000));
+ const aMins=Math.min(PET_OFFLINE_CAP_MIN,Math.max(0,(now-(+p.affectionAt||now))/60000));
+ const hLoss=Math.floor(hMins*(PET_HUNGER_PER_HOUR/60)),aLoss=Math.floor(aMins*(PET_AFFECTION_PER_HOUR/60));
+ p.hunger=Math.max(0,p.hunger-hLoss);p.affection=Math.max(0,p.affection-aLoss);
+ p.hungerAt=now;p.affectionAt=now;
+ if(hLoss||aLoss){try{rideRender()}catch(e){};checkPetLeave()}
+}
+function checkPetLeave(){
+ const p=me.pet;if(!p)return;
+ const hunger=p.hunger<=0,affection=p.affection<=0;
+ if(hunger||affection)petLeave(hunger&&affection?"both":hunger?"hunger":"affection");
+}
+function petLeave(reason){
+ if(!me.pet)return;
+ me.pet=null;me.petAdoptLockUntil=Date.now()+PET_ADOPT_LOCK_MS;
+ petHungerCarry=0;petAffectionCarry=0;
+ try{rideRender()}catch(e){}
+ try{opts.save(cp(snap()))}catch(e){}
+ const msg=reason==="both"?"관심을 주지 않는 사이 애완동물이 떠났다.":reason==="hunger"?"배고픔을 이기지 못하고 애완동물이 떠났다.":"애정이 부족해 애완동물이 떠났다.";
+ const show=()=>{
+  const busy=["pop","modal","cmodal","rmodal","tmodal","mvmodal"].some(id=>{const el=$(id);return el&&!el.hidden})||!!document.querySelector(".adm-pop:not([hidden])");
+  if(busy){setTimeout(show,1000);return}
+  pop("애완동물 이탈",`<p>${esc(msg)}</p>`,[{t:"확인"}],true);
+ };
+ show();
+}
+function showPetDiscovery(){
+ if(me.pet||Date.now()<(+me.petAdoptLockUntil||0))return;
+ const species=Math.random()<.5?"고양이":"강아지",hasFeed=count("먹이")>0;
+ pop("동물 발견",`<p>굶주린 ${species} 한 마리가 이쪽을 바라보고 있다.</p>`,[
+  {t:"먹이 주기",c:"",disabled:!hasFeed,fn:()=>{
+   if(count("먹이")<1)return toast("먹이가 없습니다.");
+   consume("먹이",1);bag();
+   showPetSecond(species);
+  }},
+  {t:"취소"}
+ ],true);
+}
+function showPetSecond(species){
+ const text=species==="고양이"?"고양이가 다리에 몸을 부벼온다.":"강아지가 꼬리를 흔든다.";
+ pop("동물 발견",`<p>${text}</p>`,[
+  {t:"함께 간다",c:"",fn:()=>askPetName(species)},
+  {t:"두고 간다"}
+ ],true);
+}
+function askPetName(species){
+ pop("이름 짓기",`<p>${species}의 이름을 정해 주세요.</p><input id="petNameIn" maxlength="10" placeholder="${species}">`,[
+  {t:"입양",c:"",fn:()=>adoptPet(species,($("petNameIn")&&$("petNameIn").value||"").trim().slice(0,10)||species)}
+ ],true);
+ setTimeout(()=>{const i=$("petNameIn");if(i){i.focus();i.select()}},0);
+}
+function adoptPet(species,name){
+ me.pet={species,name,hunger:100,affection:50,petAt:0,hungerAt:Date.now(),affectionAt:Date.now()};
+ petHungerCarry=0;petAffectionCarry=0;
+ try{rideRender()}catch(e){}
+ try{opts.save(cp(snap()))}catch(e){}
+ toast(`${name}이(가) 동행에 추가되었습니다.`);
+}
   function rideRender(){const p=me.pet,box=$("ride");
    if(!p&&!me.vehicles.length){box.hidden=true;box.innerHTML="";return}
    box.hidden=false;
@@ -2669,10 +2756,10 @@ async function graveMourn(gid,kind){
   function askName(init,cb){pop("이름 변경",`<input id="rnIn" maxlength="10" value="${esc(init)}">`,[{t:"변경",c:"",fn:()=>{const v=$("rnIn").value.trim();if(v)cb(v.slice(0,10))}},{t:"취소"}])}
   $("ride").onclick=e=>{const t=e.target.closest("button");if(!t)return;const p=me.pet;
    if(t.dataset.rn!=null){const o=t.dataset.rn==="pet"?p:me.vehicles[+t.dataset.rn];askName(o.name,v=>{o.name=v;rideRender()})}
-   else if(t.dataset.pa==="feed"){if(!p)return;if(p.hunger>=100)modal("배부르다",`${p.name}은(는) 배가 부르다.`);else if(count("먹이")<1)modal("먹이가 없다","먹이가 필요하다.");else{consume("먹이",1);p.hunger=Math.min(100,p.hunger+20);bag();rideRender()}}
+   else if(t.dataset.pa==="feed"){if(!p)return;if(p.hunger>=100)modal("배부르다",`${p.name}은(는) 배가 부르다.`);else if(count("먹이")<1)modal("먹이가 없다","먹이가 필요하다.");else{consume("먹이",1);p.hunger=Math.min(100,p.hunger+20);p.hungerAt=Date.now();petHungerCarry=0;bag();rideRender()}}
    else if(t.dataset.pa==="pet"){if(!p)return;const wait=3*36e5-(Date.now()-(+p.petAt||0));
     if(wait>0){modal("아직은 쉬고 싶다",`${p.name}은(는) ${fmtWait(wait)} 후에 쓰다듬을 수 있다.`);return}
-    p.affection=Math.min(100,p.affection+2*(1+(JT().aff||0)));p.petAt=Date.now();rideRender()}
+    p.affection=Math.min(100,p.affection+10);me.mp[0]=Math.min(me.mp[1],me.mp[0]+10);p.petAt=Date.now();p.affectionAt=Date.now();petAffectionCarry=0;barsRender();rideRender()}
    else if(t.dataset.va!=null){const v=me.vehicles[+t.dataset.va];if(!v||v.type==="말")return;v.fuel=Math.max(0,Math.min(3,v.fuel||0));if(v.fuel>=3){modal("연료가 가득 차있다","더 이상 채울 수 없다.");return;}if(count("마력석")<1){modal("마력석이 없다","연료가 필요하다.");return;}consume("마력석",1);v.fuel=Math.min(3,(v.fuel||0)+(jobKey()==="마법사"?2:1));bag();rideRender()}
    else if(t.dataset.vt!=null){const v=me.vehicles[+t.dataset.vt];if(!v)return;const tier=v.tier||0;if(tier>=3)return;
     const mat=v.type==="말"?"각설탕":"마법 개조석";
@@ -2719,7 +2806,7 @@ $("mvgo").onclick=()=>{const q=quote(mv.kind,mv.n,mv.mode,mv.baseMin);if(count("
 function arrive(){sfx("ok");const d=me.travel.dest;me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub;const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:d.sub;if(Math.random()<.25)applyStatus("fatigue",{silent:true});renderAll();try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){}}
 T(()=>{if(me.travel){Date.now()>=me.travel.end?arrive():renderAll()}},1000);
 T(checkExpAct,1000);
-tickStatus();T(()=>{tickStatus();tickHunger()},15000);
+tickStatus();T(()=>{tickStatus();tickHunger();tickPet()},15000);
 $("skip").onclick=()=>{if(!me.isAdmin)return;if(me.travel)arrive()};
 
 // ---- 지도 ----
@@ -3040,7 +3127,7 @@ function exploreUsed(){
  if(me.exploreDay!==k){me.exploreDay=k;me.exploreCount=0}
  return Math.max(0,Math.min(EXPLORE_DAILY_LIMIT,Math.floor(+me.exploreCount||0)));
 }
-$("explore").onclick=()=>{const used=exploreUsed();if(used>=EXPLORE_DAILY_LIMIT)return toast(`오늘의 단기 탐사 한도를 모두 사용했습니다. (${EXPLORE_DAILY_LIMIT}/${EXPLORE_DAILY_LIMIT})`);const left=30000-(Date.now()-(me.lastExplore||0));if(left>0)return toast(`탐사 쿨타임 ${Math.ceil(left/1000)}초`);me.lastExplore=Date.now();me.exploreDay=exploreDayKey();me.exploreCount=used+1;spendHunger(1);if(me.hunger[0]<=0){checkVitals();return}const tier=battleStars(),areaObj=(()=>{try{return AR(me.area)}catch(e){return null}})(),r=Math.random(),encRed=Math.min(.8,calcStats(me).encounterRed+(isNightNow()?(toolMods().nightEncounterRed||0)/100:0));
+$("explore").onclick=()=>{const used=exploreUsed();if(used>=EXPLORE_DAILY_LIMIT)return toast(`오늘의 단기 탐사 한도를 모두 사용했습니다. (${EXPLORE_DAILY_LIMIT}/${EXPLORE_DAILY_LIMIT})`);const left=30000-(Date.now()-(me.lastExplore||0));if(left>0)return toast(`탐사 쿨타임 ${Math.ceil(left/1000)}초`);me.lastExplore=Date.now();me.exploreDay=exploreDayKey();me.exploreCount=used+1;spendHunger(1);if(me.hunger[0]<=0){checkVitals();return}if(!me.pet&&Date.now()>=(+me.petAdoptLockUntil||0)&&Math.random()<.001){showPetDiscovery();return}const tier=battleStars(),areaObj=(()=>{try{return AR(me.area)}catch(e){return null}})(),r=Math.random(),encRed=Math.min(.8,calcStats(me).encounterRed+(isNightNow()?(toolMods().nightEncounterRed||0)/100:0));
  if(r<.6){const loot=rollLoot(tier,"gather",null,areaObj),got=[];for(const n of loot){registerItem(n);const item=lootObj(n);if(canAdd(item)){addItem(item);got.push(n)}}if(got.length){const d=ITEM_BY_NAME[got[0]];if(d)awardAction("search",d.grade==="일반"?ACTION_XP.search:ACTION_XP.rareSearch,d.grade,"search")}modal("아이템 획득",got.length?`${esc(tally(got))}을(를) 얻었다.`:"쓸 만한 것을 찾지 못했다.")}
  else if(r<.6+.25*(1-encRed)){const mon=rollShortMonster(tier);if(mon)startBattle(mon,{star:tier,source:mon.role==="정예"?"fieldElite":"fieldNormal",areaObj});else modal("아무것도 없음","주변을 샅샅이 뒤졌지만 쓸 만한 것은 없다.")}
  else modal("아무것도 없음","주변을 샅샅이 뒤졌지만 쓸 만한 것은 없다.");
@@ -3867,7 +3954,7 @@ const pubProfile=()=>({name:me.name,job:me.job,origin:me.origin,day:me.day,color
 let lastProfile=JSON.stringify(pubProfile()),profileAt=0;
 if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(uid,p).catch(()=>{})}
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,expLogs:me.expLogs,expMeta:me.expMeta});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,expLogs:me.expLogs,expMeta:me.expMeta});
 let last=JSON.stringify(snap());
 T(()=>{if(me.deadPending)return;const j=JSON.stringify(snap());if(j!==last){last=j;opts.save(cp(snap()))}},3000);
 $("exitGame").onclick=()=>opts.exit(cp(snap()));
@@ -3965,6 +4052,7 @@ function tryBadTrait(name){
  if(!tr||tr.kind!=="negative")return false;
  return grantTrait(name,BAD_TRAIT_CHANCE[name]||0);
 }
+applyOfflinePet();
 applyOfflineHunger();
 renderStatus();
 render();bag();renderAll();clock();
