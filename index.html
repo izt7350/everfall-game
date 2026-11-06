@@ -944,7 +944,7 @@ function lobby(){const c=acc.character;
  if($("admReset"))$("admReset").onclick=()=>{
   admPop("캐릭터 초기화",`<p><b>${esc(c.name)}</b> 캐릭터를 초기화합니다. 계정과 아이디는 유지되지만 캐릭터 데이터는 복구할 수 없습니다.</p>`,[{t:"취소"},{t:"확인",c:"bad",fn:async()=>{try{acc.character=null;await S.setAcc(me.uid,acc);await S.delDowned(me.uid).catch(()=>{});await S.delReviveCooldown(me.uid).catch(()=>{});await S.delProfile(me.uid).catch(()=>{});toast("캐릭터를 초기화했습니다");go("create")}catch(e){console.warn(e);toast("초기화에 실패했습니다")}}}]);
  };
- if(me.uid)S.getDowned(me.uid).then(d=>{if(d&&(+d.until||0)<=Date.now()&&!(d.revive&&+d.revive.at<=+d.until))showDeathWill(c,d)}).catch(()=>{})}
+ }
 
 // ---- 관리자: 회원 관리 ----
 function adminLogin(){let keepPref=true;try{keepPref=localStorage.getItem("everfall_keep_login")!=="0"}catch(e){}app(`<div class="card center"><h1 class="brand">관리자</h1><div class="dim" style="margin-top:8px">관리자 계정으로 로그인</div><div class="stack" style="margin-top:32px;text-align:left;gap:16px"><div class="field"><h3 style="margin:0">아이디</h3><input type="text" id="aid" placeholder="관리자 아이디" autocomplete="username"></div><div class="field"><h3 style="margin:0">비밀번호</h3><input type="password" id="apw" placeholder="비밀번호" autocomplete="current-password"></div><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim);cursor:pointer"><input type="checkbox" id="keepLogin" ${keepPref?"checked":""} style="width:16px;height:16px;accent-color:var(--accent)"> 로그인 유지</label></div><div class="err" id="err" style="margin-top:12px;text-align:left;font-size:12px;line-height:18px;color:var(--bad)"></div><div class="stack" style="margin-top:20px;gap:8px"><button class="btn big" id="doAdmin">관리자 로그인</button><button class="btn alt big" id="admBack">돌아가기</button></div><div class="dim sm" style="margin-top:16px">관리자 권한이 있는 계정만 접속할 수 있습니다.</div></div>`);
@@ -1049,6 +1049,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.lastExplore=isFinite(+c.lastExplore)?+c.lastExplore:0;
  o.exploreDay=typeof c.exploreDay==="string"?c.exploreDay:"";
  o.exploreCount=Math.max(0,Math.floor(+c.exploreCount||0));
+ o.hungerAt=isFinite(+c.hungerAt)?+c.hungerAt:Date.now();
  o.expLogs=Array.isArray(c.expLogs)?c.expLogs.filter(l=>l&&typeof l.text==="string"&&isFinite(+l.at)).slice(-40):[];
  o.expMeta=c.expMeta&&typeof c.expMeta==="object"?c.expMeta:null;
  o.traits=Array.isArray(c.traits)?c.traits.filter(t=>typeof t==="string"&&TRAITS[t]):(c.trait&&TRAITS[c.trait]?[c.trait]:[]);
@@ -1117,8 +1118,14 @@ async function play(){const save=s=>{acc.character={...acc.character,...s};S.set
    acc.character=c;await S.setAcc(me.uid,acc);await S.delDowned(me.uid).catch(()=>{});
    d=null;toast("누군가 당신을 소생시켰습니다.");
   }
-  const cur=dOk?d:(c.downed||null),revived=!!(cur&&cur.revive&&+cur.revive.at<=+cur.until);
-  if(cur&&!revived&&(+cur.until||0)<=Date.now()){showDeathWill(c,cur);return}
+  let cur=dOk?d:(c.downed||null);
+  const revived=!!(cur&&cur.revive&&+cur.revive.at<=+cur.until);
+  if(cur&&!revived&&(+cur.until||0)<=Date.now()){
+   const now=Date.now();
+   cur={...cur,name:cur.name||c.name,cont:cur.cont||c.cont,area:cur.area||c.area,sub:cur.sub||"",place:cur.place||c.place||"",since:now,until:now+90*60000,revive:null,dead:false};
+   c.downed=cur;acc.character=c;
+   try{await S.setAcc(me.uid,acc);await S.setDowned(me.uid,cur)}catch(e){console.warn("offline downed reset",e)}
+  }
   const active=cur&&!revived&&+cur.until>Date.now()?cur:null;
   game=startGame(c,{admin:me.admin,uid:me.uid,save,downed:active,
    exit:s=>{game&&game.stop();game=null;save(s);$("gameRoot").hidden=true;$("authRoot").hidden=false;go("lobby")},
@@ -1306,6 +1313,7 @@ const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||cha
  lastExplore:isFinite(+char.lastExplore)?+char.lastExplore:0,
  exploreDay:typeof char.exploreDay==="string"?char.exploreDay:"",
  exploreCount:Math.max(0,Math.floor(+char.exploreCount||0)),
+ hungerAt:isFinite(+char.hungerAt)?+char.hungerAt:Date.now(),
  downed:opts.downed!==undefined?opts.downed:(char.downed&&typeof char.downed==="object"&&isFinite(+char.downed.until)?{...char.downed}:null),deadPending:false,
  expLogs:cp(Array.isArray(char.expLogs)?char.expLogs.slice(-40):[]),expMeta:char.expMeta&&typeof char.expMeta==="object"?{...char.expMeta}:null};
 const uid=opts.uid||null;
@@ -1825,14 +1833,15 @@ function tickStatus(){
 }
 
 // 허기 자연 감소: 기본 30분당 1 (시간당 2). 장비·도구의 '허기 소모 감소' 적용.
-const HUNGER_PER_HOUR=2,HUNGER_CATCHUP_MIN=30;
-let hungerAt=Date.now(),hungerCarry=0;
+const HUNGER_PER_HOUR=2,HUNGER_CATCHUP_MIN=30,OFFLINE_HUNGER_CAP_MIN=12*60;
+let hungerCarry=0;
 function tickHunger(){
  const now=Date.now();
- if(me.downed||me.deadPending){hungerAt=now;hungerCarry=0;return}
- const mins=Math.min(HUNGER_CATCHUP_MIN,(now-hungerAt)/60000);
+ if(me.downed||me.deadPending){me.hungerAt=now;hungerCarry=0;return}
+ const last=+me.hungerAt||now;
+ const mins=Math.min(HUNGER_CATCHUP_MIN,(now-last)/60000);
  if(mins<1)return;
- hungerAt=now;
+ me.hungerAt=now;
  const red=Math.max(0,Math.min(90,+((calcStats(me).hungerRed)||0)));
  hungerCarry+=mins*(HUNGER_PER_HOUR/60)*(1-red/100);
  const lose=Math.floor(hungerCarry);
@@ -1841,6 +1850,23 @@ function tickHunger(){
  me.hunger[0]=Math.max(0,me.hunger[0]-lose);
  try{barsRender()}catch(e){}
  try{checkVitals()}catch(e){}
+}
+function applyOfflineHunger(){
+ const now=Date.now();
+ if(me.downed||me.deadPending){me.hungerAt=now;return}
+ const last=+me.hungerAt||now;
+ const mins=Math.min(OFFLINE_HUNGER_CAP_MIN,Math.max(0,(now-last)/60000));
+ if(mins<=0){me.hungerAt=now;return}
+ const red=Math.max(0,Math.min(90,+((calcStats(me).hungerRed)||0)));
+ hungerCarry+=mins*(HUNGER_PER_HOUR/60)*(1-red/100);
+ const lose=Math.floor(hungerCarry);
+ if(lose>0){
+  hungerCarry-=lose;
+  me.hunger[0]=Math.max(0,me.hunger[0]-lose);
+  me.hungerAt=now;
+  try{barsRender()}catch(e){}
+  try{checkVitals()}catch(e){}
+ }else me.hungerAt=now;
 }
 function spendHunger(n){
  const amt=Math.max(0,Math.floor(+n||0));if(!amt)return 0;
@@ -2693,7 +2719,7 @@ $("mvgo").onclick=()=>{const q=quote(mv.kind,mv.n,mv.mode,mv.baseMin);if(count("
 function arrive(){sfx("ok");const d=me.travel.dest;me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub;const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:d.sub;if(Math.random()<.25)applyStatus("fatigue",{silent:true});renderAll();try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){}}
 T(()=>{if(me.travel){Date.now()>=me.travel.end?arrive():renderAll()}},1000);
 T(checkExpAct,1000);
-tickStatus();tickHunger();T(()=>{tickStatus();tickHunger()},15000);
+tickStatus();T(()=>{tickStatus();tickHunger()},15000);
 $("skip").onclick=()=>{if(!me.isAdmin)return;if(me.travel)arrive()};
 
 // ---- 지도 ----
@@ -3841,7 +3867,7 @@ const pubProfile=()=>({name:me.name,job:me.job,origin:me.origin,day:me.day,color
 let lastProfile=JSON.stringify(pubProfile()),profileAt=0;
 if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(uid,p).catch(()=>{})}
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,guild:me.guild,intro:me.intro,expedition:me.expedition,expLogs:me.expLogs,expMeta:me.expMeta});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,expLogs:me.expLogs,expMeta:me.expMeta});
 let last=JSON.stringify(snap());
 T(()=>{if(me.deadPending)return;const j=JSON.stringify(snap());if(j!==last){last=j;opts.save(cp(snap()))}},3000);
 $("exitGame").onclick=()=>opts.exit(cp(snap()));
@@ -3939,6 +3965,7 @@ function tryBadTrait(name){
  if(!tr||tr.kind!=="negative")return false;
  return grantTrait(name,BAD_TRAIT_CHANCE[name]||0);
 }
+applyOfflineHunger();
 renderStatus();
 render();bag();renderAll();clock();
 if(me.expedition&&Date.now()>=me.expedition.end)setTimeout(resolveExp,400);
