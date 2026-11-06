@@ -989,7 +989,7 @@ function lobby(){const c=acc.character;
  <div class="stack" style="margin-top:14px"><button class="btn big" id="play">게임 입장</button>
  ${me.admin?`<button class="btn alt" id="admReset" style="width:100%">캐릭터 초기화</button>`:""}
  <div class="row"><button class="btn alt" id="lo" style="flex:1">로그아웃</button></div></div></div>`);
- $("lo").onclick=async()=>{await signOut(auth);me={uid:null,name:"",admin:false};acc=null;go("login")};$("play").onclick=play;
+ $("lo").onclick=async()=>{if(game){try{game.stop()}catch(e){}game=null}$("gameRoot").hidden=true;$("authRoot").hidden=false;await signOut(auth);me={uid:null,name:"",admin:false};acc=null;go("login")};$("play").onclick=play;
  if($("admReset"))$("admReset").onclick=()=>{
   admPop("캐릭터 초기화",`<p><b>${esc(c.name)}</b> 캐릭터를 초기화합니다. 계정과 아이디는 유지되지만 캐릭터 데이터는 복구할 수 없습니다.</p>`,[{t:"취소"},{t:"확인",c:"bad",fn:async()=>{try{acc.character=null;await S.setAcc(me.uid,acc);await S.delDowned(me.uid).catch(()=>{});await S.delReviveCooldown(me.uid).catch(()=>{});await S.delProfile(me.uid).catch(()=>{});toast("캐릭터를 초기화했습니다");go("create")}catch(e){console.warn(e);toast("초기화에 실패했습니다")}}}]);
  };
@@ -1033,7 +1033,7 @@ async function admin(){
    ${open===a.id?`<span class="rs"><input type="text" id="rs" placeholder="정지 사유" maxlength="60"><button class="btn bad sm banok" data-a="banok" data-i="${a.id}">정지 확정</button><button class="btn alt sm bancancel" data-a="bancancel" data-i="${a.id}">취소</button></span>`:""}</div>`}).join("")||`<div class="dim" style="padding:16px">회원이 없습니다.</div>`}</div>
   <div class="note">캐릭터 정보창에서 개별 HP 회복과 상태이상 부여·제거가 가능합니다. 정지된 계정은 로그인 단계에서 접속이 막힙니다. 캐릭터 초기화·삭제는 되돌릴 수 없습니다.</div></div>`);
   $("bk").onclick=()=>go("login");
-  $("lg").onclick=async()=>{await signOut(auth);me={uid:null,name:"",admin:false};acc=null;go("login")};
+  $("lg").onclick=async()=>{if(game){try{game.stop()}catch(e){}game=null}$("gameRoot").hidden=true;$("authRoot").hidden=false;await signOut(auth);me={uid:null,name:"",admin:false};acc=null;go("login")};
   $("rf").onclick=admin;
   $("q").oninput=e=>{q=e.target.value;draw();const i=$("q");i.focus();i.setSelectionRange(q.length,q.length)};
   document.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>act(b.dataset.a,b.dataset.i));
@@ -3640,6 +3640,12 @@ const chatUnsub={local:null,world:null,notice:null,whisper:null};
 const chatPaths={};
 let cur="local",sending=false,whisperUser=null,whisperPingUnsub=null;
 const seenPingAt={};
+function resetWhisperTab(){
+ whisperUser=null;
+ const wt=$("wtab");
+ if(wt){wt.hidden=true;wt.textContent="귓속말";wt.removeAttribute("title")}
+}
+resetWhisperTab();
 
 function chatPath(tab){
  if(tab==="local")return "chat/cont/"+me.cont;
@@ -4714,7 +4720,7 @@ renderStatus();
 try{renderProposalPanels()}catch(e){}
 render();bag();renderAll();clock();
 if(me.expedition)setTimeout(checkExpAct,400);
-return{stop(){_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);window.removeEventListener("focus",checkExpAct);if(rosterUnsub)rosterUnsub();if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};if(whisperPingUnsub)try{whisperPingUnsub()}catch(e){};if(partyProposalUnsub)try{partyProposalUnsub()}catch(e){};if(partyExpUnsub)try{partyExpUnsub()}catch(e){};if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(presenceRef)remove(presenceRef).catch(()=>{})}};
+return{stop(){try{resetWhisperTab()}catch(e){};_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);window.removeEventListener("focus",checkExpAct);if(rosterUnsub)rosterUnsub();if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};if(whisperPingUnsub)try{whisperPingUnsub()}catch(e){};if(partyProposalUnsub)try{partyProposalUnsub()}catch(e){};if(partyExpUnsub)try{partyExpUnsub()}catch(e){};if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(presenceRef)remove(presenceRef).catch(()=>{})}};
 
 
 }
