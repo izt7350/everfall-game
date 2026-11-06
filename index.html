@@ -659,18 +659,18 @@ const JOB_TRAITS={
 const JOB_ALIAS={"전직 간호사":"사제","퇴역 병사":"기사","떠돌이 상인":"상인","사냥꾼":"수렵꾼","정비공":"대장장이","수도사":"사제"};
 const JOB_STAT={"광부":[0,1],"모험가":[3,1],"학자":[2,1],"수렵꾼":[5,1]};
 const JOB_KIT={
- "기사":{weapon:"철검",armor:"낡은 사슬 갑옷",gold:80,items:[["마른 빵",2],["생수",1],["붕대",2],["구리 반지",1]]},
- "마법사":{weapon:"낡은 지팡이",armor:"낡은 로브",gold:120,items:[["마른 빵",2],["생수",1],["일반 정신력 포션",1],["마력 가루",1]]},
- "귀족":{weapon:"초심자의 명검",armor:"낡은 로브",gold:300,items:[["마른 빵",1],["생수",1],["들열매 잼",1]],acc1:"구리 반지"},
- "광부":{weapon:"낡은 창",armor:"낡은 가죽 갑옷",gold:60,items:[["마른 빵",2],["생수",1],["곡괭이",1],["철광석",2]]},
- "상인":{weapon:"녹슨 단검",armor:"낡은 가죽 갑옷",gold:300,items:[["마른 빵",2],["생수",1],["말린 생선",1],["구리 반지",1]],bag:"작은 가방"},
- "모험가":{weapon:"철검",armor:"낡은 가죽 갑옷",gold:100,items:[["마른 빵",2],["생수",1],["낡은 지도서",1],["밧줄",1]],bag:"작은 가방"},
- "학자":{weapon:"낡은 마법서",armor:"낡은 로브",gold:120,items:[["마른 빵",2],["생수",1],["낡은 지도서",1],["일반 정신력 포션",1]]},
- "수렵꾼":{weapon:"단궁",armor:"낡은 가죽 갑옷",gold:80,items:[["훈제 고기",1],["마른 빵",1],["생수",1],["고기 조각",2],["가죽 조각",1]]},
- "약초꾼":{weapon:"녹슨 단검",armor:"낡은 천 갑옷",gold:70,items:[["마른 빵",2],["생수",1],["약초",2],["치유초",2],["붕대",2]]},
- "사제":{weapon:"낡은 지팡이",armor:"낡은 로브",gold:90,items:[["마른 빵",2],["생수",1],["일반 회복 포션",2],["붕대",2]]},
- "대장장이":{weapon:"철검",armor:"낡은 사슬 갑옷",gold:90,items:[["마른 빵",2],["생수",1],["제작 도구",1],["철 주괴",1]]},
- "재봉사":{weapon:"녹슨 단검",armor:"낡은 천 갑옷",gold:100,items:[["마른 빵",2],["생수",1],["낡은 천",3]],bag:"작은 가방"}
+ "기사":{weapon:"철검",armor:"낡은 사슬 갑옷",gold:80,items:[["마른 빵",2],["생수",1],["일반 회복 포션",3],["붕대",2],["구리 반지",1]]},
+ "마법사":{weapon:"낡은 지팡이",armor:"낡은 로브",gold:120,items:[["마른 빵",2],["생수",1],["일반 회복 포션",1],["일반 정신력 포션",1],["마력 가루",1]]},
+ "귀족":{weapon:"초심자의 명검",armor:"낡은 로브",gold:300,items:[["마른 빵",1],["생수",1],["일반 회복 포션",2],["들열매 잼",1]],acc1:"구리 반지"},
+ "광부":{weapon:"낡은 창",armor:"낡은 가죽 갑옷",gold:60,items:[["마른 빵",2],["생수",1],["일반 회복 포션",2],["곡괭이",1],["철광석",2]]},
+ "상인":{weapon:"녹슨 단검",armor:"낡은 가죽 갑옷",gold:300,items:[["마른 빵",2],["생수",1],["일반 회복 포션",1],["말린 생선",1],["구리 반지",1]],bag:"작은 가방"},
+ "모험가":{weapon:"철검",armor:"낡은 가죽 갑옷",gold:100,items:[["마른 빵",2],["생수",1],["일반 회복 포션",2],["낡은 지도서",1],["밧줄",1]],bag:"작은 가방"},
+ "학자":{weapon:"낡은 마법서",armor:"낡은 로브",gold:120,items:[["마른 빵",2],["생수",1],["일반 회복 포션",1],["낡은 지도서",1],["일반 정신력 포션",1]]},
+ "수렵꾼":{weapon:"단궁",armor:"낡은 가죽 갑옷",gold:80,items:[["훈제 고기",1],["마른 빵",1],["생수",1],["일반 회복 포션",2],["고기 조각",2],["가죽 조각",1]]},
+ "약초꾼":{weapon:"녹슨 단검",armor:"낡은 천 갑옷",gold:70,items:[["마른 빵",2],["생수",1],["일반 회복 포션",2],["약초",2],["치유초",2],["붕대",2]]},
+ "사제":{weapon:"낡은 지팡이",armor:"낡은 로브",gold:90,items:[["마른 빵",2],["생수",1],["일반 회복 포션",2],["붕대",2],["약초",2]]},
+ "대장장이":{weapon:"철검",armor:"낡은 사슬 갑옷",gold:90,items:[["마른 빵",2],["생수",1],["일반 회복 포션",2],["제작 도구",1],["철 주괴",1]]},
+ "재봉사":{weapon:"녹슨 단검",armor:"낡은 천 갑옷",gold:100,items:[["마른 빵",2],["생수",1],["일반 회복 포션",1],["낡은 천",3]],bag:"작은 가방"}
 };
 const jobKitKey=job=>JOB_KIT[job]?job:(JOB_ALIAS[job]||"모험가");
 const jobKitData=job=>JOB_KIT[jobKitKey(job)]||JOB_KIT["모험가"];
@@ -2510,6 +2510,7 @@ function openSettings(){const dark=isDark();
  <div class="set-field"><label for="setIntro">소개말</label><textarea id="setIntro" maxlength="80" placeholder="자신을 소개하는 한마디">${esc(me.intro||"")}</textarea></div>
  <div class="row" style="justify-content:flex-end"><button type="button" class="btn sm" data-save-profile>프로필 저장</button></div>
  <h4 class="sh">효과음</h4><div class="srow2"><button class="mode" data-sfx="1" aria-pressed="${sfxOn}">켜기</button><button class="mode" data-sfx="0" aria-pressed="${!sfxOn}">끄기</button></div>
+  ${me.isAdmin?`<h4 class="sh">관리자</h4><div class="row"><button type="button" class="btn alt sm" data-clearchat>채팅 전체 초기화</button></div>`:""}
  <h4 class="sh">차단한 계정 (${me.blocked.length})</h4>${me.blocked.length?me.blocked.map((u,i)=>`<div class="row" style="padding:3px 0"><span>${esc(u)}</span><button class="sm2" data-ub="${i}">해제</button></div>`).join(""):`<span class="dim">차단한 계정이 없다.</span>`}`,[{t:"닫기"}]);
  $("pb").onclick=e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.th)setTheme(b.dataset.th,1);
@@ -2517,6 +2518,7 @@ function openSettings(){const dark=isDark();
   else if(b.dataset.sfx!=null){sfxOn=b.dataset.sfx==="1";try{localStorage.setItem("alive_sfx",sfxOn?"1":"0")}catch(x){}}
   else if(b.dataset.ub!=null){me.blocked.splice(+b.dataset.ub,1);render()}
   else if(b.hasAttribute("data-save-profile")){saveProfile()}
+   else if(b.hasAttribute("data-clearchat")){pop("채팅 전체 초기화",`<p>현장·세계·공지·귓속말의 모든 메시지를 삭제합니다. 되돌릴 수 없습니다.</p>`,[{t:"초기화",c:"bad",fn:resetAllChat},{t:"취소",fn:openSettings}]);return}
    else return;openSettings()};
  $("pb").onchange=e=>{if(e.target.id==="ncIn"){me.color=colorOf(e.target.value);applyColor()}}
  function applyColor(){try{opts.save(snap())}catch(e){}render();decorateNames();syncPresence(true);openSettings()}
@@ -3350,6 +3352,18 @@ function subscribeChat(tab,force){
   console.warn("chat",tab,err);
   if(cur===tab)$("log").innerHTML=`<div class="dim" style="padding:8px">채팅을 불러오지 못했어요. Firebase Realtime Database 규칙을 확인해 주세요.</div>`;
  });
+}
+
+async function resetAllChat(){
+ if(!me.isAdmin)return toast("GM 계정만 사용할 수 있습니다.");
+ try{
+  await Promise.all([remove(ref(realtimeDB,"chat")),remove(ref(realtimeDB,"whispers"))]);
+  Object.keys(chatData).forEach(k=>chatData[k]=[]);
+  subscribeChat("local",true);subscribeChat("world",true);subscribeChat("notice",true);
+  if(whisperUser)subscribeChat("whisper",true);
+  try{render()}catch(e){}
+  toast("모든 채팅방을 초기화했습니다.");
+ }catch(e){console.warn(e);toast("채팅 초기화에 실패했습니다. Firebase 규칙을 확인해 주세요.");}
 }
 
 const colorOf=c=>/^#[0-9a-fA-F]{6}$/.test(String(c||""))?String(c):"#CB3533";
