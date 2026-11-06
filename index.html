@@ -814,7 +814,9 @@ const S={live:true,
  setGrave:(gid,v)=>set(ref(realtimeDB,"graves/"+gid),v),
  claimGraveItem:(gid,itemKey,uid)=>set(ref(realtimeDB,"graves/"+gid+"/taken/"+itemKey),{uid,at:Date.now()}),
  setGraveEffect:(gid,uid,type)=>set(ref(realtimeDB,"graves/"+gid+"/effects/"+uid),{type,at:Date.now()}),
- claimLoginId:async(id,uid)=>{const r=await runTransaction(ref(realtimeDB,"usernames/"+id.toLowerCase()),v=>v===null?uid:undefined);return r.committed}
+ claimLoginId:async(id,uid)=>{const r=await runTransaction(ref(realtimeDB,"usernames/"+id.toLowerCase()),v=>v===null?uid:undefined);return r.committed},
+ setLog:(uid,charId,slot,v)=>set(ref(realtimeDB,"logs/"+uid+"/"+charId+"/"+slot),v),
+ getLogs:async uid=>{const s=await get(ref(realtimeDB,"logs/"+uid));return s.exists()?s.val():null}
 };
 let U=null,me={uid:null,name:"",admin:false},acc=null,draft;
 async function boot(){let user=null;try{if(auth.authStateReady)await Promise.race([auth.authStateReady(),new Promise(r=>setTimeout(r,1200))]);user=auth.currentUser}catch(e){}if(user){me={uid:user.uid,name:user.email?.split("@")[0]||"플레이어",admin:false};await enter()}else go("login")}
@@ -997,6 +999,7 @@ async function admin(){
    <span class="sm">${a.lastLogin?fmt(a.lastLogin):"-"}</span><span class="st ${b?"ban":""}">${b?"정지":"정상"}</span>
    <span class="row">${b?`<button class="btn alt sm" data-a="unban" data-i="${a.id}">정지 해제</button>`:`<button class="btn alt sm" data-a="ban" data-i="${a.id}" ${self?"disabled":""}>정지</button>`}
    <button class="btn alt sm" data-a="reset" data-i="${a.id}" ${c&&!self?"":"disabled"}>${arm==="reset"+a.id?"정말 초기화?":"캐릭터 초기화"}</button>
+   <button class="btn alt sm" data-a="logs" data-i="${a.id}">로그</button>
    <button class="btn alt sm" data-a="del" data-i="${a.id}" ${self?"disabled":""}>${arm==="del"+a.id?"정말 삭제?":"삭제"}</button></span>
    ${b?`<span class="rs dim sm">정지 사유 : ${esc(b.reason||"없음")} (${fmt(b.at)})</span>`:""}
    ${open===a.id?`<span class="rs"><input type="text" id="rs" placeholder="정지 사유" maxlength="60"><button class="btn bad sm banok" data-a="banok" data-i="${a.id}">정지 확정</button><button class="btn alt sm bancancel" data-a="bancancel" data-i="${a.id}">취소</button></span>`:""}</div>`}).join("")||`<div class="dim" style="padding:16px">회원이 없습니다.</div>`}</div>
@@ -1007,11 +1010,22 @@ async function admin(){
   $("q").oninput=e=>{q=e.target.value;draw();const i=$("q");i.focus();i.setSelectionRange(q.length,q.length)};
   document.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>act(b.dataset.a,b.dataset.i));
   document.querySelectorAll("[data-char]").forEach(el=>el.onclick=()=>showChar(el.dataset.char))};
+ const showLogs=async id=>{
+  const t=accs.find(x=>x.id===id),who=t?nameOf(t):("UID "+String(id).slice(0,8));
+  admPop("활동 로그",`<p class="dim">${esc(who)}의 로그를 불러오는 중…</p>`,[{t:"닫기"}],true);
+  let data=null,err=null;try{data=await S.getLogs(id)}catch(e){err=e}
+  const rows=[];Object.entries(data||{}).forEach(([cid,slots])=>{if(!slots||typeof slots!=="object")return;Object.values(slots).forEach(v=>{if(v&&typeof v==="object"&&isFinite(+v.at))rows.push({...v,charId:cid})})});
+  rows.sort((a,b)=>b.at-a.at);
+  const label={session:"접속",downed:"쓰러짐",death:"사망",revive:"소생",battle:"전투",dot:"지속피해",party:"파티",trap:"함정",will:"유언",event:"이벤트"};
+  const body=err?`<p style="color:var(--bad)">로그를 불러오지 못했습니다. Firebase 규칙의 logs 읽기 권한을 확인해 주세요.</p>`:rows.length?`<div style="max-height:55vh;overflow:auto">${rows.slice(0,300).map(r=>{const ty=label[r.type]||r.type||"이벤트",d=r.data&&typeof r.data==="object"?Object.entries(r.data).map(([k,v])=>`${k}: ${v&&typeof v==="object"?JSON.stringify(v):v}`).join(" · "):"";return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b>${esc(ty)}</b><span class="dim sm">${fmt(r.at)}</span>${r.name?`<span class="dim sm">${esc(r.name)}</span>`:""}</div><div>${esc(r.text||"")}</div>${d?`<details style="margin-top:4px"><summary class="dim sm">상세</summary><div class="dim sm" style="word-break:break-all;white-space:pre-wrap">${esc(d)}</div></details>`:""}</div>`}).join("")}</div>`:`<p class="dim">기록된 로그가 없습니다.</p>`;
+  admPop("활동 로그",`<p class="dim" style="margin:0 0 8px">${esc(who)} · 최근 ${Math.min(rows.length,300)}건 / 전체 ${rows.length}건</p>${body}`,[{t:"새로고침",fn:()=>showLogs(id)},{t:"닫기"}],true);
+ };
  const showChar=id=>{const t=accs.find(x=>x.id===id),c=t&&t.character;if(!c)return;
   const buttons=[
    {t:"HP 회복",c:"",fn:()=>adminHealChar(id)},
    {t:"상태이상 추가",fn:()=>adminAddStatus(id)},
    {t:"상태이상 제거",fn:()=>adminRemoveStatus(id)},
+   {t:"활동 로그",fn:()=>showLogs(id)},
    {t:"닫기"}
   ];
   try{admPop("캐릭터 정보",charInfoHtml(c,{admin:true,account:nameOf(t),loginId:t.loginId,uid:t.id,lastLogin:t.lastLogin}),buttons,true)}
@@ -1061,6 +1075,7 @@ async function admin(){
   else{await S.delAcc(id);await S.delBan(id).catch(()=>{});if(t.loginId)await S.freeLoginId(t.loginId).catch(()=>{});accs=accs.filter(x=>x.id!==id);delete banMap[id];toast("계정을 삭제했습니다")}
   draw()}catch(e){console.warn(e);toast("처리에 실패했어요")}};
  const act=async(a,id)=>{try{
+  if(a==="logs"){showLogs(id);return}
   if(a==="ban"){open=id;draw();$("rs").focus();return}
   if(a==="bancancel"){open=null}
   else if(a==="banok"){const r=($("rs").value||"").trim(),v={reason:r,at:Date.now()};await S.setBan(id,v);banMap[id]={id,...v};open=null;toast("정지했습니다")}
@@ -1387,6 +1402,23 @@ const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||cha
  downed:opts.downed!==undefined?opts.downed:(char.downed&&typeof char.downed==="object"&&isFinite(+char.downed.until)?{...char.downed}:null),deadPending:false,
  expLogs:cp(Array.isArray(char.expLogs)?char.expLogs.slice(-40):[]),expMeta:char.expMeta&&typeof char.expMeta==="object"?{...char.expMeta}:null};
 const uid=opts.uid||null;
+// ---- 관리자 전용 활동 로그 (캐릭터별 링 버퍼) ----
+const LOG_SLOTS=200,charId=Math.max(0,Math.floor(+char.createdAt||0));
+me.logSeq=Math.max(0,Math.floor(+char.logSeq||0));
+function logChar(type,text,data){
+ try{
+  if(!uid)return;
+  const seqKey="everfall_logseq_"+uid+"_"+charId;
+  let seq=Math.max(0,+me.logSeq||0)+1;
+  try{const ls=+localStorage.getItem(seqKey);if(isFinite(ls)&&ls>seq)seq=ls}catch(e){}
+  me.logSeq=seq;
+  try{localStorage.setItem(seqKey,String(seq))}catch(e){}
+  const slot=seq%LOG_SLOTS;
+  const entry={at:Date.now(),type:String(type||"event").slice(0,24),text:String(text||"").slice(0,240),name:String(me.name||"").slice(0,16)};
+  if(data&&typeof data==="object"&&Object.keys(data).length)entry.data=cp(data);
+  S.setLog(uid,charId,slot,entry).catch(()=>{});
+ }catch(e){}
+}
 const jobKey=()=>JOB_TRAITS[me.job]?me.job:(JOB_ALIAS[me.job]||"");
 const JT=()=>JOB_TRAITS[jobKey()]||{};
 const traitTotal=key=>me.traits.reduce((a,t)=>a+((TRAITS[t]&&TRAITS[t][key])||0),0);
@@ -1561,6 +1593,7 @@ function resolveExp(partial=false){
    logAct(`전투: ${mon.name} · ${res.rounds}턴 승리`,false);
   }else{
    defeated=true;me.hp[0]=1;logAct(`전투: ${mon.name} · ${res.rounds}턴 패배`,false);
+   logChar("battle",`탐사 패배 · ${mon.name} (${res.rounds}턴)`,{monster:mon.name,rounds:res.rounds,kind:e.kind,tier,hp:me.hp[0],maxHp:me.hp[1],fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
   }
   return res;
  };
@@ -1905,9 +1938,10 @@ function removeStatus(x,opts={}){
  try{fxRender();syncVitals()}catch(e){}
  return !!d;
 }
+let lastDotLog=0;
 function tickStatus(){
  if(!me.fx||!me.fx.length)return;
- const now=Date.now();let changed=false,removed=[];
+ const now=Date.now();let changed=false,removed=[],hpBefore=+me.hp[0]||0;
  me.fx.forEach(f=>{
   fixFxEntry(f,now);
   if(f.exp&&now>=f.exp){removed.push(f.n);return}
@@ -1922,6 +1956,7 @@ function tickStatus(){
   }
  });
  if(removed.length){me.fx=me.fx.filter(f=>f&&(!f.exp||now<f.exp));changed=true;removed.forEach(n=>toast(`‘${n}’ 상태가 만료되었다.`))}
+ if((+me.hp[0]||0)<hpBefore&&now-lastDotLog>=60000){lastDotLog=now;const dotFx=(me.fx||[]).filter(f=>{const d=f&&STATUS_DB[f.id],E=f&&f.ef||d&&d.ef||{};return ((E.hpDot10||0)*(+f.stacks||1))<0}).map(f=>`${f.label||f.n}${(+f.stacks||1)>1?`×${f.stacks}`:""}`);logChar("dot",`지속 피해 · HP ${hpBefore} → ${me.hp[0]}`,{before:hpBefore,after:me.hp[0],fx:dotFx})}
  if(changed){checkVitals();try{syncVitals()}catch(e){}}
  checkVitals();
 }
@@ -2423,6 +2458,8 @@ function subscribeOwnDowned(){
 }
 function triggerDowned(){
  if(me.downed||me.deadPending)return;
+ const why=(+me.hp[0]||0)<=0?"hp":((+me.hunger[0]||0)<=0?"hunger":"unknown");
+ const expLog=me.expedition?{kind:me.expedition.kind,min:me.expedition.min,end:me.expedition.end}:null,travLog=!!me.travel,restLog=!!me.rest;
  if(me.travel||me.rest||me.expedition){me.travel=null;me.rest=null;me.expedition=null}
  const now=Date.now(),until=now+90*60000,place=locText().slice(0,80);
  me.downed={since:now,until,cont:me.cont,area:me.area,sub:me.sub||"",place,revive:null,dead:false};
@@ -2434,6 +2471,7 @@ function triggerDowned(){
  }
  try{opts.save(cp(snap()))}catch(e){}
  syncPresence(true);updateDownedBar();renderAll();try{render()}catch(e){}subscribeOwnDowned();
+ logChar("downed",`쓰러짐 · ${why==="hunger"?"허기 0":why==="hp"?"HP 0":"원인 불명"} · ${place}`,{why,hp:me.hp.slice(),hunger:me.hunger.slice(),place,area:me.area,sub:me.sub||"",fx:(me.fx||[]).map(f=>f&&(f.label||f.n)),expedition:expLog,travel:travLog,rest:restLog,expLogs:(me.expLogs||[]).slice(-10)});
  toast("쓰러졌다… 90분 안에 소생이 필요하다.");
 }
 function applyRevive(rev){
@@ -2447,6 +2485,7 @@ function applyRevive(rev){
  if(uid)S.delDowned(uid).catch(()=>{});
  try{opts.save(cp(snap()))}catch(e){}
  syncVitals();syncPresence(true);updateDownedBar();renderAll();try{render()}catch(e){}
+ logChar("revive",self?"자가 소생":`소생됨${rev&&rev.fromName?" · "+rev.fromName:""}`,{self,hp:me.hp.slice(),hunger:me.hunger.slice()});
  modal(self?"자가 소생":"소생",self?"소생약으로 스스로 일어났습니다. HP 30% · 허기 +30":`누군가 당신을 소생시켰습니다. HP +30 · 허기 +30`);
 }
 function selfRevive(){
@@ -2458,7 +2497,7 @@ function selfRevive(){
  applyRevive({at:Date.now(),self:true});
 }
 function showWillPop(msg){
- pop("유언",`<p>당신은 쓰러진 채 숨을 거두었습니다.</p><p class="dim">마지막으로 남길 말을 입력하세요. (최대 30자)</p><input type="text" id="willIn" maxlength="30" placeholder="유언을 남겨 주세요">${msg?`<p style="color:var(--bad);margin-top:8px">${esc(msg)}</p>`:""}`,[{t:"유언 남기기",c:"bad",fn:async()=>{const will=($("willIn")&&$("willIn").value||"").trim().slice(0,30);try{await opts.die({will,downed:me.deathState,name:me.name,items:cp(me.inv),equipped:cp(me.equipped)})}catch(e){console.error(e);toast("사망 처리에 실패했습니다. 다시 시도해 주세요.");showWillPop("사망 처리에 실패했습니다. 다시 시도해 주세요.")}}},true]);
+ pop("유언",`<p>당신은 쓰러진 채 숨을 거두었습니다.</p><p class="dim">마지막으로 남길 말을 입력하세요. (최대 30자)</p><input type="text" id="willIn" maxlength="30" placeholder="유언을 남겨 주세요">${msg?`<p style="color:var(--bad);margin-top:8px">${esc(msg)}</p>`:""}`,[{t:"유언 남기기",c:"bad",fn:async()=>{const will=($("willIn")&&$("willIn").value||"").trim().slice(0,30);logChar("will",`유언 · ${will||"(없음)"}`,{will,place:me.deathState&&me.deathState.place});try{await opts.die({will,downed:me.deathState,name:me.name,items:cp(me.inv),equipped:cp(me.equipped)})}catch(e){console.error(e);toast("사망 처리에 실패했습니다. 다시 시도해 주세요.");showWillPop("사망 처리에 실패했습니다. 다시 시도해 주세요.")}}},true]);
 }
 async function beginDeath(){
  if(!me.downed||me.deadPending)return;
@@ -2471,6 +2510,7 @@ async function beginDeath(){
  }
  if(!me.downed){me.deadPending=false;return}
  me.deathState={...me.downed};me.downed=null;
+ logChar("death",`사망 · ${me.deathState.place||""}`,{...me.deathState,hp:me.hp.slice(),hunger:me.hunger.slice(),fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
  if(uid)S.setDowned(uid,{...me.deathState,name:me.name,dead:true}).catch(()=>{});
  try{if(presenceRef)remove(presenceRef).catch(()=>{})}catch(e){}
  updateDownedBar();renderAll();
@@ -2511,6 +2551,7 @@ async function attemptRevive(targetUid,targetName,d){
 $("selfRevive").onclick=selfRevive;
 T(checkDowned,1000);
 applyDerivedVitals();barsRender();
+logChar("session",`접속 · HP ${me.hp[0]}/${me.hp[1]} · 허기 ${me.hunger[0]}/${me.hunger[1]}`,{hp:me.hp.slice(),hunger:me.hunger.slice(),area:locText(),fx:(me.fx||[]).map(f=>f&&(f.label||f.n)),expedition:me.expedition?{kind:me.expedition.kind,min:me.expedition.min}:null,travel:!!me.travel,rest:!!me.rest,downed:!!me.downed,partyId:me.partyId||null});
 if(me.downed){subscribeOwnDowned();updateDownedBar();if(me.downed.revive)setTimeout(()=>applyRevive(me.downed.revive),100)}
 
 // 팝업
@@ -2961,7 +3002,7 @@ $("dev").onclick=e=>{if(!GM)return;const b=e.target.closest("button");if(!b)retu
 const pick=a=>a[Math.floor(Math.random()*a.length)];
 function modal(t,b){$("mt").textContent=t;$("mb").textContent=b;$("modal").hidden=false}
 $("mok").onclick=()=>$("modal").hidden=true;
-let battle=null;
+let battle=null,lastPartyLog=0;
 const BATTLE_SKILLS={
  melee:{label:"근접",atk:"meleeAtk",acc:"meleeAcc",skill:"melee"},
  ranged:{label:"원거리",atk:"rangedAtk",acc:"rangedAcc",skill:"ranged"},
@@ -3104,7 +3145,7 @@ function renderPartyBattle(snap){
  if(!snap||!snap.monster)return;
  if(snap.id&&battle&&battle.id===snap.id)return;
  const mine=(snap.players||[]).find(p=>p.uid===uid);
- if(mine){me.hp[0]=Math.max(me.downed?0:1,+mine.hp||0);me.hp[1]=Math.max(1,+mine.maxHp||100);barsRender()}
+ if(mine){const before=+me.hp[0]||0;me.hp[0]=Math.max(me.downed?0:1,+mine.hp||0);me.hp[1]=Math.max(1,+mine.maxHp||100);if(me.hp[0]<before&&Date.now()-lastPartyLog>=30000){lastPartyLog=Date.now();logChar("party",`파티 전투 동기화 · HP ${before} → ${me.hp[0]}`,{before,after:me.hp[0],battleId:snap.id||null,monster:snap.monster&&snap.monster.name,status:snap.status})}barsRender()}
  if((snap.status==="win"||snap.status==="lose")&&snap.result&&partyAppliedBattle!==snap.id){
   const r=snap.result;
   if(snap.status==="win"){
@@ -3254,6 +3295,7 @@ function finishBattle(win){
   pop("승리",`<p><b>${esc(m.name)}</b>을(를) 쓰러뜨렸다.</p><p>경험치 +${xp}</p>${got.length?`<p><b>획득</b> ${esc(tally(got))}</p>`:'<p class="dim">획득한 아이템은 없다.</p>'}${badLine}`,[{t:"확인",fn:()=>{battle=null;bag();renderAll()}}],true);
  }else{
   battle.win=false;me.hp[0]=1;barsRender();
+  logChar("battle",`전투 패배 · ${m.name}`,{monster:m.name,source:battle.source||null,star:battle.star||null,hp:me.hp[0],maxHp:me.hp[1],fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
   pop("패배",`<p>${esc(m.name)}에게 쓰러졌다.</p><p class="dim">간신히 목숨만 건졌다. HP 1로 귀환한다.</p>${badLine}`,[{t:"확인",fn:()=>{battle=null;bag();renderAll()}}],true);
  }
 }
@@ -3270,6 +3312,7 @@ $("explore").onclick=()=>{const used=exploreUsed();if(used>=EXPLORE_DAILY_LIMIT)
  if(Math.random()<trapChance){
   const dmg=Math.max(1,Math.round(me.hp[1]*.05*Math.max(.2,1-Math.min(.8,(tm.trapDamageRed||0)/100))));
   me.hp[0]=Math.max(1,me.hp[0]-dmg);barsRender();
+  logChar("trap",`함정 피해 -${dmg} · HP ${me.hp[0]}/${me.hp[1]}`,{dmg,hp:me.hp[0],maxHp:me.hp[1],area:me.area,sub:me.sub||""});
   let msg=`함정에 걸렸다. HP -${dmg}`;
   if(Math.random()<.15){applyStatus("wound",{silent:true});msg+=" · 상처 상태이상"}
   modal("함정",msg);bag();return
@@ -4106,7 +4149,7 @@ const pubProfile=()=>({name:me.name,job:me.job,origin:me.origin,day:me.day,color
 let lastProfile=JSON.stringify(pubProfile()),profileAt=0;
 if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(uid,p).catch(()=>{})}
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,expLogs:me.expLogs,expMeta:me.expMeta});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta});
 let last=JSON.stringify(snap());
 T(()=>{if(me.deadPending)return;const j=JSON.stringify(snap());if(j!==last){last=j;opts.save(cp(snap()))}},3000);
 $("exitGame").onclick=()=>opts.exit(cp(snap()));
