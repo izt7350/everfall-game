@@ -247,6 +247,11 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .explog-pop{display:flex;flex-direction:column;gap:4px;max-height:50vh;overflow:auto}
 #gameRoot .explog-line{font-size:12px;line-height:18px;color:var(--dim)}
 #gameRoot .explog-line .t{color:var(--fg-hint-100,var(--dim));opacity:.8;margin-right:6px;font-variant-numeric:tabular-nums}
+#gameRoot .explog-list{display:flex;flex-direction:column;gap:6px}
+#gameRoot .explog-item{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);text-align:left;cursor:pointer}
+#gameRoot .explog-item:hover{border-color:var(--accent)}
+#gameRoot .explog-item b{font-size:13px;line-height:18px;font-weight:600}
+#gameRoot .explog-item span{font-size:12px;line-height:17px;color:var(--dim)}
 #gameRoot .exp-line{margin-top:12px;font-size:13px;line-height:20px;color:var(--dim)}
 #gameRoot .exp-line b{color:var(--text);font-variant-numeric:tabular-nums}
 #gameRoot .lvhead{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-bottom:8px}
@@ -308,7 +313,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .msg .who{display:inline-block;margin-right:6px;font-weight:500;color:var(--name-color,var(--accent-text));white-space:nowrap}
 #gameRoot .msg .txt{overflow-wrap:anywhere}
 #gameRoot .msg .when{position:absolute;right:0;top:15px;font-size:12px;line-height:18px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
-#gameRoot .msg.notice{background:var(--panel2);border-left:0;border-bottom:0;border-radius:8px;padding:10px 12px;margin:6px 0;color:var(--dim)}
+#gameRoot .msg.notice{background:var(--panel2);border-left:0;border-bottom:0;border-radius:8px;padding:10px 64px 10px 12px;margin:6px 0;color:var(--dim)}
 #gameRoot .send{padding:12px 20px;border-top:1px solid var(--line);gap:8px}
 #gameRoot .send input{height:40px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font-size:14px}
 #gameRoot .send button{height:40px;min-width:64px;border:0;border-radius:8px;background:var(--accent-strong);color:#FFFFFF;font-size:14px;font-weight:500;padding:0 16px}
@@ -519,7 +524,8 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .downed-bar .btn{height:30px;font-size:12px}
 #gameRoot .down-badge{display:inline-flex;align-items:center;height:18px;padding:0 5px;margin-left:4px;border-radius:5px;background:var(--danger-soft);color:var(--bad);font-size:10px;line-height:14px;font-weight:700}
 .ai-chip.down{background:var(--danger-soft);color:var(--bad);font-weight:700}
-#gameRoot .msg.sys{color:var(--bad);background:var(--danger-soft);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent);border-radius:6px;padding:6px 8px;margin:4px 0}
+#gameRoot .msg.sys{color:var(--bad);background:var(--danger-soft);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent);border-radius:6px;padding:6px 64px 6px 8px;margin:4px 0}
+#gameRoot .msg.sys .when{top:8px}
 #gameRoot .grave-row{display:flex;align-items:center;gap:8px;padding:8px 10px;margin:4px 0;border:1px solid var(--line);border-radius:6px;background:var(--panel2);font-size:13px}
 #gameRoot .grave-row .grave-name{color:var(--bad);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 #gameRoot .grave-row.trace{opacity:.65}
@@ -582,11 +588,13 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
     <div><b>장기 탐사</b><span>시간이 길수록 고급 아이템 확률이 오른다.</span><span class="exp-hint">완료하면 장기 탐사에서만 얻을 수 있는 특별한 아이템을 획득할 수 있다.</span></div>
     <button class="btn" id="longgo">시작</button>
     <div class="durs" id="longdurs"></div>
+    <div class="propbox" id="longProposal"></div>
    </div>
    <div class="explore expedition" id="dunexp" hidden>
     <div><b>던전 탐사</b><span>몬스터가 많지만 경험치와 보상 상자를 얻는다.</span></div>
     <button class="btn" id="dungo">시작</button>
     <div class="durs" id="dundurs"></div>
+    <div class="propbox" id="dunProposal"></div>
    </div>
    <button type="button" class="btn outline sm" id="explogBtn" hidden>탐사 기록</button>
    <div class="explore" id="market" hidden><div><b>시장</b><span>거래가 가능하다. 물품은 매일 바뀐다. (오후 12시~오전 12시)<em id="mstat"></em></span></div><button class="btn" id="trade">거래하기</button></div>
@@ -1138,7 +1146,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.statPts=Math.max(0,Math.floor(+c.statPts||0));
  o.skillPts=Math.max(0,Math.floor(+c.skillPts||0));
  o.crafted=Array.isArray(c.crafted)?c.crafted.filter(x=>typeof x==="string").slice(-600):[];
- o.party=Array.isArray(c.party)?c.party.map(normAlly).filter(Boolean).slice(0,3):[];
+ o.party=Array.isArray(c.party)?c.party.map(normAlly).filter(Boolean).slice(0,4):[];
  o.partyId=typeof c.partyId==="string"?c.partyId:null;
  o.partyLeader=typeof c.partyLeader==="string"?c.partyLeader:null;
  while(o.lv<PLAYER_MAX&&o.xp>=(PLAYER_XP_TABLE[o.lv]||0)){
@@ -1151,8 +1159,9 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.exploreDay=typeof c.exploreDay==="string"?c.exploreDay:"";
  o.exploreCount=Math.max(0,Math.floor(+c.exploreCount||0));
  o.hungerAt=isFinite(+c.hungerAt)?+c.hungerAt:Date.now();
- o.expLogs=Array.isArray(c.expLogs)?c.expLogs.filter(l=>l&&typeof l.text==="string"&&isFinite(+l.at)).slice(-40):[];
+ o.expLogs=Array.isArray(c.expLogs)?c.expLogs.filter(l=>l&&typeof l.text==="string"&&isFinite(+l.at)).slice(-200):[];
  o.expMeta=c.expMeta&&typeof c.expMeta==="object"?c.expMeta:null;
+ o.expArchive=Array.isArray(c.expArchive)?c.expArchive.filter(r=>r&&typeof r==="object"&&Array.isArray(r.logs)).slice(0,1).map(r=>({meta:r.meta&&typeof r.meta==="object"?{...r.meta}:null,logs:r.logs.filter(l=>l&&typeof l.text==="string"&&isFinite(+l.at)).slice(-200)})):[];
  o.traits=Array.isArray(c.traits)?c.traits.filter(t=>typeof t==="string"&&TRAITS[t]):(c.trait&&TRAITS[c.trait]?[c.trait]:[]);
  o.lastTraitDay=typeof c.lastTraitDay==="string"?c.lastTraitDay:"";
  o.rest=c.rest&&typeof c.rest==="object"&&isFinite(+c.rest.end)?{start:Math.max(0,+c.rest.start||0),end:+c.rest.end,min:Math.max(0,+c.rest.min||0),hp:Math.max(0,+c.rest.hp||0),mp:Math.max(0,+c.rest.mp||0),lowHp:!!c.rest.lowHp,lowMp:!!c.rest.lowMp}:null;
@@ -1411,7 +1420,7 @@ const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||cha
  skillXp:cp(char.skillXp&&typeof char.skillXp==="object"?{...DEFAULT_SKILLS,...char.skillXp}:{...DEFAULT_SKILLS}),
  statPts:Math.max(0,Math.floor(+char.statPts||0)),skillPts:Math.max(0,Math.floor(+char.skillPts||0)),
  crafted:cp(Array.isArray(char.crafted)?char.crafted:[]),
- party:cp((Array.isArray(char.party)?char.party:[]).map(normAlly).filter(Boolean).slice(0,3)),
+ party:cp((Array.isArray(char.party)?char.party:[]).map(normAlly).filter(Boolean).slice(0,4)),
  partyId:typeof char.partyId==="string"?char.partyId:null,
  partyLeader:typeof char.partyLeader==="string"?char.partyLeader:null,
  expedition:char.expedition&&isFinite(+char.expedition.end)?{...char.expedition}:null,
@@ -1420,7 +1429,8 @@ const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||cha
  exploreCount:Math.max(0,Math.floor(+char.exploreCount||0)),
  hungerAt:isFinite(+char.hungerAt)?+char.hungerAt:Date.now(),
  downed:opts.downed!==undefined?opts.downed:(char.downed&&typeof char.downed==="object"&&isFinite(+char.downed.until)?{...char.downed}:null),deadPending:false,
- expLogs:cp(Array.isArray(char.expLogs)?char.expLogs.slice(-40):[]),expMeta:char.expMeta&&typeof char.expMeta==="object"?{...char.expMeta}:null};
+ expLogs:cp(Array.isArray(char.expLogs)?char.expLogs.slice(-200):[]),expMeta:char.expMeta&&typeof char.expMeta==="object"?{...char.expMeta}:null,
+ expArchive:cp(Array.isArray(char.expArchive)?char.expArchive.slice(0,1):[])};
 const uid=opts.uid||null;
 // ---- 관리자 전용 활동 로그 (캐릭터별 링 버퍼) ----
 const LOG_SLOTS=200,charId=Math.max(0,Math.floor(+char.createdAt||0));
@@ -1547,112 +1557,216 @@ const dungeonTier=()=>{if(me.area==="cap")return "";const d=AR(me.area).diff||""
 const tally=a=>{const m={};a.forEach(x=>m[x]=(m[x]||0)+1);return Object.entries(m).map(([k,v])=>v>1?`${k} ×${v}`:k).join(", ")};
 function drawDurs(){
  for(const k of ["long","dungeon"]){const el=$(k==="long"?"longdurs":"dundurs");if(!el)continue;
-  el.innerHTML=[30,60,120,180].map(m=>`<button type="button" class="mode" data-min="${m}" data-k="${k}" aria-pressed="${expSel[k]===m}">${durText(m)}</button>`).join("")}}
+  el.innerHTML=[30,60,120,180].map(m=>`<button type="button" class="mode" data-min="${m}" data-k="${k}" aria-pressed="${expSel[k]===m}">${durText(m)}</button>`).join("")}
+ try{renderProposalPanels()}catch(e){}}
 $("longdurs").onclick=e=>{const b=e.target.closest("[data-min]");if(!b)return;expSel.long=+b.dataset.min;drawDurs()};
 $("dundurs").onclick=e=>{const b=e.target.closest("[data-min]");if(!b)return;expSel.dungeon=+b.dataset.min;drawDurs()};
 const ACT_COMMON=["조심스럽게 앞으로 나아간다.","소음이 들려 걸음을 멈췄다.","바닥의 흔적을 살핀다.","낮은 자세로 주변을 둘러본다.","먼지 냄새가 짙어진다.","벽의 긁힌 자국을 확인한다.","잠시 숨을 고른다.","멀리서 돌이 부딪히는 소리가 들린다.","발밑의 잔해를 조심스럽게 밟는다.","어둠 속에서 무언가 스치는 소리가 난다."];
 const ACT_DUNGEON=["몬스터의 발자국을 발견하고 몸을 낮춘다.","멀리서 낮은 울음소리가 들린다.","검을 고쳐 쥐고 벽을 따라 이동한다.","천장에서 흙이 떨어진다.","무언가가 시야 끝에서 움직였다.","숨을 죽이고 어둠을 살핀다.","피비린내가 희미하게 풍긴다.","돌바닥이 젖어 발소리가 커진다."];
-let nextActAt=0;
 const nextGap=()=>60000+Math.floor(Math.random()*120000);
 const clockOf=t=>{try{return new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",hour:"2-digit",minute:"2-digit",hour12:false}).format(new Date(t))}catch(e){const d=new Date(t);return String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")}};
-function renderExpLogBtn(){const b=$("explogBtn");if(!b)return;b.hidden=!me.expLogs.length}
-function buildExpLog(){
- const m=me.expMeta,head=m?`<p class="dim" style="margin:0 0 8px">${esc(m.label)} · ${durText(m.min)} · ${esc(m.area)}</p>`:"";
- return head+`<div class="explog-pop">${me.expLogs.map(l=>`<div class="explog-line"><span class="t">${clockOf(l.at)}</span>${esc(l.text)}</div>`).join("")}</div>`}
+let partyExpedition=null,partyExpUnsub=null,expRecordIndex=0,expRecordView=false;
+function expRecords(){
+ const out=me.expLogs.length?[{meta:me.expMeta||null,logs:me.expLogs,current:true}]:[];
+ const shared=partyExpedition&&(partyExpedition.meta||partyExpedition.members);
+ if(shared){
+  const meta=partyExpedition.meta||{},since=+meta.startAt||0,raw=partyExpedition.members||{},members={};
+  Object.entries(raw).forEach(([id,mm])=>{if(mm&&(!since||+mm.at>=since-60000))members[id]=mm});
+  out.unshift({meta:{label:meta.label||"파티 탐사",kind:meta.kind,min:meta.min,area:meta.area,start:meta.startAt,end:meta.endAt,leaderUid:meta.leaderUid,settle:meta.settle},logs:Array.isArray(meta.log)?meta.log:[],current:false,shared:true,members});
+ }
+ return out.concat(Array.isArray(me.expArchive)?me.expArchive:[]);
+}
+function renderExpLogBtn(){const b=$("explogBtn");if(!b)return;b.hidden=!expRecords().length}
+function expRecordAt(r){const m=(r&&r.meta)||{},logs=(r&&r.logs)||[],t=(!r.current&&+(m.end||0))||(logs.length?+logs[logs.length-1].at:0)||+(m.end||0);return t?fmt(t):""}
+function settleHtml(m,r){
+ let s=(m&&m.settle)||null;
+ if(!s&&r&&r.shared){
+  const mem=r.members||{},ids=Object.keys(mem),lid=(m&&m.leaderUid)||ids[0],lm=mem[lid]||{};
+  s={minutes:lm.minutes,battles:lm.battles,wins:lm.wins,used:lm.used,chest:lm.chest};
+ }
+ if(!s)return "";
+ let rows="";
+ if(r&&r.shared){
+  const mem=r.members||{},ids=Object.keys(mem).sort((a,b)=>a===uid?-1:b===uid?1:0);
+  rows=ids.length?ids.map(id=>{
+   const mm=mem[id]||{},name=esc(mm.name||(id===uid?me.name:id));
+   let ls=mm.loot||[];
+   if(id===uid&&(!ls||!ls.length)){const ps=me.expMeta&&me.expMeta.settle&&me.expMeta.settle.loot;if(ps&&ps.length)ls=ps;}
+   const prize=(ls&&ls.length)?esc(tally(ls)):((+mm.lootCount||0)>0?`${+mm.lootCount}개`:"없음");
+   return `<div class="explog-line"><span class="t">${name}</span>${prize}${mm.chest?" · 던전 상자":""}${mm.defeated?" · 전투 불능":""}</div>`;
+  }).join(""):'<div class="dim">참가자 정산 대기 중</div>';
+ }else{
+  const loot=(s.loot&&s.loot.length)?esc(tally(s.loot)):"없음";
+  rows=`<div class="explog-line"><span class="t">${esc(me.name)}</span>${loot}${s.chest?" · 던전 상자":""}</div>`;
+ }
+ const mins=+s.minutes||+(m.min)||0;
+ let used=+s.used||0;
+ if(r&&r.shared){const mm=r.members||{};used=Object.keys(mm).reduce((a,k)=>a+(+mm[k].used||0),0);}
+ return `<div style="margin-top:12px;padding-top:8px;border-top:1px solid var(--line)"><b>정산</b><div class="sm" style="margin-top:6px">탐사 시간: ${durText(mins)}</div><div class="sm">전투 횟수: ${+s.battles||0}회 · 승리 ${+s.wins||0}회</div><div class="sm">소모한 소모품: ${used}개</div><div class="sm" style="margin-top:8px"><b>캐릭터당 전리품</b></div>${rows}</div>`;
+}
+function buildExpLog(r){
+ const m=(r&&r.meta)||{},logs=(r&&r.logs)||[],when=expRecordAt(r);
+ const head=`<p class="dim" style="margin:0 0 8px">${esc(m.label||"탐사")}${m.min?` · ${durText(+m.min)}`:""}${m.area?` · ${esc(m.area)}`:""}${when?` · ${esc(when)}`:""}</p>`;
+ return head+`<div class="explog-pop">${logs.length?logs.map(l=>`<div class="explog-line"><span class="t">${clockOf(l.at)}</span>${esc(l.text)}</div>`).join(""):'<div class="dim">기록이 없습니다.</div>'}</div>`+settleHtml(m,r)}
+function buildExpLogList(){
+ const all=expRecords();
+ return `<div class="explog-list">${all.map((r,i)=>{const m=r.meta||{},logs=r.logs||[],tag=r.shared?"파티":r.current?(me.expedition?"진행 중":"최근"):"지난 기록";return `<button type="button" class="explog-item" data-exp="${i}"><b>${esc(m.label||"탐사")}${tag?` <span class="dim">${tag}</span>`:""}</b><span>${esc(m.area||"")}${m.min?` · ${durText(+m.min)}`:""} · ${logs.length}개 기록</span><span>${esc(expRecordAt(r))}</span></button>`}).join("")}</div>`}
 function scrollExpLog(){const p=$("pb").querySelector(".explog-pop");if(p)p.scrollTop=p.scrollHeight}
-function openExpLog(){if(!me.expLogs.length)return;pop("탐사 기록",buildExpLog(),[{t:"닫기"}]);scrollExpLog()}
+function openExpRecord(i){
+ const all=expRecords(),r=all[i];if(!r)return openExpLog();
+ expRecordIndex=i;expRecordView=true;
+ $("pb").onclick=null;
+ pop("탐사 기록",buildExpLog(r),all.length>1?[{t:"목록",fn:()=>openExpLog()},{t:"닫기"}]:[{t:"닫기"}]);
+ scrollExpLog();
+}
+function openExpLog(){
+ const all=expRecords();
+ expRecordView=false;
+ if(!all.length)return toast("저장된 탐사 기록이 없습니다.");
+ if(all.length===1)return openExpRecord(0);
+ pop("탐사 기록",buildExpLogList(),[{t:"닫기"}]);
+ $("pb").onclick=e=>{const b=e.target.closest("[data-exp]");if(!b)return;openExpRecord(+b.dataset.exp)};
+}
 $("explogBtn").onclick=openExpLog;
-function logAct(text,auto=true){
- me.expLogs.push({at:Date.now(),text});if(me.expLogs.length>40)me.expLogs.shift();
+function logAct(text,at=Date.now()){
+ me.expLogs.push({at:+at||Date.now(),text});if(me.expLogs.length>200)me.expLogs.shift();
  renderExpLogBtn();
- if(!$("pop").hidden&&$("pt").textContent==="탐사 기록"){$("pb").innerHTML=buildExpLog();scrollExpLog();return}
- if(auto){if($("pop").hidden&&$("modal").hidden)openExpLog();else toast("새 탐사 기록이 쌓였다.")}
 }
 renderExpLogBtn();
+function expGuard(kind){
+ if(me.expedition){toast("이미 탐사 중이다.");return false}
+ if(me.travel){toast("이동 중에는 시작할 수 없다.");return false}
+ if(me.rest){toast("휴식 중에는 탐사를 시작할 수 없다.");return false}
+ if(me.downed||me.deadPending){toast("쓰러진 상태에서는 탐사할 수 없다.");return false}
+ if(kind==="dungeon"&&!dungeonTier())return false;
+ return true;
+}
+function startExpNow(kind){
+ if(!expGuard(kind))return;
+ beginExp(kind,expSel[kind]);
+}
 function startExp(kind){
- if(me.expedition)return toast("이미 탐사 중이다.");
- if(me.travel)return toast("이동 중에는 시작할 수 없다.");
- if(me.rest)return toast("휴식 중에는 탐사를 시작할 수 없다.");
- if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 탐사할 수 없다.");
- if(kind==="dungeon"&&!dungeonTier())return;
+ if(!expGuard(kind))return;
  const min=expSel[kind],end=Date.now()+min*60000;
  pop(`${EXPD[kind].label} 시작`,`<p>${durText(min)} ${EXPD[kind].label}를 시작한다.</p><p>끝나는 시간 ${clockOf(end)}</p>`,[{t:"시작",c:"",fn:()=>beginExp(kind,min)},{t:"취소"}])}
-function beginExp(kind,min){
- const end=Date.now()+min*60000;
- me.expedition={kind,min,area:me.area,cont:me.cont,end};
- me.expLogs=[];me.expMeta={label:EXPD[kind].label,min,area:(AR(me.area)||{}).name||me.area};
- nextActAt=Date.now()+60000;
- logAct(`${EXPD[kind].label}를 시작했다.`,false);
+function beginExp(kind,min,opts={}){
+ const now=Date.now(),end=now+min*60000;
+ if(me.expLogs.length&&me.expMeta){
+  me.expArchive=Array.isArray(me.expArchive)?me.expArchive:[];
+  me.expArchive.unshift({meta:cp(me.expMeta),logs:cp(me.expLogs)});
+  if(me.expArchive.length>1)me.expArchive.length=1;
+ }
+ me.expedition={kind,min,area:me.area,cont:me.cont,end,nextLogAt:now+nextGap(),participants:Array.isArray(opts.participants)?opts.participants:null,runLeader:opts.runLeader||null,proposalId:opts.proposalId||null};
+ me.expLogs=[];me.expMeta={label:EXPD[kind].label,kind,min,area:(AR(me.area)||{}).name||me.area,start:now,end};
+ logAct(`${EXPD[kind].label}를 시작했다.`,now);
  renderAll();toast(`${EXPD[kind].label} 시작 · ${durText(min)}`)}
+function encounterCount(kind,min){
+ const table=kind==="dungeon"
+  ? {30:[1,2],60:[2,3],120:[2,4],180:[3,6]}
+  : {30:[0,1],60:[0,2],120:[1,3],180:[1,4]};
+ const key=[30,60,120,180].includes(+min)?+min:30,[lo,hi]=table[key];
+ return lo+Math.floor(Math.random()*(hi-lo+1));
+}
 function resolveExp(partial=false){
  const e=me.expedition;if(!e)return;
+ catchUpExp();
  const startedAt=e.end-e.min*60000,elapsed=Math.max(0,Math.min(e.min,(Date.now()-startedAt)/60000));
  me.expedition=null;
+ const runLeader=e.runLeader||null,participants=Array.isArray(e.participants)?e.participants:null,proposalId=e.proposalId||null;
+ const endedAt=partial?Date.now():Math.min(Date.now(),+e.end||Date.now());
+ if(me.expMeta&&typeof me.expMeta==="object"){me.expMeta.kind=e.kind;me.expMeta.end=endedAt;if(!isFinite(+me.expMeta.start))me.expMeta.start=endedAt-e.min*60000}
  const cfg=EXPD[e.kind]||EXPD.long,total=Math.max(1,Math.round(e.min/30)),idx=Math.max(0,[30,60,120,180].indexOf(e.min));
  const segs=partial?Math.min(total,Math.floor(elapsed/30)):total;
  const areaObj=(()=>{try{return AR(e.area)}catch(_){return null}})();
  const tier=(()=>{const n=parseInt((areaObj&&areaObj.diff)||"");return isFinite(n)?n:1})();
- let found=[],lost=0,enc=0,gain=0,dmg=0,box=false,defeated=false;
+ let found=[],lost=0,enc=0,gain=0,skillGain=0,dmg=0,box=false,defeated=false,used=0;
  const battleLogs=[];
  const addLoot=names=>{for(const n of names){if(!n)continue;registerItem(n);const d=ITEM_BY_NAME[n],item=lootObj(n);if(canAdd(item)){addItem(item);found.push(n);if(d)awardAction("search",d.grade==="일반"?ACTION_XP.search:ACTION_XP.rareSearch,d.grade,"search")}else lost++}};
- const allyList=(me.partyId?onlineAllies():me.party||[]).slice(0,3);
+ const allyList=(me.partyId?onlineAllies():me.party||[]).filter(a=>!participants||participants.includes(a.uid)).slice(0,4);
  const party=[{self:true,name:me.name,st:calcStats(me),hp:me.hp[0],maxHp:me.hp[1]},...allyList.map(a=>{const st=calcStats(a);return{self:false,name:a.name,ally:a,st,hp:st.hpMax,maxHp:st.hpMax}})];
- const partyXp=(base,n)=>{const total=Math.floor(base*(1+.1*(n-1)));return Math.max(1,Math.floor(total/n))};
+ const partyXp=(base,n)=>Math.max(1,Math.floor(+base||0));
+ const clearProposal=()=>{if(proposalId&&me.partyId&&runLeader===uid){try{remove(ref(realtimeDB,"partyProposals/"+me.partyId)).catch(()=>{})}catch(e){}}};
  const syncParty=()=>{me.hp[0]=Math.max(0,Math.min(party[0].maxHp,party[0].hp));for(const f of party.slice(1))if(f.ally)f.ally.hp=[f.hp,f.maxHp]};
- const runBattle=(mon,source)=>{
-  const before=party[0].hp,res=autoBattle(mon,party,{expedition:true,star:tier,source});
+ let bossDefeat=false,chestData=null;
+ const runBattle=(mon,source,isBoss=false)=>{
+  const before=party[0].hp,res=autoBattle(mon,party,{expedition:true,star:tier,source,mode:e.kind,boss:isBoss});
+   used+=res.used||0;
   for(let i=0;i<party.length;i++)party[i].hp=res.party[i].hp;
   syncParty();
-  battleLogs.push({name:mon.name,win:res.win,rounds:res.rounds,log:res.log});
+  const tag=mon.role==="정예"?"[정예] ":mon.role==="보스"?"[보스] ":"",leaderAlive=res.party[0].hp>0;
+  battleLogs.push({name:mon.name,role:mon.role,win:res.win&&leaderAlive,rounds:res.rounds,log:res.log});
   dmg+=Math.max(0,before-party[0].hp);
-  if(res.win){
+  if(res.win&&leaderAlive){
    const xp=partyXp(mon.xp||40,party.length);gain+=xp;gainPlayerXP(xp);
    const self=res.party[0],sx=Math.max(1,(mon.killSkillXp||Math.ceil((mon.xp||40)/5))+(mon.finisherXp||20));
-   gainSkillXP(self.skill||"melee",sx);
+   gainSkillXP(self.skill||"melee",sx);skillGain+=sx;
    addLoot(capBattleLoot(rollLoot(tier,source,mon.grade,areaObj),tier));
-   logAct(`전투: ${mon.name} · ${res.rounds}턴 승리`,false);
+   logAct(`전투: ${tag}${mon.name} · ${res.rounds}턴 승리`);
   }else{
-   defeated=true;me.hp[0]=1;logAct(`전투: ${mon.name} · ${res.rounds}턴 패배`,false);
-   logChar("battle",`탐사 패배 · ${mon.name} (${res.rounds}턴)`,{monster:mon.name,rounds:res.rounds,kind:e.kind,tier,hp:me.hp[0],maxHp:me.hp[1],fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
+   defeated=true;
+   if(isBoss){me.hp[0]=1;party[0].hp=1;bossDefeat=true;logAct(`[보스] ${mon.name} · ${res.rounds}턴 패배 · HP 1 귀환`)}
+   else{me.hp[0]=0;party[0].hp=0;logAct(`전투: ${tag}${mon.name} · ${res.rounds}턴 패배`)}
+   logChar("battle",`탐사 패배 · ${tag}${mon.name} (${res.rounds}턴)`,{monster:mon.name,role:mon.role,rounds:res.rounds,kind:e.kind,tier,hp:me.hp[0],maxHp:me.hp[1],boss:isBoss,fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
   }
   return res;
  };
- for(let i=0;i<segs;i++){
+ const encTarget=partial?Math.max(0,Math.round(encounterCount(e.kind,e.min)*(segs/Math.max(1,total)))):encounterCount(e.kind,e.min);
+ for(let i=0;i<encTarget;i++){
   if(defeated)break;
-  const encRed=Math.min(.8,calcStats(me).encounterRed+(isNightNow()?(toolMods().nightEncounterRed||0)/100:0));
-   if(Math.random()<cfg.mon*(1-encRed)){
-   const mon=rollShortMonster(tier);
-   if(mon){enc++;const source=e.kind==="dungeon"?(mon.role==="정예"?"dungeonElite":"dungeonNormal"):(mon.role==="정예"?"fieldElite":"fieldNormal");runBattle(mon,source)}
-  }
-  if(!defeated&&Math.random()<cfg.find)addLoot(rollLoot(tier,"gather",null,areaObj));
+  const mon=rollShortMonster(tier);
+  if(!mon)continue;
+  enc++;
+  if(mon.role==="정예"&&me.hp[0]/me.hp[1]<.5){logAct("[정예] 회피");continue}
+  const source=e.kind==="dungeon"?(mon.role==="정예"?"dungeonElite":"dungeonNormal"):(mon.role==="정예"?"fieldElite":"fieldNormal");
+  runBattle(mon,source,false);
  }
  if(!partial&&!defeated&&e.kind==="dungeon"){
-  const bm=tier>=9?rollBossMonster(tier):rollNamedMonster(tier);
-  if(bm){enc++;const source=bm.role==="보스"?"dungeonBoss":"fieldNamed";const res=runBattle(bm,source);
-   if(res.win){const boxTier=(areaObj&&areaObj.diff==="7~8")?"78":"45";if(canAdd({n:"던전 보상 상자"})){addItem({n:"던전 보상 상자",tier:boxTier,area:e.area});box=true}else lost++}
+  const bm=rollNamedMonster(tier)||rollShortMonster(tier);
+  if(bm){
+   const bossMon={...bm,role:"보스"};
+   enc++;
+   const res=runBattle(bossMon,"dungeonBoss",true);
+   if(res.win){
+    const boxTier=(areaObj&&areaObj.diff==="7~8")?"78":"45",chest={n:"던전 보상 상자",tier:boxTier,area:e.area};
+    if(canAdd(chest)){addItem(chest);box=true}else lost++;
+    chestData={tier:boxTier,area:e.area};
+   }
   }
  }
- if(!partial&&!defeated&&e.kind==="long"&&tier>=5&&Math.random()<.35){
-  const bm=tier>=9?rollBossMonster(tier):rollNamedMonster(tier);
-  if(bm){enc++;runBattle(bm,bm.role==="보스"?"dungeonBoss":"fieldNamed")}
+ if(!defeated){
+  for(let i=0;i<segs;i++){
+   if(Math.random()<cfg.find)addLoot(rollLoot(tier,"gather",null,areaObj));
+  }
  }
  if(segs)awardAction("survival",e.kind==="dungeon"?ACTION_XP.dangerousSurvival:ACTION_XP.travel,areaGrade(tier),"survival");
  syncParty();me.hp[0]=Math.max(0,Math.min(party[0].maxHp,party[0].hp||0));
- if(me.partyId&&partyData&&partyData.leader===uid&&battleLogs.length){
+ const settle={minutes:partial?Math.max(1,Math.floor(elapsed)):e.min,battles:battleLogs.length,wins:battleLogs.filter(b=>b.win).length,used,loot:found.slice(),chest:!!box,defeated:!!defeated,at:endedAt};
+ if(me.expMeta&&typeof me.expMeta==="object")me.expMeta.settle=settle;
+ if(proposalId&&me.partyId&&participants){
+  const runPath="parties/"+me.partyId+"/expedition";
+  set(ref(realtimeDB,runPath+"/members/"+uid),{name:me.name,at:endedAt,minutes:settle.minutes,battles:settle.battles,wins:settle.wins,used:settle.used,loot:found.slice(0,60),lootCount:found.length,chest:!!box,defeated:!!defeated}).catch(()=>{});
+  if(runLeader===uid){
+   const meta={kind:e.kind,label:"파티 "+((EXPD[e.kind]||{}).label||"탐사"),min:e.min,startAt:startedAt,endAt:endedAt,leaderUid:uid,leaderName:me.name,participants,area:(areaObj&&areaObj.name)||e.area,log:me.expLogs.slice(-200),settle:{minutes:settle.minutes,battles:settle.battles,wins:settle.wins,used:settle.used,chest:!!box,defeated:!!defeated},at:Date.now()};
+   set(ref(realtimeDB,runPath+"/meta"),meta).catch(()=>{});
+  }
+ }
+ if(me.partyId&&partyData&&(partyData.leader===uid||runLeader===uid)&&battleLogs.length){
   const last=battleLogs[battleLogs.length-1],sid="auto-"+Date.now().toString(36);
-  const snap={id:sid,monster:{name:last.name,hp:last.win?0:1,maxHp:1,grade:"",role:""},players:[{uid,name:me.name,hp:me.hp[0],maxHp:me.hp[1]},...party.slice(1).map(f=>({uid:f.ally&&f.ally.uid||"",name:f.name,hp:f.hp,maxHp:f.maxHp}))],log:battleLogs.flatMap(b=>[`${b.name} · ${b.rounds}턴 ${b.win?"승리":"패배"}`,...b.log]).slice(-80),status:defeated?"lose":"win",result:{id:sid,xpEach:gain,skillXp:20,skillByUid:{},loot:found},at:Date.now()};
+  const snap={id:sid,proposalId:proposalId||null,monster:{name:last.name,hp:last.win?0:1,maxHp:1,grade:"",role:""},players:[{uid,name:me.name,hp:me.hp[0],maxHp:me.hp[1]},...party.slice(1).map(f=>({uid:f.ally&&f.ally.uid||"",name:f.name,hp:f.hp,maxHp:f.maxHp}))],participants:[uid,...party.slice(1).map(f=>f.ally&&f.ally.uid).filter(Boolean)],log:battleLogs.flatMap(b=>[`${b.name} · ${b.rounds}턴 ${b.win?"승리":"패배"}`,...b.log]).slice(-80),status:defeated?"lose":"win",result:{id:sid,xpEach:gain,skillXp:skillGain,skillByUid:{},loot:found,chest:chestData},at:Date.now()};
   set(ref(realtimeDB,"parties/"+me.partyId+"/battle"),snap).catch(()=>{if(!partySyncWarned){partySyncWarned=true;toast("파티 전투 동기화 실패 · Firebase 규칙을 확인해 주세요.")}});
  }
  spendHunger(Math.max(0,segs)*2);
  barsRender();renderStatus();bag();renderAll();
+ clearProposal();
  if(me.hp[0]<=0||me.hunger[0]<=0){triggerDowned();return}
  const lines=[];
  if(partial)lines.push(`<p class="dim">${Math.floor(elapsed)}분 진행 · 완료한 ${segs*30}분만큼의 보상</p>`);
  if(found.length)lines.push(`<p><b>획득</b> ${esc(tally(found))}</p>`);
  if(!partial&&box)lines.push(`<p><b>던전 보상 상자</b>를 얻었다.</p>`);
  if(segs)lines.push(`<p>몬스터 조우 ${enc}회 · 경험치 +${gain} · HP -${dmg}</p>`);
- if(defeated)lines.push(`<p class="dim">전투에서 패배해 간신히 귀환했다.</p>`);
- if(battleLogs.length){const html=battleLogs.map(b=>`<div style="margin-top:8px"><b>${esc(b.name)}</b> <span class="dim">${b.rounds}턴 ${b.win?"승리":"패배"}</span><div class="explog-pop" style="max-height:130px">${b.log.map(t=>`<div class="explog-line">${esc(t)}</div>`).join("")}</div></div>`).join("");lines.push(`<details style="margin-top:10px"><summary>전투 로그 보기</summary>${html}</details>`)}
+ if(bossDefeat)lines.push(`<p class="dim">보스에게 패배해 HP 1로 귀환했다. 던전 보상 상자는 얻지 못했다.</p>`);
+ else if(defeated)lines.push(`<p class="dim">전투에서 패배해 간신히 귀환했다.</p>`);
+ if(battleLogs.length){const html=battleLogs.map(b=>{const tag=b.role==="정예"?"[정예] ":b.role==="보스"?"[보스] ":"";return `<div style="margin-top:8px"><b>${esc(tag+b.name)}</b> <span class="dim">${b.rounds}턴 ${b.win?"승리":"패배"}</span><div class="explog-pop" style="max-height:130px">${b.log.map(t=>`<div class="explog-line">${esc(t)}</div>`).join("")}</div></div>`}).join("");lines.push(`<details style="margin-top:10px"><summary>전투 로그 보기</summary>${html}</details>`)}
  if(partial&&!segs)lines.push(`<p class="dim">30분을 채우지 못해 보상이 없다.</p>`);
  if(me.hp[0]<=1)lines.push(`<p class="dim">HP가 1까지 떨어졌다. 간신히 빠져나왔다.</p>`);
  if(lost)lines.push(`<p class="dim">가방이 가득 차 ${lost}개를 놓쳤다.</p>`);
@@ -1673,17 +1787,34 @@ function resolveExp(partial=false){
   if((partial||found.length===0)&&tryBadTrait("느긋함"))newBad.push("느긋함");
  }
  if(newBad.length)lines.push(`<p style="color:var(--bad)">부정 특성 [${newBad.join(", ")}]을(를) 얻게 되었다.</p>`);
- logAct(partial?"중도 귀환했다.":"탐사를 마치고 귀환했다.",false);
+ logAct(partial?"중도 귀환했다.":"탐사를 마치고 귀환했다.");
+ if(proposalId&&me.partyId&&runLeader===uid)update(ref(realtimeDB,"parties/"+me.partyId+"/expedition/meta"),{log:me.expLogs.slice(-200)}).catch(()=>{});
  if(!partial&&e.kind==="long")playCompleteSound();
- pop(partial?"중도 귀환":`${cfg.label} 완료`,lines.join(""),[{t:"확인"}])}
+ const btns=[{t:"확인"}];
+ if(!partial&&me.expLogs.length)btns.unshift({t:"탐사 기록 보기",fn:()=>openExpRecord(0)});
+ pop(partial?"중도 귀환":`${cfg.label} 완료`,lines.join(""),btns)}
 function expClock(ms){const s=Math.max(0,Math.ceil(ms/1000)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;return (h?h+":":"")+String(m).padStart(2,"0")+":"+String(ss).padStart(2,"0")}
 function updateExpText(){if(!me.expedition)return;const cfg=EXPD[me.expedition.kind]||{label:"탐사"};$("exptxt").textContent=`${cfg.label} 진행 중… ${expClock(me.expedition.end-Date.now())}`}
+function catchUpExp(){
+ const e=me.expedition;if(!e)return 0;
+ const now=Date.now(),end=Math.min(now,+e.end||now),min=Math.max(0,+e.min||0),start=(+e.end||now)-min*60000;
+ let t=+e.nextLogAt;
+ if(!isFinite(t)||t<=0)t=start+60000;
+ if(t<start+1000)t=start+60000;
+ let n=0;
+ while(t<=end&&n<400){
+  logAct(take(e.kind==="dungeon"?ACT_DUNGEON:ACT_COMMON),t);
+  t+=nextGap();n++;
+ }
+ e.nextLogAt=t;
+ return n;
+}
 function checkExpAct(){
+ if(!me.expedition)return;
+ catchUpExp();
  if(!me.expedition)return;
  if(Date.now()>=me.expedition.end){resolveExp();return}
  try{updateExpText()}catch(e){}
- if(!nextActAt)nextActAt=Date.now()+60000;
- if(Date.now()>=nextActAt){nextActAt=Date.now()+nextGap();logAct(take(me.expedition.kind==="dungeon"?ACT_DUNGEON:ACT_COMMON))}
 }
 const onExpVisible=()=>{if(!document.hidden)checkExpAct()};
 document.addEventListener("visibilitychange",onExpVisible);
@@ -2579,7 +2710,7 @@ if(me.downed){subscribeOwnDowned();updateDownedBar();if(me.downed.revive)setTime
 // 팝업
 let popF=[];
 function pop(t,h,b,lock,sheet){$("pt").textContent=t;$("pb").innerHTML=h;popF=b;$("pbtn").innerHTML=b.map((x,k)=>`<button class="btn ${x.c===undefined?"alt":x.c}" data-k="${k}"${x.disabled?" disabled":""}>${x.t}</button>`).join("");$("pop").dataset.lock=lock?"1":"";$("pop").classList.toggle("sheet",!!sheet);$("pop").hidden=false}
-const closePop=()=>{$("pop").hidden=true};
+const closePop=()=>{$("pop").hidden=true;expRecordView=false};
 $("pbtn").onclick=e=>{const b=e.target.closest("[data-k]");if(!b)return;const f=popF[+b.dataset.k];closePop();if(f.fn)f.fn()};
 
 function bag(){$("bag").textContent=`${usedSlots()}/${cap()}`;$("gold").textContent=me.gold+" G";invRender();rideRender()}
@@ -3061,7 +3192,45 @@ function highTierScale(star,role){
  const t=s-8;
  return{hp:1+t*.18,atk:1+t*.07,def:1+t*.05}
 }
-function scaleMonster(mon,star){
+// ---- 전투 개편 v2.3 (단기/장기/던전) ----
+const SHORT_NORMAL=[
+ {h:.37,a:1.48,d:.50},{h:.48,a:.82,d:.55},{h:.91,a:1.26,d:.66},{h:.79,a:.79,d:.72},{h:.93,a:1.11,d:.80},
+ {h:.82,a:.94,d:.86},{h:1.08,a:1.27,d:.92},{h:.98,a:1.13,d:.95},{h:1.37,a:1.48,d:.97},{h:1.31,a:1.54,d:.99},
+ {h:1.89,a:2.47,d:1.00},{h:2.01,a:2.14,d:1.02},{h:2.13,a:2.45,d:1.10},{h:2.24,a:2.16,d:1.15},{h:2.36,a:2.31,d:1.17}
+];
+const SHORT_ELITE=[
+ {h:.32,a:.30,d:.50},{h:.32,a:.30,d:.55},{h:.61,a:.62,d:.66},{h:.54,a:.40,d:.72},{h:.66,a:.63,d:.80},
+ {h:.57,a:.55,d:.86},{h:.73,a:.73,d:.92},{h:.63,a:.66,d:.95},{h:.85,a:.95,d:.97},{h:.80,a:.93,d:.99},
+ {h:1.15,a:1.38,d:1.00},{h:1.21,a:1.37,d:1.02},{h:1.26,a:1.54,d:1.10},{h:1.31,a:1.44,d:1.15},{h:1.36,a:1.68,d:1.17}
+];
+const LONG_K=[.711,.934,.846,.945,.886,.870,.776,.789,.940,1.010,.936,1.076,1.019,1.077,1.118];
+const DUNGEON_K=[.604,.792,.586,.673,.575,.566,.492,.482,.485,.498,.443,.507,.483,.486,.467];
+// index 0 = 1인, 1 = 2인, 2 = 3인, 3 = 4인, 4 = 5인
+const LONG_PARTY_Q=[
+ [1,2.13,2.84,3.16,4.00],[1,1.44,2.09,2.72,3.30],[1,1.52,1.57,2.03,2.30],[1,1.60,1.91,2.01,2.40],[1,1.61,2.13,2.20,2.10],
+ [1,1.61,2.10,2.41,2.20],[1,1.72,2.20,2.69,2.90],[1,1.65,2.18,2.67,3.10],[1,1.52,2.00,2.40,2.80],[1,1.49,1.86,2.48,2.60],
+ [1,1.58,1.87,2.48,2.60],[1,1.46,1.85,2.26,2.50],[1,1.53,1.86,2.32,2.40],[1,1.55,1.84,2.23,2.40],[1,1.49,1.67,2.13,2.20]
+];
+const DUNGEON_PARTY_Q=[
+ [1,1.85,2.76,3.25,3.70],[1,1.46,2.00,2.55,3.00],[1,1.56,1.91,2.33,2.80],[1,1.69,2.23,2.26,2.80],[1,1.67,2.23,2.24,2.50],
+ [1,1.73,2.34,2.78,2.80],[1,1.82,2.48,3.07,3.50],[1,1.76,2.41,2.97,3.50],[1,1.70,2.38,2.95,3.60],[1,1.71,2.42,2.99,3.50],
+ [1,1.88,2.59,3.16,3.70],[1,1.64,2.27,2.86,3.50],[1,1.61,2.20,2.68,3.40],[1,1.70,2.25,2.78,3.50],[1,1.68,2.20,2.70,3.40]
+];
+const clampStar=s=>Math.max(1,Math.min(15,Math.floor(+s||1)));
+function scaleMonster(mon,star,opts={}){
+ const s=clampStar(star),mode=opts.mode||"legacy",pn=Math.max(1,Math.min(5,Math.floor(+opts.partySize||1)));
+ if(mode==="short"||mode==="long"||mode==="dungeon"){
+  const role=mon.role==="보스"?"boss":mon.role==="정예"?"elite":"normal";
+  const base=role==="normal"?SHORT_NORMAL[s-1]:SHORT_ELITE[s-1];
+  let h=base.h,a=base.a,d=base.d;
+  if(mode!=="short"){
+   const k=(mode==="long"?LONG_K:DUNGEON_K)[s-1];
+   const q=(mode==="long"?LONG_PARTY_Q:DUNGEON_PARTY_Q)[s-1][pn-1]||1;
+   h*=k*q;a*=k*q;
+  }
+  if(role==="boss"||opts.boss){h*=1.15;a*=1.15}
+  return{...mon,hp:Math.max(1,Math.round((+mon.hp||1)*h)),atk:Math.max(1,Math.round((+mon.atk||1)*a*100)/100),def:Math.max(0,Math.round((+mon.def||0)*d*100)/100)};
+ }
  const sc=monsterScale(star),hf=highTierScale(star,mon.role);
  return{...mon,hp:Math.max(1,Math.round((+mon.hp||1)*sc.hp*hf.hp)),atk:Math.max(1,Math.round((+mon.atk||1)*sc.atk*hf.atk*100)/100),def:Math.max(0,Math.round((+mon.def||0)*sc.def*hf.def*100)/100)}
 }
@@ -3070,12 +3239,12 @@ function capBattleLoot(loot,star){
  if(Math.random()<.25)return [];
  return loot.slice(0,1)
 }
-const BOSS_PARTY_SCALE={1:{hp:.25,atk:.30,def:1},2:{hp:.45,atk:.60,def:1},3:{hp:.70,atk:.85,def:1},4:{hp:1,atk:1,def:1}};
+const BOSS_PARTY_SCALE={1:{hp:.25,atk:.30,def:1},2:{hp:.45,atk:.60,def:1},3:{hp:.70,atk:.85,def:1},4:{hp:1,atk:1,def:1},5:{hp:1.15,atk:1,def:1}};
 const NORMAL_PARTY_SCALE={
- normal:{1:{hp:1,atk:1},2:{hp:1.1,atk:1},3:{hp:1.2,atk:1},4:{hp:1.3,atk:1}},
- elite:{1:{hp:1,atk:1},2:{hp:1.4,atk:1.05},3:{hp:1.8,atk:1.1},4:{hp:2.2,atk:1.15}}
+ normal:{1:{hp:1,atk:1},2:{hp:1.1,atk:1},3:{hp:1.2,atk:1},4:{hp:1.3,atk:1},5:{hp:1.4,atk:1}},
+ elite:{1:{hp:1,atk:1},2:{hp:1.4,atk:1.05},3:{hp:1.8,atk:1.1},4:{hp:2.2,atk:1.15},5:{hp:2.6,atk:1.2}}
 };
-const partySize=()=>Math.max(1,Math.min(4,1+(me.partyId?onlineAllies().length:((me.party&&me.party.length)||0))));
+const partySize=()=>Math.max(1,Math.min(5,1+(me.partyId?onlineAllies().length:((me.party&&me.party.length)||0))));
 function rollBossMonster(star){
  const inRange=MONSTERS.filter(m=>m.role==="보스"&&star>=m.starMin&&star<=m.starMax);
  if(inRange.length)return pick(inRange);
@@ -3097,27 +3266,29 @@ function rollShortMonster(star){
   const pool=MONSTERS.filter(m=>m.grade===g&&m.role!=="보스"&&String(m.encounter||"").includes("단기"));
   if(!pool.length)continue;
   const elite=pool.filter(m=>m.role==="정예"),normal=pool.filter(m=>m.role==="일반");
-  if(elite.length&&Math.random()<.12)return pick(elite);
+  if(elite.length&&Math.random()<.10)return pick(elite);
   return pick(normal.length?normal:pool);
  }
  return pick(MONSTERS.filter(m=>m.role!=="보스"));
 }
 function battleHit(acc,eva){return Math.max(5,Math.min(95,acc-eva))}
 function battleDamage(atk,def,crit,cd){let d=Math.max(1,Math.floor(atk*100/(100+def)));if(crit)d=Math.max(1,Math.floor(d*(cd||150)/100));return d}
+function isHpPotion(n){const d=ITEM_BY_NAME[n]||{};const fx=info(n).fx||{};return (d.sub==="포션"||/포션|비약/.test(n))&&(fx.hp||0)>0}
 function autoBattle(mon,party,opts={}){
- const pn=Math.max(1,party.length),role=mon.role==="보스"?"boss":mon.role==="정예"?"elite":"normal";
- const psc=role==="boss"?BOSS_PARTY_SCALE[pn]:(role==="elite"?NORMAL_PARTY_SCALE.elite[pn]:NORMAL_PARTY_SCALE.normal[pn]);
- const scaled=scaleMonster(mon,opts.star||1);
+ const pn=Math.max(1,party.length),role=mon.role==="보스"?"boss":mon.role==="정예"?"elite":"normal",mode=opts.mode||"legacy";
+ const psc=(mode==="long"||mode==="dungeon")?{hp:1,atk:1,def:1}:(role==="boss"?BOSS_PARTY_SCALE[pn]:(role==="elite"?NORMAL_PARTY_SCALE.elite[pn]:NORMAL_PARTY_SCALE.normal[pn]));
+ const scaled=scaleMonster(mon,opts.star||1,{mode,partySize:pn,boss:!!opts.boss});
  const m={...scaled,maxHp:Math.max(1,Math.floor(scaled.hp*(psc.hp||1))),hp:0,atk:scaled.atk*(psc.atk||1),def:scaled.def*(psc.def||1)};m.hp=m.maxHp;
- const fs=party.map(p=>({...p,hp:Math.min(p.hp??p.maxHp,p.maxHp),maxHp:p.maxHp,skill:p.skill||"melee"})),log=[];
- let rounds=0;
+ const fs=party.map(p=>({...p,hp:Math.min(p.hp??p.maxHp,p.maxHp),maxHp:p.maxHp,skill:p.skill||"melee",potionCd:0})),log=[];
+ let rounds=0,used=0;
  while(m.hp>0&&rounds<80){
   rounds++;
+  for(const f of fs)if(f.potionCd>0)f.potionCd--;
   for(const f of fs){
    if(f.hp<=0)continue;
-   if(f.self&&f.hp/f.maxHp<.3){
-    const ix=me.inv.findIndex(x=>{const fx=info(nm(x)).fx;return fx&&fx.hp>0});
-    if(ix>=0){const x=me.inv.splice(ix,1)[0],n=nm(x),heal=healVal(info(n).fx.hp||0);f.hp=Math.min(f.maxHp,f.hp+heal);me.hp[0]=f.hp;log.push(`${f.name}이(가) ${n}을(를) 사용해 HP +${heal}`)}
+   if(f.self&&f.hp/f.maxHp<=.3&&!(f.potionCd>0)){
+    const idxs=[];me.inv.forEach((x,i)=>{if(isHpPotion(nm(x)))idxs.push(i)});
+    if(idxs.length){const ix=idxs[Math.floor(Math.random()*idxs.length)],x=me.inv.splice(ix,1)[0],n=nm(x),heal=healVal(info(n).fx.hp||0);f.hp=Math.min(f.maxHp,f.hp+heal);me.hp[0]=f.hp;f.potionCd=3;used++;applyItemStatus(n,info(n));log.push(`${f.name}이(가) ${n}을(를) 사용해 HP +${heal} (턴 소모, 쿨타임 2턴)`);continue}
    }
    const st=f.st;
     if(f.self&&st.statusFlags&&st.statusFlags.act){log.push(`${f.name}\uC740(\uB294) \uBAB8\uC774 \uB9D0\uC744 \uB4E3\uC9C0 \uC54A\uC544 \uD589\uB3D9\uD560 \uC218 \uC5C6\uB2E4.`);continue}
@@ -3134,14 +3305,15 @@ function autoBattle(mon,party,opts={}){
   if(Math.random()*100>=battleHit(m.acc,st.evasion)){log.push(`${m.name}의 공격이 ${t.name}를 빗나갔다.`)}
   else{const crit=Math.random()*100<m.crit,raw=battleDamage(m.atk,st.def,crit,m.cd),low=t.hp<=t.maxHp*.2,red=Math.min(.6,(st.dmgRed||0)+(low?(st.lowHpRed||0):0)+(opts.expedition?(st.expDmgRed||0):0)),dmg=Math.max(1,Math.floor(raw*(1-red)*(1+((st.dmgTakenPct||0)/100))));t.hp=Math.max(0,t.hp-dmg);log.push(`${m.name}의 공격! ${t.name}에게 ${dmg} 피해${crit?" (치명타)":""}`);if(t.hp<=0)log.push(`${t.name}이(가) 쓰러졌다.`);if(t.self&&t.hp>0){if(me.fx.some(f=>f&&f.id==="sleep")){removeStatus("sleep",{silent:true});log.push("충격으로 잠에서 깼다.")}const sd=rollMonsterStatus(m);if(sd){applyStatus(sd.id,{silent:true,stack:true});t.st=calcStats(me);log.push(`${m.name}의 공격으로 ‘${sd.n}’ 상태이상에 걸렸다.`)}}}
  }
- return {win:m.hp<=0,rounds,m,party:fs,log};
+ return {win:m.hp<=0,rounds,m,party:fs,log,used};
 }
 function battleLog(text){if(!battle)return;battle.log.push({at:Date.now(),text});if(battle.log.length>40)battle.log.shift()}
 function battleBody(){
  const st=calcStats(me),m=battle.mon,pct=(v,max)=>Math.max(0,Math.min(100,v/max*100));
  const log=battle.log.slice(-8).map(l=>`<div class="explog-line"><span class="t">${clockOf(l.at)}</span>${esc(l.text)}</div>`).join("");
  const allyRows=(battle.allies||[]).map(a=>`<div class="bar" style="margin-top:6px"><div class="lab"><span>${esc(a.name)}</span><span>${a.hp[0]} / ${a.maxHp}</span></div><div class="track"><div class="fill" style="width:${pct(a.hp[0],a.maxHp)}%;background:var(--ok)"></div></div></div>`).join("");
- return `<div class="battle-head"><b>${esc(m.name)}</b><span class="dim">${esc(m.grade)} · ${esc(m.role)}</span></div>`+
+ const roleTag=m.role==="정예"?`<span style="color:var(--bad);font-weight:700">[정예]</span> `:m.role==="보스"?`<span style="color:var(--bad);font-weight:700">[보스]</span> `:"";
+ return `<div class="battle-head"><b>${roleTag}${esc(m.name)}</b><span class="dim">${esc(m.grade)} · ${esc(m.role)}</span></div>`+
   `<div class="bar"><div class="lab"><span>몬스터 HP</span><span>${m.hp} / ${m.maxHp}</span></div><div class="track"><div class="fill" style="width:${pct(m.hp,m.maxHp)}%;background:var(--hp)"></div></div></div>`+
   `<div class="bar" style="margin-top:8px"><div class="lab"><span>내 HP</span><span>${me.hp[0]} / ${me.hp[1]}</span></div><div class="track"><div class="fill" style="width:${pct(me.hp[0],me.hp[1])}%;background:var(--hp)"></div></div></div>`+allyRows+
   `<div class="battle-stat"><span>공격 ${Math.round(st.meleeAtk)} / ${Math.round(st.rangedAtk)} / ${Math.round(st.magicAtk)}</span><span>속도 ${st.speed} vs ${m.speed}</span></div>`+
@@ -3149,16 +3321,16 @@ function battleBody(){
 }
 function battleButtons(){
  if(!battle||battle.done)return[{t:"확인"}];
- const st=calcStats(me);
+ const st=calcStats(me),cd=Math.max(0,+battle.potionCd||0);
  return [
   {t:`근접 ${Math.round(st.meleeAtk)}`,fn:()=>playerStrike("melee")},
   {t:`원거리 ${Math.round(st.rangedAtk)}`,fn:()=>playerStrike("ranged")},
   {t:`마법 ${Math.round(st.magicAtk)}`,fn:()=>playerStrike("magic")},
-  {t:"포션",fn:useBattlePotion},
+  {t:cd?"포션 (쿨타임)":"포션",disabled:cd>0,fn:useBattlePotion},
   {t:"도주",fn:tryFlee}
  ];
 }
-function renderBattle(){if(battle){pop(`${battle.mon.name} 전투`,battleBody(),battleButtons(),true);syncPartyBattle()}}
+function renderBattle(){if(battle){const tag=battle.mon.role==="정예"?"[정예] ":battle.mon.role==="보스"?"[보스] ":"";pop(`${tag}${battle.mon.name} 전투`,battleBody(),battleButtons(),true);syncPartyBattle()}}
 function syncPartyBattle(){
  if(!battle||!battle.sync||!me.partyId||!partyData||partyData.leader!==uid)return;
  const players=[{uid,name:me.name,hp:me.hp[0],maxHp:me.hp[1],skill:battle.skill},...battle.allies.map(a=>({uid:a.uid||"",name:a.name,hp:a.hp[0],maxHp:a.maxHp,skill:a.skill||"melee"}))];
@@ -3167,16 +3339,19 @@ function syncPartyBattle(){
 }
 function renderPartyBattle(snap){
  if(!snap||!snap.monster)return;
+ if(Array.isArray(snap.participants)&&!snap.participants.includes(uid))return;
  if(snap.id&&battle&&battle.id===snap.id)return;
- const mine=(snap.players||[]).find(p=>p.uid===uid);
+ const synced=!!snap.proposalId;
+ const mine=synced?null:(snap.players||[]).find(p=>p.uid===uid);
  if(mine){const before=+me.hp[0]||0;me.hp[0]=Math.max(me.downed?0:1,+mine.hp||0);me.hp[1]=Math.max(1,+mine.maxHp||100);if(me.hp[0]<before&&Date.now()-lastPartyLog>=30000){lastPartyLog=Date.now();logChar("party",`파티 전투 동기화 · HP ${before} → ${me.hp[0]}`,{before,after:me.hp[0],battleId:snap.id||null,monster:snap.monster&&snap.monster.name,status:snap.status})}barsRender()}
- if((snap.status==="win"||snap.status==="lose")&&snap.result&&partyAppliedBattle!==snap.id){
+ if(!synced&&(snap.status==="win"||snap.status==="lose")&&snap.result&&partyAppliedBattle!==snap.id){
   const r=snap.result;
   if(snap.status==="win"){
    gainPlayerXP(r.xpEach||0);
    const sk=(r.skillByUid&&r.skillByUid[uid])||"melee";
    if(r.skillXp)gainSkillXP(sk,r.skillXp);
    (r.loot||[]).forEach(n=>{registerItem(n);const it=lootObj(n);if(canAdd(it))addItem(it)});
+    if(r.chest){const ch={n:"던전 보상 상자",tier:r.chest.tier,area:r.chest.area};if(canAdd(ch))addItem(ch)}
    bag();
   }
   if(me.hp[0]<=0)me.hp[0]=1;
@@ -3185,14 +3360,26 @@ function renderPartyBattle(snap){
  const pct=(v,max)=>Math.max(0,Math.min(100,v/(max||1)*100));
  const rows=(snap.players||[]).map(p=>`<div class="bar" style="margin-top:6px"><div class="lab"><span>${esc(p.name||"파티원")}${p.uid===uid?" (나)":""}</span><span>${p.hp} / ${p.maxHp}</span></div><div class="track"><div class="fill" style="width:${pct(p.hp,p.maxHp)}%;background:${p.uid===uid?"var(--hp)":"var(--ok)"}"></div></div></div>`).join("");
  const log=(snap.log||[]).slice(-8).map(l=>`<div class="explog-line"><span class="t">${clockOf(+l.at||0)}</span>${esc(l.text||"")}</div>`).join("");
- const res=snap.result&&snap.status==="win"?`<p><b>전투 승리</b></p><p>파티 XP +${snap.result.xpEach||0}</p>${(snap.result.loot||[]).length?`<p><b>획득</b> ${esc(tally(snap.result.loot))}</p>`:""}`:snap.status==="lose"?`<p><b>패배</b></p>`:`<p class="dim">파티장이 전투를 진행 중이다.</p>`;
+ const res=snap.result&&snap.status==="win"?`<p><b>전투 승리</b></p><p>파티 XP +${snap.result.xpEach||0}</p>${(snap.result.loot||[]).length?`<p><b>획득</b> ${esc(tally(snap.result.loot))}</p>`:""}${snap.result.chest?`<p><b>던전 보상 상자</b> 획득</p>`:""}`:snap.status==="lose"?`<p><b>패배</b></p>`:`<p class="dim">파티장이 전투를 진행 중이다.</p>`;
  pop(`파티 전투 · ${snap.monster.name}`,`<div class="bar"><div class="lab"><span>몬스터 HP</span><span>${snap.monster.hp} / ${snap.monster.maxHp}</span></div><div class="track"><div class="fill" style="width:${pct(snap.monster.hp,snap.monster.maxHp)}%;background:var(--hp)"></div></div></div>${rows}<div class="explog-pop battle-log">${log}</div>${res}`,[{t:"닫기"}]);
+}
+function encounterMonster(mon,opts={}){
+ if(!mon)return false;
+ if(mon.role==="정예"&&!opts.noConfirm){
+  pop("정예 조우",`<p><b style="color:var(--bad)">[정예] ${esc(mon.name)}</b></p><p class="dim">강력한 적이다. 싸우거나 도주할 수 있다.</p>`,[
+   {t:"싸운다",c:"bad",fn:()=>startBattle(mon,{...opts,noConfirm:true})},
+   {t:"도주",fn:()=>{toast("정예를 피해 도주했다.");try{logAct("[정예] 회피")}catch(e){}}}
+  ],true);
+  return true;
+ }
+ startBattle(mon,opts);return true;
 }
 function startBattle(mon,opts={}){
  try{$("modal").hidden=true}catch(e){}
- const st=calcStats(me),star=Math.max(1,Math.floor(+opts.star||battleStars())),scaled=scaleMonster(mon,star),hp=scaled.hp,atk=scaled.atk,def=scaled.def;
- battle={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),mon:{...scaled,maxHp:hp,hp,atk,def},star,source:opts.source||"fieldNormal",areaObj:opts.areaObj||null,difficulty:"normal",boss:false,bossRole:false,partySize:1,allies:[],log:[],miss:0,evaded:0,done:false,skill:"melee",win:false,result:null,sync:false};
- battleLog(`${mon.name}이(가) 나타났다.`);
+ const st=calcStats(me),star=Math.max(1,Math.floor(+opts.star||battleStars())),scaled=scaleMonster(mon,star,{mode:"short",partySize:1}),hp=scaled.hp,atk=scaled.atk,def=scaled.def;
+ battle={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),mon:{...scaled,maxHp:hp,hp,atk,def},star,source:opts.source||"fieldNormal",areaObj:opts.areaObj||null,difficulty:"normal",boss:false,bossRole:false,partySize:1,allies:[],log:[],miss:0,evaded:0,done:false,skill:"melee",win:false,result:null,sync:false,potionCd:0};
+ const tag=mon.role==="정예"?"[정예] ":mon.role==="보스"?"[보스] ":"";
+ battleLog(`${tag}${mon.name}이(가) 나타났다.`);
  if(mon.speed>st.speed){battleLog("몬스터가 먼저 움직인다.");monsterStrike()}
  if(me.hp[0]<=0){finishBattle(false);return}
  renderBattle();
@@ -3214,6 +3401,7 @@ function allyStrikes(){
 function playerStrike(kind){
  if(!battle||battle.done)return;
  if(!spendActionHunger(1))return;
+ if(battle.potionCd>0)battle.potionCd--;
  const st=calcStats(me),m=battle.mon,a=BATTLE_SKILLS[kind];
  if(st.statusFlags&&st.statusFlags.act){battleLog("몸이 말을 듣지 않는다. 행동할 수 없다.");monsterStrike();if(me.hp[0]<=0){finishBattle(false);return}renderBattle();return}
  if(kind==="magic"&&st.statusFlags&&st.statusFlags.magic){battleLog("마법을 사용할 수 없다.");renderBattle();return}
@@ -3267,17 +3455,25 @@ function monsterStrike(){
 }
 function useBattlePotion(){
  if(!battle||battle.done)return;
+ if((+battle.potionCd||0)>0){battleLog(`포션은 ${battle.potionCd}턴 후 사용할 수 있다.`);renderBattle();return}
  if(me.hp[0]>=me.hp[1]){battleLog("HP가 이미 가득하다.");renderBattle();return}
- const i=me.inv.findIndex(x=>{const f=info(nm(x)).fx;return f&&f.hp>0});
- if(i<0){battleLog("사용할 회복 아이템이 없다.");renderBattle();return}
+ const idxs=[];me.inv.forEach((x,i)=>{if(isHpPotion(nm(x)))idxs.push(i)});
+ if(!idxs.length){battleLog("사용할 HP 포션이 없다.");renderBattle();return}
  if(!spendActionHunger(1))return;
- const x=me.inv.splice(i,1)[0],n=nm(x),heal=healVal(info(n).fx.hp||0);
+ const ix=idxs[Math.floor(Math.random()*idxs.length)],x=me.inv.splice(ix,1)[0],n=nm(x),heal=healVal(info(n).fx.hp||0),m=battle.mon;
  me.hp[0]=Math.min(me.hp[1],me.hp[0]+heal);applyItemStatus(n,info(n));
- battleLog(`${n} 사용! HP +${heal}`);
- barsRender();bag();renderBattle();
+ battle.potionCd=3;
+ battleLog(`${n} 사용! HP +${heal} (턴 소모 · 쿨타임 2턴)`);
+ barsRender();bag();
+ allyStrikes();
+ if(m.hp<=0){finishBattle(true);return}
+ monsterStrike();
+ if(me.hp[0]<=0){finishBattle(false);return}
+ renderBattle();
 }
 function tryFlee(){
  if(!battle||battle.done)return;
+ if(battle.potionCd>0)battle.potionCd--;
  const st=calcStats(me);
  if(st.statusFlags&&st.statusFlags.flee){battleLog("몸이 묶여 도주할 수 없다.");monsterStrike();if(me.hp[0]<=0){finishBattle(false);return}renderBattle();return}
  if(!spendActionHunger(1))return;
@@ -3330,7 +3526,7 @@ function exploreUsed(){
  if(me.exploreDay!==k){me.exploreDay=k;me.exploreCount=0}
  return Math.max(0,Math.min(EXPLORE_DAILY_LIMIT,Math.floor(+me.exploreCount||0)));
 }
-$("explore").onclick=()=>{const used=exploreUsed();if(used>=EXPLORE_DAILY_LIMIT)return toast(`오늘의 단기 탐사 한도를 모두 사용했습니다. (${EXPLORE_DAILY_LIMIT}/${EXPLORE_DAILY_LIMIT})`);const left=EXPLORE_COOLDOWN-(Date.now()-(me.lastExplore||0));if(left>0)return toast(`탐사 쿨타임 ${Math.ceil(left/1000)}초`);me.lastExplore=Date.now();me.exploreDay=exploreDayKey();me.exploreCount=used+1;spendHunger(1);if(me.hunger[0]<=0){checkVitals();return}if(!me.pet&&Date.now()>=(+me.petAdoptLockUntil||0)&&Math.random()<.001){showPetDiscovery();return}const tier=battleStars(),areaObj=(()=>{try{return AR(me.area)}catch(e){return null}})(),r=Math.random(),encRed=Math.min(.8,calcStats(me).encounterRed+(isNightNow()?(toolMods().nightEncounterRed||0)/100:0));
+$("explore").onclick=()=>{const used=exploreUsed();if(used>=EXPLORE_DAILY_LIMIT)return toast(`오늘의 단기 탐사 한도를 모두 사용했습니다. (${EXPLORE_DAILY_LIMIT}/${EXPLORE_DAILY_LIMIT})`);const left=EXPLORE_COOLDOWN-(Date.now()-(me.lastExplore||0));if(left>0)return toast(`탐사 쿨타임 ${Math.ceil(left/1000)}초`);me.lastExplore=Date.now();me.exploreDay=exploreDayKey();me.exploreCount=used+1;spendHunger(1);if(me.hunger[0]<=0){checkVitals();return}if(!me.pet&&Date.now()>=(+me.petAdoptLockUntil||0)&&Math.random()<.001){showPetDiscovery();return}let metMonster=false;const tier=battleStars(),areaObj=(()=>{try{return AR(me.area)}catch(e){return null}})(),r=Math.random(),encRed=Math.min(.8,calcStats(me).encounterRed+(isNightNow()?(toolMods().nightEncounterRed||0)/100:0));
  // 함정도 아이템 획득·전투처럼 탐사 결과 중 하나로 출력한다.
  const tm=toolMods(),trapChance=.05*Math.max(.15,1-Math.min(.85,(tm.trapFindPct||0)/100));
  if(Math.random()<trapChance){
@@ -3354,9 +3550,9 @@ $("explore").onclick=()=>{const used=exploreUsed();if(used>=EXPLORE_DAILY_LIMIT)
   if(got.length){const d=ITEM_BY_NAME[got[0]];if(d)awardAction("search",d.grade==="일반"?ACTION_XP.search:ACTION_XP.rareSearch,d.grade,"search")}
   modal("아이템 획득",got.length?`${esc(tally(got))}을(를) 얻었다.`:"쓸 만한 것을 찾지 못했다.")
  }
- else if(r<.6+.25*(1-encRed)){const mon=rollShortMonster(tier);if(mon)startBattle(mon,{star:tier,source:mon.role==="정예"?"fieldElite":"fieldNormal",areaObj});else modal("아무것도 없음","주변을 샅샅이 뒤졌지만 쓸 만한 것은 없다.")}
+ else if(r<.6+.25*(1-encRed)){const mon=rollShortMonster(tier);if(mon)metMonster=encounterMonster(mon,{star:tier,source:mon.role==="정예"?"fieldElite":"fieldNormal",areaObj});else modal("아무것도 없음","주변을 샅샅이 뒤졌지만 쓸 만한 것은 없다.")}
  else modal("아무것도 없음","주변을 샅샅이 뒤졌지만 쓸 만한 것은 없다.");
- if(!battle){
+ if(!battle&&!metMonster){
   if(Math.random()<.05)applyStatus("wound",{silent:true});
   if(Math.random()<.03)applyStatus("fatigue",{silent:true});
   if(me.hunger[0]<=0)applyStatus("starvation",{silent:true});
@@ -3515,21 +3711,189 @@ function startRoster(){
 let partyData=null,partyUnsub=null,partyInviteUnsub=null,partyJoinReqUnsub=null,partyJoinResUnsub=null,partySyncWarned=false;
 const partyInviteSeen=new Set(),partyJoinSeen=new Set();
 let partyAppliedBattle=null;
+// ---- 파티 탐사 제안 ----
+let partyProposal=null,partyProposalUnsub=null,proposalTimer=null,proposalPromptId=null,proposalPromptLabel=null,proposalRunId=null,proposalMissedId=null;
+const PROPOSAL_OFFSETS=[10,20,30,40,50,60];
+const PROPOSAL_JOIN_WINDOW=10*60000;
+const proposalKindLabel=k=>k==="dungeon"?"던전탐사":"장기탐사";
+function isOnlineParty(){return !!(me.partyId&&partyData&&partyData.members&&Object.keys(partyData.members).length>1)}
+function proposalParticipants(p){
+ if(!p||!partyData||!partyData.members)return[];
+ return Object.keys(partyData.members).filter(id=>!(p.responses&&p.responses[id]&&p.responses[id].yes===false));
+}
+function proposalStale(p){
+ if(!p)return false;
+ if(p.status==="open")return Date.now()>(+p.startAt||0)+PROPOSAL_JOIN_WINDOW;
+ return Date.now()>(+p.startAt||0)+(+(p.min)||0)*60000+60000;
+}
+function dismissProposalPrompt(p){
+ if(!proposalPromptId||(p&&proposalPromptId!==p.id))return;
+ const label=proposalPromptLabel;
+ proposalPromptId=null;proposalPromptLabel=null;
+ if(label&&!$("pop").hidden&&$("pt").textContent===label+" 제안")closePop();
+}
+function subscribePartyProposal(){
+ if(partyProposalUnsub){try{partyProposalUnsub()}catch(e){}partyProposalUnsub=null}
+ partyProposal=null;proposalMissedId=null;proposalPromptId=null;proposalPromptLabel=null;
+ if(!me.partyId){renderProposalPanels();return}
+ partyProposalUnsub=onValue(ref(realtimeDB,"partyProposals/"+me.partyId),s=>{
+  partyProposal=s.val()||null;
+  if(!partyProposal)proposalRunId=null;
+  if(!partyProposal||partyProposal.status!=="open")dismissProposalPrompt(partyProposal);
+  renderProposalPanels();handleProposalPopup();scheduleProposalStart();maybeStartProposalExp();
+ },err=>console.warn("partyProposal",err));
+}
+function proposalYesNames(p){
+ const out=[];if(!p)return out;
+ if(p.proposerName)out.push(p.proposerName);
+ Object.values(p.responses||{}).forEach(r=>{if(r&&r.yes&&r.name&&!out.includes(r.name))out.push(r.name)});
+ return out;
+}
+function proposalUnanswered(p){
+ if(!p||!partyData||!partyData.members)return 0;
+ return Object.keys(partyData.members).filter(id=>id!==p.proposerUid&&!(p.responses&&p.responses[id])).length;
+}
+function renderProposalPanels(){
+ for(const kind of ["long","dungeon"]){
+  const box=$(kind==="long"?"longProposal":"dunProposal");if(!box)continue;
+  const go=$(kind==="long"?"longgo":"dungo");if(go)go.hidden=true;
+  const label=proposalKindLabel(kind),dur=durText(expSel[kind]);
+  let html="";
+  if(!me.partyId){
+   html=`<div class="row" style="margin-top:8px"><button type="button" class="btn sm2" data-prop-now="${kind}">${dur} ${label} 출발하기</button></div>`;
+  }else if(!isOnlineParty()){
+   html=`<div class="row" style="margin-top:8px;gap:6px;align-items:center"><button type="button" class="btn sm2" data-prop-now="${kind}">${dur} ${label} 출발하기</button><span class="dim sm">1인/용병 파티는 바로 출발합니다.</span></div>`;
+  }else{
+   html=`<div class="row" style="margin-top:8px;gap:6px;align-items:center"><button type="button" class="btn alt sm2" data-prop-open="${kind}">${dur} ${label} 제안</button><span class="dim sm">파티원에게 제안을 보냅니다.</span></div>`;
+  }
+  if(partyProposal&&partyProposal.kind===kind&&!proposalStale(partyProposal)){
+   const p=partyProposal,yes=proposalYesNames(p),un=proposalUnanswered(p);
+   if(p.status==="running"){
+    const names=(p.participants||[]).map(id=>((partyData&&partyData.members&&partyData.members[id])||{}).name||id);
+    html+=`<div style="margin-top:8px"><b>${label} 제안</b> <span class="dim">진행 중</span></div><div class="dim sm">출발시간: ${clockOf(p.startAt)} · 참가 ${(p.participants||[]).length}명${names.length?` (${names.map(esc).join(", ")})`:""}</div>`;
+   }else{
+    html+=`<div style="margin-top:8px"><b>${label} 제안</b></div>`;
+    html+=`<div class="sm">${yes.length?`‘${yes.map(esc).join("’ ‘")}’가 함께 가기로 했다.`:"아직 함께 가기로 한 사람이 없다."} <span class="dim">출발시간: ${clockOf(p.startAt)}</span></div>`;
+    if(un)html+=`<div class="dim sm">미응답 ${un}명 · 출발 시 자동 참가</div>`;
+    html+=`<div class="row" style="margin-top:6px;gap:6px">`;
+    if(p.proposerUid===uid)html+=`<button type="button" class="btn alt sm2" data-prop-cancel="1">제안 취소</button>`;
+    else{
+     const my=(p.responses||{})[uid];
+     if(!my)html+=`<button type="button" class="btn sm2" data-prop-resp="yes">함께 간다</button><button type="button" class="btn alt sm2" data-prop-resp="no">거절한다</button>`;
+     else if(my.yes)html+=`<button type="button" class="btn alt sm2" data-prop-resp="no">거절로 변경</button>`;
+     else html+=`<button type="button" class="btn sm2" data-prop-resp="yes">함께 가기로 변경</button>`;
+    }
+    html+=`</div>`;
+   }
+  }
+  box.innerHTML=html;
+  box.querySelectorAll("[data-prop-now]").forEach(b=>b.onclick=()=>startExpNow(b.dataset.propNow));
+  box.querySelectorAll("[data-prop-open]").forEach(b=>b.onclick=()=>openProposalDialog(b.dataset.propOpen));
+  box.querySelectorAll("[data-prop-resp]").forEach(b=>b.onclick=()=>respondProposal(b.dataset.propResp==="yes"));
+  box.querySelectorAll("[data-prop-cancel]").forEach(b=>b.onclick=cancelProposal);
+ }
+}
+function openProposalDialog(kind){
+ if(!uid)return toast("로그인이 필요하다.");
+ if(!me.partyId||!isOnlineParty())return toast("파티원이 2명 이상이어야 제안할 수 있다.");
+ if(partyProposal&&!proposalStale(partyProposal))return toast("이미 진행 중인 탐사 제안이 있다.");
+ const label=proposalKindLabel(kind),now=Date.now();
+ const opts=PROPOSAL_OFFSETS.map(m=>`<option value="${m}">${m}분 후 · ${clockOf(now+m*60000)}</option>`).join("");
+ pop(`${durText(expSel[kind])} ${label} 제안`,`<p>출발 시간을 선택해 주세요.</p><select id="propTimeSel" style="width:100%;height:38px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font:inherit">${opts}</select>`,[
+  {t:"제안 보내기",c:"",fn:()=>{const sel=$("propTimeSel"),off=sel?+sel.value:10;createProposal(kind,expSel[kind],off)}},
+  {t:"취소"}
+ ]);
+}
+function createProposal(kind,min,offsetMin){
+ if(!uid)return toast("로그인이 필요하다.");
+ if(!me.partyId||!isOnlineParty())return toast("파티원이 2명 이상이어야 제안할 수 있다.");
+ if(partyProposal&&!proposalStale(partyProposal))return toast("이미 진행 중인 탐사 제안이 있다.");
+ const id=uid+"-"+Date.now().toString(36),startAt=Date.now()+Math.max(10,Math.min(60,+offsetMin||10))*60000;
+ const p={id,kind,min,proposerUid:uid,proposerName:me.name,startAt,createdAt:Date.now(),status:"open",responses:{[uid]:{yes:true,name:me.name,at:Date.now()}}};
+ set(ref(realtimeDB,"partyProposals/"+me.partyId),p).then(()=>toast(`${proposalKindLabel(kind)} 제안을 보냈다.`)).catch(()=>toast("제안을 보내지 못했다. Firebase 규칙을 확인해 주세요."));
+}
+function respondProposal(yes){
+ if(!me.partyId||!partyProposal){proposalPromptId=null;return toast("제안이 취소되었다.")}
+ if(partyProposal.status!=="open")return toast("이미 출발한 제안이다.");
+ if(partyProposal.proposerUid===uid&&!yes)return cancelProposal();
+ set(ref(realtimeDB,"partyProposals/"+me.partyId+"/responses/"+uid),{yes:!!yes,name:me.name,at:Date.now()}).then(()=>toast(yes?"함께 가기로 했다.":"거절했다.")).catch(()=>{proposalPromptId=null;toast("응답을 저장하지 못했다.")});
+}
+function cancelProposal(){
+ if(!me.partyId||!partyProposal)return;
+ if(partyProposal.proposerUid!==uid&&partyData&&partyData.leader!==uid)return toast("제안자만 취소할 수 있다.");
+ remove(ref(realtimeDB,"partyProposals/"+me.partyId)).then(()=>toast("제안을 취소했다.")).catch(()=>{});
+}
+function handleProposalPopup(){
+ const p=partyProposal;
+ if(!p||p.status!=="open"||p.proposerUid===uid||proposalStale(p))return;
+ const mine=(p.responses||{})[uid];if(mine)return;
+ if(proposalPromptId===p.id)return;
+ if(battle||!$("pop").hidden||!$("modal").hidden)return;
+ proposalPromptId=p.id;
+ const label=proposalKindLabel(p.kind);
+ proposalPromptLabel=label;
+ pop(`${label} 제안`,`<p><b>${esc(p.proposerName||"파티원")}</b>가 ‘${durText(p.min)} ${label}’를 제안했다.</p><p>출발시간: ${clockOf(p.startAt)}.</p><p>함께 갈까?</p>`,[
+  {t:"함께 간다",c:"",fn:()=>respondProposal(true)},
+  {t:"거절한다",fn:()=>respondProposal(false)}
+ ],true);
+}
+function scheduleProposalStart(){
+ if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null}
+ const p=partyProposal;
+ if(!p||p.status!=="open"||!partyData||!partyData.members)return;
+ if(proposalRunId===p.id)return;
+ if(!proposalParticipants(p).includes(uid))return;
+ const grace=p.proposerUid===uid?0:5000;
+ const delay=Math.max(0,+p.startAt-Date.now())+grace;
+ proposalTimer=setTimeout(startProposalRun,Math.min(delay,2147480000));
+}
+function enterProposalRun(p,participants){
+ if(!p||proposalRunId===p.id)return;
+ if(me.expedition||me.travel||me.rest||me.downed||me.deadPending)return;
+ proposalRunId=p.id;
+ if(me.partyId){try{remove(ref(realtimeDB,"parties/"+me.partyId+"/expedition")).catch(()=>{})}catch(e){}}
+ beginExp(p.kind,p.min,{participants,runLeader:p.proposerUid||uid,proposalId:p.id});
+ renderProposalPanels();
+}
+function maybeStartProposalExp(){
+ const p=partyProposal;
+ if(!p||p.status!=="running"||proposalRunId===p.id)return;
+ if(!Array.isArray(p.participants)||!p.participants.includes(uid))return;
+ if(Date.now()>(+p.startAt||0)+PROPOSAL_JOIN_WINDOW)return;
+ enterProposalRun(p,p.participants);
+}
+function startProposalRun(){
+ const p=partyProposal;
+ if(!p||p.status!=="open"||!partyData||!partyData.members)return;
+ if(proposalRunId===p.id)return;
+ const participants=proposalParticipants(p);
+ if(!participants.includes(uid))return;
+ const late=Date.now()-(+p.startAt||0);
+ if(late<0)return;
+ if(p.proposerUid!==uid&&late<4000)return;
+ if(late>PROPOSAL_JOIN_WINDOW){
+  if(proposalMissedId!==p.id){proposalMissedId=p.id;toast("출발 시간이 지나 참가하지 못했다.");renderProposalPanels()}
+  return;
+ }
+ update(ref(realtimeDB,"partyProposals/"+me.partyId),{status:"running",participants,startedAt:Date.now(),runnerUid:p.proposerUid||uid}).catch(()=>{});
+ enterProposalRun(p,participants);
+}
 function onlineAllies(){
  if(!partyData||!partyData.members)return[];
- return Object.entries(partyData.members).filter(([id])=>id!==uid).map(([id,m])=>normAlly({...m,uid:id,ai:true})).slice(0,3);
+ return Object.entries(partyData.members).filter(([id])=>id!==uid).map(([id,m])=>normAlly({...m,uid:id,ai:true})).slice(0,4);
 }
 function partyRender(){
  if(!$("partyList"))return;
  const online=partyData&&partyData.members?Object.entries(partyData.members).map(([id,m])=>({...m,uid:id,self:id===uid,leader:id===partyData.leader})):null;
  const list=online||[{name:me.name,job:me.job,lv:me.lv,color:me.color,self:true},...me.party];
- $("pcnt").textContent=`${list.length} / 4`;
+ $("pcnt").textContent=`${list.length} / 5`;
  if($("partyClear"))$("partyClear").textContent=partyData?(partyData.leader===uid?"파티 해산":"파티 탈퇴"):"해산";
  $("partyList").innerHTML=list.map((p,i)=>{const c=p.self?me.color:(/^#[0-9a-fA-F]{6}$/.test(p.color||"")?p.color:"#2F6FB0");const kick=online&&partyData.leader===uid&&!p.self?`<button class="ic" data-party-kick="${esc(p.uid)}" title="내보내기">×</button>`:(!online&&!p.self?`<button class="ic" data-px="${i-1}" title="내보내기">×</button>`:"");return `<div class="ch"><span class="dot" style="--name-color:${c}"></span><span class="js-name" style="--name-color:${c}">${esc(p.name||"동료")}${p.self?" (나)":""}${p.leader?" 👑":""}</span><small>Lv${p.lv||1} ${esc(p.job||"모험가")}</small>${kick}</div>`}).join("");
+ try{renderProposalPanels()}catch(e){}
 }
 function addAlly(a){
  if(!a)return;
- if(me.party.length>=3)return toast("파티는 최대 4인이다.");
+ if(me.party.length>=4)return toast("파티는 최대 5인이다.");
  if(a.uid&&me.party.some(x=>x.uid===a.uid))return toast("이미 파티에 있다.");
  me.party.push(a);partyRender();toast(`${a.name}을(를) 파티에 영입했다.`);
 }
@@ -3556,12 +3920,23 @@ async function createParty(){
  try{await set(ref(realtimeDB,"parties/"+pid),data);me.partyId=pid;me.partyLeader=uid;me.party=[];partyData=data;subscribeParty();partyRender();toast("파티를 만들었다.")}
  catch(e){toast("파티 생성 실패 · Firebase 규칙을 확인해 주세요.")}
 }
+function subscribePartyExpedition(){
+ if(partyExpUnsub){try{partyExpUnsub()}catch(e){}partyExpUnsub=null}
+ partyExpedition=null;renderExpLogBtn();
+ if(!me.partyId)return;
+ partyExpUnsub=onValue(ref(realtimeDB,"parties/"+me.partyId+"/expedition"),s=>{
+  partyExpedition=s.val()||null;
+  renderExpLogBtn();
+  if(!$("pop").hidden&&expRecordView){try{openExpRecord(expRecordIndex)}catch(e){}}
+ },err=>console.warn("partyExpedition",err));
+}
 function subscribeParty(){
  if(partyUnsub){partyUnsub();partyUnsub=null}
- if(!me.partyId)return;
+ if(!me.partyId){subscribePartyProposal();subscribePartyExpedition();return}
+ subscribePartyProposal();subscribePartyExpedition();
  partyUnsub=onValue(ref(realtimeDB,"parties/"+me.partyId),s=>{
   const v=s.val();
-  if(!v){me.partyId=null;partyData=null;partyRender();return}
+  if(!v){me.partyId=null;partyData=null;partyRender();subscribePartyProposal();subscribePartyExpedition();return}
   partyData=v;me.partyLeader=v.leader||null;partyRender();
   if(v.battle&&v.leader!==uid)renderPartyBattle(v.battle);
  },err=>console.warn("party",err));
@@ -3569,12 +3944,17 @@ function subscribeParty(){
 async function leaveParty(){
  const pid=me.partyId;if(!pid)return;
  try{if(partyData&&partyData.leader===uid)await remove(ref(realtimeDB,"parties/"+pid));else await remove(ref(realtimeDB,"parties/"+pid+"/members/"+uid))}catch(e){}
- me.partyId=null;me.partyLeader=null;partyData=null;partyAppliedBattle=null;if(partyUnsub){partyUnsub();partyUnsub=null}partyRender();toast("파티에서 나왔다.");
+ try{if(partyProposal&&(partyProposal.proposerUid===uid||(partyData&&partyData.leader===uid)))await remove(ref(realtimeDB,"partyProposals/"+pid))}catch(e){}
+ if(partyProposalUnsub){try{partyProposalUnsub()}catch(e){}partyProposalUnsub=null}
+ if(partyExpUnsub){try{partyExpUnsub()}catch(e){}partyExpUnsub=null}
+ if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null}
+ partyProposal=null;proposalRunId=null;proposalPromptId=null;proposalPromptLabel=null;partyExpedition=null;
+ me.partyId=null;me.partyLeader=null;partyData=null;partyAppliedBattle=null;if(partyUnsub){partyUnsub();partyUnsub=null}partyRender();renderExpLogBtn();toast("파티에서 나왔다.");
 }
 async function invitePlayer(target){
  if(!me.partyId||!uid)return toast("먼저 파티를 만들어야 한다.");
  if(partyData&&partyData.leader!==uid)return toast("파티장만 초대할 수 있다.");
- if(partyData&&partyData.members&&Object.keys(partyData.members).length>=4)return toast("파티가 가득 찼다.");
+ if(partyData&&partyData.members&&Object.keys(partyData.members).length>=5)return toast("파티가 가득 찼다.");
  if(partyData&&partyData.members&&partyData.members[target])return toast("이미 파티에 있다.");
  try{await set(ref(realtimeDB,"partyInvites/"+target+"/"+me.partyId),{from:uid,fromName:me.name,partyId:me.partyId,at:Date.now()});toast("파티 초대를 보냈다.")}
  catch(e){toast("초대 실패 · Firebase 규칙을 확인해 주세요.")}
@@ -3584,7 +3964,7 @@ async function joinParty(pid,inv){
  try{
   const ps=await get(ref(realtimeDB,"parties/"+pid)),pv=ps.exists()?ps.val():null;
   if(!pv)return toast("파티가 이미 해산되었다.");
-  if(pv.members&&Object.keys(pv.members).length>=4)return toast("파티가 가득 찼다.");
+  if(pv.members&&Object.keys(pv.members).length>=5)return toast("파티가 가득 찼다.");
   await update(ref(realtimeDB,"parties/"+pid),{["members/"+uid]:memberPayload()});
   me.partyId=pid;me.partyLeader=inv.from||pv.leader||null;me.party=[];subscribeParty();
   await remove(ref(realtimeDB,"partyInvites/"+uid+"/"+pid)).catch(()=>{});
@@ -3607,7 +3987,7 @@ function subscribePartyJoinRequests(){
    partyJoinSeen.add(rid);
    pop("파티 가입 요청",`<p><b>${esc(req.fromName||"생존자")}</b>님이 파티 가입을 요청했다.</p>`,[
     {t:"수락",c:"",fn:async()=>{try{
-     if(partyData&&partyData.members&&Object.keys(partyData.members).length>=4)return toast("파티가 가득 찼다.");
+     if(partyData&&partyData.members&&Object.keys(partyData.members).length>=5)return toast("파티가 가득 찼다.");
      await update(ref(realtimeDB,"parties/"+req.partyId),{["members/"+rid]:req.payload});
      await set(ref(realtimeDB,"partyJoinResults/"+rid),{partyId:req.partyId,leader:uid,at:Date.now()});
      await remove(ref(realtimeDB,"partyJoinRequests/"+uid+"/"+rid)).catch(()=>{});
@@ -3650,7 +4030,7 @@ $("partyAdd").onclick=()=>{
   pop("파티 초대",`<p class="dim">같은 장소의 생존자를 초대한다.</p>`,others.map(p=>({t:p.n,c:"alt",fn:()=>invitePlayer(p.uid)})).concat([{t:"취소"}]));
   return;
  }
- if(me.party.length>=3)return toast("파티는 최대 4인이다.");
+ if(me.party.length>=4)return toast("파티는 최대 5인이다.");
  const others=people.filter(p=>!p.self&&p.uid);
  const btns=others.map(p=>({t:p.n,c:"alt",fn:async()=>{const pr=await S.getProfile(p.uid).catch(()=>null);addAllyFromProfile(pr,p)}}));
  btns.push({t:"용병 영입",c:"",fn:addMercenary},{t:"온라인 파티 만들기",c:"alt",fn:createParty},{t:"취소"});
@@ -3797,7 +4177,7 @@ async function send(){const v=$("inp").value.trim();if(!v||$("inp").disabled||se
  finally{sending=false;render()}}
 $("btn").onclick=send;$("inp").onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing)send()};
 render();
-if(uid){syncPresence(true);subscribeChat("world");subscribeChat("notice");subscribeDownedMap();subscribeGraves();subscribeWhisperPing();T(()=>syncPresence(true),60000)}
+if(uid){syncPresence(true);subscribeChat("world");subscribeChat("notice");subscribeDownedMap();subscribeGraves();subscribeWhisperPing();T(()=>{handleProposalPopup();startProposalRun();maybeStartProposalExp()},5000);T(()=>syncPresence(true),60000)}
 
 // ---- 시간 / 시장 (한국 표준시 기준) ----
 const KST=o=>new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",...o});
@@ -4196,7 +4576,7 @@ const pubProfile=()=>({name:me.name,job:me.job,origin:me.origin,day:me.day,color
 let lastProfile=JSON.stringify(pubProfile()),profileAt=0;
 if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(uid,p).catch(()=>{})}
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive});
 let last=JSON.stringify(snap());
 T(()=>{if(me.deadPending)return;const j=JSON.stringify(snap());if(j!==last){last=j;opts.save(cp(snap()))}},3000);
 $("exitGame").onclick=()=>opts.exit(cp(snap()));
@@ -4315,9 +4695,10 @@ function tryBadTrait(name){
 applyOfflinePet();
 applyOfflineHunger();
 renderStatus();
+try{renderProposalPanels()}catch(e){}
 render();bag();renderAll();clock();
-if(me.expedition&&Date.now()>=me.expedition.end)setTimeout(resolveExp,400);
-return{stop(){_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);window.removeEventListener("focus",checkExpAct);if(rosterUnsub)rosterUnsub();if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};if(whisperPingUnsub)try{whisperPingUnsub()}catch(e){};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(presenceRef)remove(presenceRef).catch(()=>{})}};
+if(me.expedition)setTimeout(checkExpAct,400);
+return{stop(){_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);window.removeEventListener("focus",checkExpAct);if(rosterUnsub)rosterUnsub();if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};if(whisperPingUnsub)try{whisperPingUnsub()}catch(e){};if(partyProposalUnsub)try{partyProposalUnsub()}catch(e){};if(partyExpUnsub)try{partyExpUnsub()}catch(e){};if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(presenceRef)remove(presenceRef).catch(()=>{})}};
 
 
 }
