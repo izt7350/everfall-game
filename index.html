@@ -2301,6 +2301,15 @@ const RUINS_ITEMS=[
  {id:"ITM-R06",name:"부서진 석판",category:"재료",sub:"제작 재료",grade:"일반",weight:1.5,effect:"제작 재료",desc:"문양이 새겨진 석판 조각. 무게가 제법 나간다.",use:"재료",field:"높음",fieldStars:"1~6",dungeon:"보통",dungeonStars:"1~6",tag:"폐허",note:"폐허 지역 보강 재료"}
 ];
 RUINS_ITEMS.forEach(d=>{ITEM_DATA.push(d);ITEM_BY_NAME[d.name]=d;registerItem(d.name,true)});
+// 폐허 재료로 만드는 제작 전용 장비/도구
+const RUINS_CRAFT_ITEMS=[
+ {id:"ITM-RC01",name:"유리 단검",category:"장비",sub:"근접무기",grade:"일반",atk:3.4,crit:5,cd:2.5,weight:1.8,effect:"공격력 +3.4, 치명타 +5%, 치명타 피해 +2.5%",desc:"깨진 유리 조각을 날로 세운 단검. 날카롭지만 쉽게 부서진다.",use:"장착",field:"없음",fieldStars:"",dungeon:"없음",dungeonStars:"",tag:"폐허",note:"폐허 재료 제작 장비"},
+ {id:"ITM-RC02",name:"석판 방패",category:"장비",sub:"방어구",grade:"일반",def:4,hp:5,weight:5,effect:"방어력 +4, 최대 HP +5",desc:"부서진 석판을 철사로 묶어 만든 투박한 방패. 묵직하지만 단단하다.",use:"장착",field:"없음",fieldStars:"",dungeon:"없음",dungeonStars:"",tag:"폐허",note:"폐허 재료 제작 장비"},
+ {id:"ITM-RC03",name:"못 박은 곤봉",category:"장비",sub:"근접무기",grade:"일반",atk:3.8,crit:2,cd:3,weight:3.5,effect:"공격력 +3.8, 치명타 +2%, 치명타 피해 +3%",desc:"나무 막대에 녹슨 못을 박아 만든 곤봉. 투박하지만 위협적이다.",use:"장착",field:"없음",fieldStars:"",dungeon:"없음",dungeonStars:"",tag:"폐허",note:"폐허 재료 제작 장비"},
+ {id:"ITM-RC04",name:"양피지 부적",category:"장비",sub:"악세사리",grade:"일반",weight:.2,effect:"행운 +1, 회피 +2%",desc:"찢어진 양피지에 행운의 문양을 그린 부적. 불안한 마음을 달랜다.",use:"장착",field:"없음",fieldStars:"",dungeon:"없음",dungeonStars:"",tag:"폐허",note:"폐허 재료 제작 장비"},
+ {id:"ITM-RC05",name:"벽돌 화로",category:"도구",sub:"탐사/제작 도구",grade:"일반",weight:6,effect:"휴식 시 HP 회복 +10%",desc:"부서진 벽돌과 불탄 목재로 만든 작은 화로. 휴식할 때 체력을 더 회복한다.",use:"보유 효과",field:"없음",fieldStars:"",dungeon:"없음",dungeonStars:"",tag:"폐허",note:"폐허 재료 제작 도구"}
+];
+RUINS_CRAFT_ITEMS.forEach(d=>{ITEM_DATA.push(d);ITEM_BY_NAME[d.name]=d;registerItem(d.name,true)});
 function lootObj(n){
  const it=info(n);
  if(it&&(it.t==="w"||it.t==="a")){const max=it.t==="a"?12:10;return{n,dur:max,max}}
@@ -2426,6 +2435,14 @@ const OLD_RECIPES=[{out:"붕대",ing:{"낡은 천":2}},{out:"부목",ing:{"나�
 const V5_RECIPES=V5_RECIPE_ROWS.map(([out,ing])=>({out,ing}));
 const V5_OUT=new Set(V5_RECIPES.map(r=>r.out));
 const RECIPES=[...V5_RECIPES,...OLD_RECIPES.filter(r=>!V5_OUT.has(r.out))];
+const RUINS_RECIPES=[
+ {out:"유리 단검",ing:{"깨진 유리 조각":3,"나무 막대":1,"가죽 조각":1}},
+ {out:"석판 방패",ing:{"부서진 석판":3,"철사":1,"가죽 조각":1}},
+ {out:"못 박은 곤봉",ing:{"녹슨 못":3,"나무 막대":1}},
+ {out:"양피지 부적",ing:{"찢어진 양피지":3,"낡은 천":1,"구리 조각":1}},
+ {out:"벽돌 화로",ing:{"부서진 벽돌":3,"불탄 목재":2,"녹슨 못":1}}
+];
+RECIPES.push(...RUINS_RECIPES);
 const recipeHas=n=>RECIPES.some(r=>r.out===n||n in r.ing);
 const isIngredient=n=>RECIPES.some(r=>n in r.ing);
 const SLOTS=[["main","기본무기"],["sub","보조무기"],["armor","방어구"],["acc1","악세사리"],["acc2","악세사리"],["bag","가방"]];
@@ -2459,6 +2476,7 @@ function toolMods(char=me){
  if(has("제작 도구"))add("craftPct",5);
  if(has("제작 책"))add("craftPct",3);
  if(has("모닥불 키트"))add("restHpPct",10);
+ if(has("벽돌 화로"))add("restHpPct",10);
  if(has("휴대용 모닥불"))add("restHpPct",10);
  if(has("텐트")){add("restHpPct",20);add("restMpPct",20)}
  if(has("수통"))add("hungerRed",5);
