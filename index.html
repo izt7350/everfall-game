@@ -678,7 +678,7 @@ const JOB_TRAITS={
  "상인":{name:"흥정의 기술",desc:"물건을 더 저렴하게 구매하고 비싸게 판매한다.",buy:.95,sell:1.05},
  "모험가":{name:"노련한 발걸음",desc:"이동 속도와 탐험 중 발견하는 아이템 획득 확률이 증가한다.",speed:.05,luck:1},
  "학자":{name:"지식의 축적",desc:"영특하여 독서 효율이 증가한다.",int:1,readExp:.05},
- "수렵꾼":{name:"야생의 감각",desc:"감각이 예민하고 원거리 공격력이 증가한다.",per:1,ranged:.05},
+ "수렵꾼":{name:"사냥꾼의 눈",desc:"감각이 예민하고 원거리 공격력이 증가한다.",per:1,ranged:.05},
  "약초꾼":{name:"자연의 눈",desc:"채집량이 증가한다.",gather:.5},
  "사제":{name:"신성한 가호",desc:"치유 지식을 가지고 있으며, 정신력이 높다.",mp:10,heal:5},
  "대장장이":{name:"장인의 손길",desc:"장비 제작 및 수리 비용이 감소하고 제작 성공률이 증가한다.",craftCost:.95,repair:.95,smith:.10},
@@ -847,7 +847,10 @@ const S={live:true,
  getLogs:async uid=>{const s=await get(ref(realtimeDB,"logs/"+uid));return s.exists()?s.val():null}
 };
 let U=null,me={uid:null,name:"",admin:false},acc=null,draft;
-async function boot(){let user=null;try{if(auth.authStateReady)await Promise.race([auth.authStateReady(),new Promise(r=>setTimeout(r,1200))]);user=auth.currentUser}catch(e){}if(user){me={uid:user.uid,name:user.email?.split("@")[0]||"플레이어",admin:false};await enter()}else go("login")}
+const RESUME_KEY="everfall_in_game";
+const resumeOn=()=>{try{return sessionStorage.getItem(RESUME_KEY)==="1"}catch(e){return false}};
+const resumeSet=v=>{try{if(v)sessionStorage.setItem(RESUME_KEY,"1");else sessionStorage.removeItem(RESUME_KEY)}catch(e){}};
+async function boot(){let user=null;try{if(auth.authStateReady)await auth.authStateReady();user=auth.currentUser}catch(e){user=auth.currentUser}if(user){me={uid:user.uid,name:user.email?.split("@")[0]||"플레이어",admin:false};await enter()}else{resumeSet(false);go("login")}}
 function go(s,x){({login,signup,banned,create,lobby,admin,adminLogin})[s](x)}
 const app=h=>{$("app").innerHTML=h};
 function authEmail(id){return id.toLowerCase()+"@everfall.game"}
@@ -864,7 +867,15 @@ async function enter(){const errEl=$("err");if(errEl)errEl.textContent="";
  try{const ban=await S.getBan(me.uid);if(ban)return go("banned",ban);
   acc=await S.getAcc(me.uid)||{createdAt:Date.now(),character:null};if(acc.character)acc.character=norm(acc.character);acc.lastLogin=Date.now();
   me.admin=await S.getAdmin(me.uid).catch(()=>false);
-  await S.setAcc(me.uid,acc);go(acc.character?"lobby":"create")}
+  await S.setAcc(me.uid,acc);
+  if(acc.character){
+   if(resumeOn()){
+    await play();
+    if(game)return;
+    resumeSet(false);
+   }
+   go("lobby");
+  }else{resumeSet(false);go("create")}}
  catch(e){const errEl2=$("err");if(errEl2){errEl2.textContent="접속에 실패했어요. Firebase 데이터베이스 규칙을 확인해 주세요."}else{app(`<div class="card center"><h2>접속에 실패했어요</h2><p class="dim">Firebase 데이터베이스 규칙을 확인해 주세요.</p><button class="btn alt" id="bk">돌아가기</button></div>`);const bk=$("bk");if(bk)bk.onclick=()=>go("login")}}}
 function banned(b){app(`<div class="card center"><div class="logo">🚫</div><h2>접속이 제한된 계정입니다</h2><p>사유 : ${esc(b.reason||"없음")}</p><p class="dim sm">${fmt(b.at)}</p><button class="btn alt" id="bk">돌아가기</button></div>`);$("bk").onclick=()=>go("login")}
 
@@ -989,7 +1000,7 @@ function lobby(){const c=acc.character;
  <div class="stack" style="margin-top:14px"><button class="btn big" id="play">게임 입장</button>
  ${me.admin?`<button class="btn alt" id="admReset" style="width:100%">캐릭터 초기화</button>`:""}
  <div class="row"><button class="btn alt" id="lo" style="flex:1">로그아웃</button></div></div></div>`);
- $("lo").onclick=async()=>{if(game){try{game.stop()}catch(e){}game=null}$("gameRoot").hidden=true;$("authRoot").hidden=false;await signOut(auth);me={uid:null,name:"",admin:false};acc=null;go("login")};$("play").onclick=play;
+ $("lo").onclick=async()=>{resumeSet(false);if(game){try{game.stop()}catch(e){}game=null}$("gameRoot").hidden=true;$("authRoot").hidden=false;await signOut(auth);me={uid:null,name:"",admin:false};acc=null;go("login")};$("play").onclick=play;
  if($("admReset"))$("admReset").onclick=()=>{
   admPop("캐릭터 초기화",`<p><b>${esc(c.name)}</b> 캐릭터를 초기화합니다. 계정과 아이디는 유지되지만 캐릭터 데이터는 복구할 수 없습니다.</p>`,[{t:"취소"},{t:"확인",c:"bad",fn:async()=>{try{acc.character=null;await S.setAcc(me.uid,acc);await S.delDowned(me.uid).catch(()=>{});await S.delReviveCooldown(me.uid).catch(()=>{});await S.delProfile(me.uid).catch(()=>{});toast("캐릭터를 초기화했습니다");go("create")}catch(e){console.warn(e);toast("초기화에 실패했습니다")}}}]);
  };
@@ -1033,7 +1044,7 @@ async function admin(){
    ${open===a.id?`<span class="rs"><input type="text" id="rs" placeholder="정지 사유" maxlength="60"><button class="btn bad sm banok" data-a="banok" data-i="${a.id}">정지 확정</button><button class="btn alt sm bancancel" data-a="bancancel" data-i="${a.id}">취소</button></span>`:""}</div>`}).join("")||`<div class="dim" style="padding:16px">회원이 없습니다.</div>`}</div>
   <div class="note">캐릭터 정보창에서 개별 HP 회복과 상태이상 부여·제거가 가능합니다. 정지된 계정은 로그인 단계에서 접속이 막힙니다. 캐릭터 초기화·삭제는 되돌릴 수 없습니다.</div></div>`);
   $("bk").onclick=()=>go("login");
-  $("lg").onclick=async()=>{if(game){try{game.stop()}catch(e){}game=null}$("gameRoot").hidden=true;$("authRoot").hidden=false;await signOut(auth);me={uid:null,name:"",admin:false};acc=null;go("login")};
+  $("lg").onclick=async()=>{resumeSet(false);if(game){try{game.stop()}catch(e){}game=null}$("gameRoot").hidden=true;$("authRoot").hidden=false;await signOut(auth);me={uid:null,name:"",admin:false};acc=null;go("login")};
   $("rf").onclick=admin;
   $("q").oninput=e=>{q=e.target.value;draw();const i=$("q");i.focus();i.setSelectionRange(q.length,q.length)};
   document.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>act(b.dataset.a,b.dataset.i));
@@ -1246,10 +1257,10 @@ async function play(){const save=s=>{acc.character={...acc.character,...s};S.set
   }
   const active=cur&&!revived&&+cur.until>Date.now()?cur:null;
   game=startGame(c,{admin:me.admin,uid:me.uid,save,downed:active,
-   exit:s=>{game&&game.stop();game=null;save(s);$("gameRoot").hidden=true;$("authRoot").hidden=false;go("lobby")},
-   die:async payload=>{await finalizeDeath(me.uid,acc,payload);game&&game.stop();game=null;$("gameRoot").hidden=true;$("authRoot").hidden=false;go("create")}});
-  $("authRoot").hidden=true;$("gameRoot").hidden=false}
- catch(e){game=null;$("gameRoot").hidden=true;$("authRoot").hidden=false;toast("게임 시작 오류 : "+(e&&e.message||e));console.error(e)}}
+   exit:s=>{resumeSet(false);game&&game.stop();game=null;save(s);$("gameRoot").hidden=true;$("authRoot").hidden=false;go("lobby")},
+   die:async payload=>{resumeSet(false);await finalizeDeath(me.uid,acc,payload);game&&game.stop();game=null;$("gameRoot").hidden=true;$("authRoot").hidden=false;go("create")}});
+  $("authRoot").hidden=true;$("gameRoot").hidden=false;resumeSet(true)}
+ catch(e){resumeSet(false);game=null;$("gameRoot").hidden=true;$("authRoot").hidden=false;toast("게임 시작 오류 : "+(e&&e.message||e));console.error(e)}}
 const stripId=a=>{const{id,...r}=a;return r};
 const isDark=()=>document.documentElement.dataset.theme?document.documentElement.dataset.theme==="dark":matchMedia("(prefers-color-scheme: dark)").matches;
 function setTheme(t,keep){document.documentElement.dataset.theme=t;if(keep)try{localStorage.setItem("alive_theme",t)}catch(e){}document.querySelectorAll(".themebtn").forEach(b=>b.textContent=t==="dark"?"라이트 모드":"다크 모드");document.querySelectorAll("[data-thbtn]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.thbtn===t)));document.dispatchEvent(new CustomEvent("everfall-theme"))}
