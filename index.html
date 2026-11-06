@@ -601,8 +601,8 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
    <div class="explore" id="amarket" hidden><div><b>시장</b><span>가끔 열린다. 물품은 매일 바뀐다. (오전 9시~오후 9시)<em id="amstat"></em></span></div><button class="btn" id="atrade">거래하기</button></div>
    <div class="explore" id="emarket" hidden><div><b>시장</b><span>이틀에 한 번, 오전 9시부터 오후 9시까지 열린다. 물품은 매일 바뀐다.<em id="emstat"></em></span></div><button class="btn" id="etrade">거래하기</button></div>
    <div class="explore" id="smithy" hidden><div><b>대장간</b><span>무기 수리와 거래가 가능하다.<em id="smstat"></em></span></div><div style="display:flex;gap:6px"><button class="btn" id="strade">거래</button><button class="btn" id="srepair">수리</button></div></div>
-   <div class="explore" id="clinic" hidden><div><b>진료소</b><span>상태이상 치료와 부정 특성 제거가 가능하다. 진료소가 열리는 날에는 마굿간도 함께 열린다. (특성 제거: 성기사의 휘장 1개 + 2000G)<em id="clstat"></em></span></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="cure">치료하기</button><button class="btn alt" id="traitCure">부정 특성 치료</button></div></div>
-   <div class="explore" id="stable" hidden><div><b>마굿간</b><span>진료소가 열리는 날 함께 열린다. 말 1000G · 먹이 50G<em id="ststat"></em></span></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="buyHorse">말 구입 (1000G)</button><button class="btn alt" id="buyFeed">먹이 구입 (50G)</button></div></div>
+   <div class="explore" id="clinic" hidden><div><b>진료소</b><span>상태이상 치료와 부정 특성 제거가 가능하다. (특성 제거: 성기사의 휘장 1개 + 2000G)<em id="clstat"></em></span></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="cure">치료하기</button><button class="btn alt" id="traitCure">부정 특성 치료</button></div></div>
+   <div class="explore" id="stable" hidden><div><b>마굿간</b><span id="stdesc">말 1000G · 먹이 40G</span><em id="ststat"></em></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="buyHorse">말 구입 (1000G)</button><button class="btn alt" id="buyFeed">먹이 구입 (40G)</button></div></div>
    <div class="explore" id="cont" hidden><div><b>대륙간 이동</b><span>관문에서 다른 대륙의 관문으로 이동한다.</span></div><div style="display:flex;gap:6px"><select id="csel"></select><button class="btn" id="cgo">이동하기</button></div></div>
    <div class="desc" id="groundBox"><h2 style="margin-bottom:6px">이곳에 있는 것</h2><div id="gl"></div></div>
    <div class="dev" id="dev">테스트용 순간이동: </div>
@@ -3630,9 +3630,9 @@ function desc(){const w=W(),d=!!view.area,a=d?AR(view.area):AR(view.sel||me.area
  $("longexp").hidden=me.area==="cap";
  $("dunexp").hidden=!dungeonTier();
  $("longgo").disabled=busy;$("dungo").disabled=busy;
- const cp=me.area==="cap";$("market").hidden=!(cp&&me.cont==="카르도르");$("amarket").hidden=!(cp&&me.cont==="아르케인");$("emarket").hidden=$("smithy").hidden=!(cp&&me.cont==="엘리시아");$("clinic").hidden=$("stable").hidden=!(cp&&me.cont==="솔레니아");
+ const cp=me.area==="cap";$("market").hidden=!(cp&&me.cont==="카르도르");$("amarket").hidden=!(cp&&me.cont==="아르케인");$("emarket").hidden=$("smithy").hidden=!(cp&&me.cont==="엘리시아");$("clinic").hidden=!(cp&&me.cont==="솔레니아");
  $("fishing").hidden=!(me.area==="dock"||me.area==="beach");$("mining").hidden=me.area!=="mine";$("rest").hidden=!atHub();
- const s=curSub(),g=w.gate;$("cont").hidden=!(g&&me.area===g.id&&s&&s.hub&&!busy);
+ const s=curSub(),g=w.gate;$("stable").hidden=!(g&&me.area===g.id&&s&&s.hub&&me.cont!=="마왕성"&&!busy);$("cont").hidden=!(g&&me.area===g.id&&s&&s.hub&&!busy);
  if($("csel").dataset.c!==me.cont){$("csel").dataset.c=me.cont;$("csel").innerHTML=Object.keys(WORLD).filter(k=>k!==me.cont&&WORLD[k].gate).map(k=>`<option>${k}</option>`).join("")}}
 function renderAll(){stage();desc();groundRender();$("loc").textContent=locText();
  const b=$("banner");b.hidden=!me.travel;
@@ -4707,6 +4707,7 @@ const KST=o=>new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",...o});
 const hourNow=()=>+new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Seoul",hour:"numeric",hourCycle:"h23"}).format(new Date());
 const isOpen=()=>{const h=hourNow();return h>=9&&h<21};
 const mOpen=()=>hourNow()>=12;
+const stableOpen=()=>me.cont!=="마왕성"&&(me.cont==="카르도르"?mOpen():isOpen());
 const dayOdd=()=>Math.floor((Date.now()+9*36e5)/864e5)%2===1;
 const eliOpen=()=>isOpen()&&dayOdd();
 const soleOpen=()=>isOpen()&&!dayOdd();
@@ -4718,7 +4719,10 @@ function clock(){const n=new Date();
  $("trade").disabled=tv||!mOpen();$("mstat").textContent=mOpen()?" · 영업 중":" · 영업 종료";
  $("atrade").disabled=tv||!ark;$("amstat").textContent=ark?" · 오늘 열림":" · 오늘은 열리지 않음";
  ["etrade","strade","srepair"].forEach(i=>$(i).disabled=tv||!eli);["emstat","smstat"].forEach(i=>$(i).textContent=es);
- ["cure","traitCure","buyHorse","buyFeed"].forEach(i=>$(i).disabled=tv||!sole);["clstat","ststat"].forEach(i=>$(i).textContent=sole?" · 오늘 열림":" · 오늘은 쉬는 날");
+ ["cure","traitCure"].forEach(i=>$(i).disabled=tv||!sole);$("clstat").textContent=sole?" · 오늘 열림":" · 오늘은 쉬는 날";
+  const sOpen=stableOpen();["buyHorse","buyFeed"].forEach(i=>$(i).disabled=tv||!sOpen);
+  $("ststat").textContent=sOpen?" · 영업 중":" · 영업 종료";
+  $("stdesc").textContent=`영업시간: ${me.cont==="카르도르"?"정오~자정":"오전 9시~오후 9시"} · 말 1000G · 먹이 40G`;
  const busy=tv||!!me.expedition||!!me.rest,rh=atHub(),rl=restLeft();
  updateGatherButtons(busy);
  if($("rest"))$("rest").hidden=!rh;
@@ -4768,7 +4772,8 @@ $("atrade").onclick=()=>openTrade("만민의 광장 시장",marketGoods("ark"));
 $("strade").onclick=()=>openTrade("대장간 거래",SMITH);
 $("buyHorse").onclick=()=>{
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");
- if(!soleOpen())return toast("마굿간은 진료소가 열리는 날에만 문을 엽니다.");
+ if(me.travel)return toast("이동 중에는 마굿간을 이용할 수 없습니다.");
+ if(!stableOpen())return toast("마굿간 영업시간이 아닙니다.");
  if(me.gold<1000)return toast("1000G가 필요합니다.");
  me.gold-=1000;me.vehicles.push({type:"말",name:"말",tier:0});
  bag();rideRender();try{opts.save(cp(snap()))}catch(e){}
@@ -4776,10 +4781,11 @@ $("buyHorse").onclick=()=>{
 };
 $("buyFeed").onclick=()=>{
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");
- if(!soleOpen())return toast("마굿간은 진료소가 열리는 날에만 문을 엽니다.");
- if(me.gold<50)return toast("50G가 필요합니다.");
+ if(me.travel)return toast("이동 중에는 마굿간을 이용할 수 없습니다.");
+ if(!stableOpen())return toast("마굿간 영업시간이 아닙니다.");
+ if(me.gold<40)return toast("40G가 필요합니다.");
  if(!canAdd("먹이"))return toast("가방이 가득 찼습니다.");
- me.gold-=50;addItem("먹이");
+ me.gold-=40;addItem("먹이");
  bag();rideRender();try{opts.save(cp(snap()))}catch(e){}
  modal("먹이 구입","먹이 1개를 구입했습니다.");
 };
