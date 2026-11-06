@@ -1146,6 +1146,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.statPts=Math.max(0,Math.floor(+c.statPts||0));
  o.skillPts=Math.max(0,Math.floor(+c.skillPts||0));
  o.crafted=Array.isArray(c.crafted)?c.crafted.filter(x=>typeof x==="string").slice(-600):[];
+ o.speedPotionGrant=!!c.speedPotionGrant;
  o.party=Array.isArray(c.party)?c.party.map(normAlly).filter(Boolean).slice(0,4):[];
  o.partyId=typeof c.partyId==="string"?c.partyId:null;
  o.partyLeader=typeof c.partyLeader==="string"?c.partyLeader:null;
@@ -1410,7 +1411,7 @@ S|왕의 굴|12|골짜기에서 가장 강력한 포식자가 머무는 깊은 �
 const day=Math.floor((Date.now()-(char.createdAt||Date.now()))/864e5)+1,cp=o=>JSON.parse(JSON.stringify(o));
 const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||char.origin,area:char.area||"cap",sub:char.sub||null,travel:char.travel||null,gold:char.gold??100,
  inv:cp(char.items||[]),equipped:cp(char.equipped||{}),vehicles:cp(char.vehicles||[]),pet:cp(char.pet||null),petAdoptLockUntil:Math.max(0,+char.petAdoptLockUntil||0),ground:cp(char.ground||{}),blocked:cp(char.blocked||[]),
- hp:cp(char.hp||[100,100]),mp:cp(char.mp||[100,100]),hunger:cp(char.hunger||[100,100]),isAdmin:!!opts.admin,fx:cp(char.fx||[]),
+ hp:cp(char.hp||[100,100]),mp:cp(char.mp||[100,100]),hunger:cp(char.hunger||[100,100]),isAdmin:!!opts.admin,speedPotionGrant:!!char.speedPotionGrant,fx:cp(char.fx||[]),
  color:/^#[0-9a-fA-F]{6}$/.test(char.color||"")?char.color:"#CB3533",
  traits:cp(Array.isArray(char.traits)?char.traits:(char.trait?[char.trait]:[])),
  stats:cp(Array.isArray(char.stats)?char.stats:STATS.map(()=>5)),
@@ -1875,6 +1876,7 @@ const defStatus=o=>{const d={maxStacks:1,min:60,ef:{},clear:[],...o};STATUS_DB[d
  defStatus({id:"allyCheer",n:"동료의 격려",t:"buff",sub:"일상",d:"파티원의 격려로 사기가 오른 상태.",min:30,ef:{atkPct:3,defPct:3}}),
  defStatus({id:"feast",n:"만찬",t:"buff",sub:"일상",d:"파티가 함께 만든 풍성한 식사.",min:90,ef:{hpPct:10,mpPct:10},meal:1}),
  defStatus({id:"vigor",n:"생기",t:"buff",sub:"일상",d:"몸과 마음이 충만한 상태.",min:30,ef:{movePct:5,evasionPct:2}}),
+ defStatus({id:"hastePotion",n:"이동속도 증가",t:"buff",sub:"아이템",d:"이동 속도가 70% 증가한다. (3시간)",min:180,ef:{movePct:70}}),
  // 음식·아이템 버프 15
  defStatus({id:"atkBless",n:"공격의 가호",t:"buff",sub:"아이템",d:"공격력이 오르는 가호.",min:15,ef:{atkPct:10}}),
  defStatus({id:"defBless",n:"수호의 가호",t:"buff",sub:"아이템",d:"방어력이 오르는 가호.",min:15,ef:{defPct:10}}),
@@ -2065,6 +2067,7 @@ function parseDishBuff(effect){
 }
 function applyItemStatus(n,it){
  if(!it)return;
+ if(n==="이동속도 증가 포션"){applyStatus("hastePotion");return}
  if(it.sub==="요리"){
   const eff=String(it.eff||it.effect||""),ef=parseDishBuff(eff);
   if(Object.keys(ef).length){
@@ -2905,6 +2908,10 @@ for(let i=RECIPES.length-1;i>=0;i--){
  if(REMOVED_ITEMS.has(r.out)||Object.keys(r.ing).some(k=>REMOVED_ITEMS.has(k)))RECIPES.splice(i,1);
 }
 
+// ---- 특수 아이템: 이동속도 증가 포션 ----
+const SPEED_POTION={id:"ITM-SP01",name:"이동속도 증가 포션",category:"소모품",sub:"특수 포션",grade:"신화",weight:.3,effect:"이동 속도 +70% (3시간)",desc:"이동 속도가 70% 증가하는 특수 포션. 효과가 3시간 지속된다. 어디에서도 드랍되지 않고 제작할 수도 없다.",use:"사용",field:"없음",fieldStars:"",dungeon:"없음",dungeonStars:"",tag:"특수",note:"특수 아이템 · 드롭/제작 불가"};
+ITEM_DATA.push(SPEED_POTION);ITEM_BY_NAME[SPEED_POTION.name]=SPEED_POTION;registerItem(SPEED_POTION.name,true);
+
 const recipeHas=n=>RECIPES.some(r=>r.out===n||n in r.ing);
 const isIngredient=n=>RECIPES.some(r=>n in r.ing);
 const SLOTS=[["main","기본무기"],["sub","보조무기"],["armor","방어구"],["acc1","악세사리"],["acc2","악세사리"],["bag","가방"]];
@@ -3007,7 +3014,7 @@ function calcStats(c=me){
   hpRegenPct:mods.hpRegenPct||0,
   mpRegenPct:(mods.mpRegenPct||0)+equipMpRegen,
   itemFind:Math.max(-50,Math.min(100,equipItemFind+(mods.dropPct||0)+tools.itemFind)),
-  moveSpeed:Math.max(-50,Math.min(50,equipMove+(mods.movePct||0)+tools.moveSpeed)),
+  moveSpeed:Math.max(-50,Math.min(70,equipMove+(mods.movePct||0)+tools.moveSpeed)),
   weightRed:equipWeightRed,
   hungerRed:equipHungerRed+tools.hungerRed,
   statusFlags:mods.flags
@@ -3560,10 +3567,10 @@ function locText(){const w=W();
 // ---- 이동 계획 / 비용 ----
 const BASE={sub:10,area:20,cont:40},FOOD={sub:1,area:2,cont:4},MODE={walk:"도보",horse:"말",air:"비행선"};
 const quote=(k,n,m,baseMin)=>{
- const move=Math.max(-.5,Math.min(.5,(calcStats(me).moveSpeed||0)/100));
+ const move=Math.max(-.5,Math.min(.7,(calcStats(me).moveSpeed||0)/100));
  const raw=baseMin!=null?baseMin:BASE[k]*n;
  const base=raw*(m==="horse"?.6*(1-.03*vt("말")):m==="air"?.3*(1-.03*vt("비행선")):1);
- const time=base*(1-(JT().speed||0))*(1-Math.max(-.5,Math.min(.5,traitTotal("moveRed")+move)));
+ const time=base*(1-(JT().speed||0))*(1-Math.max(-.5,Math.min(.7,traitTotal("moveRed")+move)));
  return {min:Math.round(time),food:m==="horse"?FOOD[k]*n:0,fuel:m==="air"?1:0};
 };
 function plan(kind,id){if(me.travel||me.expedition||me.rest||me.downed||me.deadPending)return null;const w=W();
@@ -5092,7 +5099,16 @@ const pubProfile=()=>({name:me.name,job:me.job,origin:me.origin,day:me.day,color
 let lastProfile=JSON.stringify(pubProfile()),profileAt=0;
 if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(uid,p).catch(()=>{})}
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive});
+// 기존 캐릭터 1회 지급: 이동속도 증가 포션 20개
+const SPEED_POTION_GRANT_CUTOFF=Date.parse("2026-11-07T23:59:59+09:00");
+if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
+ for(let i=0;i<20;i++)me.inv.push("이동속도 증가 포션");
+ me.speedPotionGrant=true;
+ try{bag()}catch(e){}
+ try{toast("이동속도 증가 포션 20개가 지급되었습니다.")}catch(e){}
+ try{opts.save(cp(snap()))}catch(e){}
+}
 let last=JSON.stringify(snap());
 T(()=>{if(me.deadPending)return;const j=JSON.stringify(snap());if(j!==last){last=j;opts.save(cp(snap()))}},3000);
 $("exitGame").onclick=()=>opts.exit(cp(snap()));
