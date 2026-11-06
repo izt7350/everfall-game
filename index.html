@@ -773,12 +773,12 @@ function charInfoHtml(c,meta){
  const uidRow=admin?`<div class="ai-row"><span>UID</span><b class="mono">${esc(meta.uid||"-")}</b></div>`:"";
  const createdRow=admin?`<div class="ai-row"><span>생성일</span><b>${c.createdAt?fmt(c.createdAt):"-"}</b></div>`:"";
  const intro=c.intro?`<div class="ai-intro">${esc(c.intro)}</div>`:"";
- const fx=Array.isArray(c.fx)?c.fx:[];
+ const fx=(Array.isArray(c.fx)?c.fx:[]).filter(f=>f&&typeof f==="object");
  const statusChips=fx.length?`<div class="ai-sec">상태 효과</div><div class="ai-chips">${fx.map(f=>{const d=statusDefOf(f),t=d?d.t:f.t,label=f.label||f.n||f.id||"?";return `<span class="ai-chip${t==="debuff"?" down":""}" title="${esc(fxRemainText(f))}">[${esc(label)}]${(+f.stacks||1)>1?` ×${f.stacks}`:""}</span>`}).join("")}</div>`:"";
  return `<div class="ai"><div class="ai-head">${av}<div class="ai-id"><div class="ai-name">${esc(c.name||"무명")}</div><div class="ai-sub">${esc(c.job||"-")} · ${esc(c.origin||"-")} · ${day}일째</div>${downLine}${chips?`<div class="ai-chips">${chips}</div>`:""}</div></div>
   ${intro}${statusChips}
   <div class="ai-sec">생존 수치</div><div class="ai-bars">${pbar("HP",c.hp,"var(--hp)")}${pbar("정신력",c.mp,"var(--mp)")}${pbar("허기",c.hunger,"var(--hunger)")}</div>
-  <div class="ai-cols"><div><div class="ai-sec">스탯</div><div class="ai-radar">${c.stats?radar(c.stats,200):'<span class="dim">스탯 없음</span>'}</div></div>
+  <div class="ai-cols"><div><div class="ai-sec">스탯</div><div class="ai-radar">${Array.isArray(c.stats)&&c.stats.length===STATS.length?radar(c.stats,200):'<span class="dim">스탯 없음</span>'}</div></div>
    <div class="ai-meta"><div class="ai-row"><span>길드</span><b>${esc(c.guild||"무소속")}</b></div>
     <div class="ai-row"><span>위치</span><b>${place}</b></div>
     <div class="ai-row"><span>소지금</span><b>${c.gold??0} G</b></div>
@@ -981,14 +981,14 @@ async function admin(){
  try{[accs,bans]=await Promise.all([S.listAcc(),S.listBan()])}
  catch(e){app(`<div class="card center"><h2>회원 목록을 불러오지 못했어요</h2><p class="dim">Firebase 규칙에서 관리자에게 accounts·bans 읽기 권한이 필요합니다.</p><div class="stack" style="margin-top:16px"><button class="btn" id="bk">돌아가기</button></div></div>`);$("bk").onclick=()=>go("login");return}
  accs.sort((a,b)=>(+b.lastLogin||0)-(+a.lastLogin||0));
- const banMap=Object.fromEntries(bans.map(b=>[b.id,b]));let q="",open=null,arm=null,showSeq=0;
+ const banMap=Object.fromEntries(bans.map(b=>[b.id,b]));let q="",open=null,arm=null;
  const nameOf=a=>a.loginId||(a.character&&a.character.name)||("UID "+String(a.id).slice(0,8));
  const draw=()=>{const list=accs.filter(a=>!q||(nameOf(a)+" "+(a.character?a.character.name:"")).toLowerCase().includes(q.toLowerCase()));
   app(`<div class="card wide adm"><div class="top"><h2 style="margin:0">회원 관리 <span class="dim sm">관리자</span></h2><div class="row"><button class="btn alt sm" id="rf">새로고침</button><button class="btn alt sm" id="lg">로그아웃</button><button class="btn alt sm" id="bk">돌아가기</button></div></div>
   <div class="chips"><span class="chip">전체 ${accs.length}명</span><span class="chip">캐릭터 보유 ${accs.filter(a=>a.character).length}명</span><span class="chip">정지 ${accs.filter(a=>banMap[a.id]).length}명</span></div>
   <input type="text" id="q" placeholder="계정 아이디 또는 캐릭터 이름 검색" value="${esc(q)}" style="margin-bottom:10px">
   <div class="tbl"><div class="mr hd"><span>계정</span><span>캐릭터</span><span>최근 접속</span><span>상태</span><span>관리</span></div>
-  ${list.map(a=>{const b=banMap[a.id],c=a.character,self=a.id===me.uid;return `<div class="mr"><span><b>${esc(nameOf(a))}</b>${self?' <span class="dim sm">(나)</span>':''}<small class="dim" style="display:block;font-size:11px;font-family:monospace">UID ${esc(String(a.id).slice(0,10))}…</small></span>
+  ${list.map(a=>{const b=banMap[a.id],c=a.character,self=a.id===me.uid;return `<div class="mr"><span>${c?`<span class="adm-char" data-char="${a.id}" title="캐릭터 정보 보기"><b>${esc(nameOf(a))}</b></span>`:`<b>${esc(nameOf(a))}</b>`}${self?' <span class="dim sm">(나)</span>':''}<small class="dim" style="display:block;font-size:11px;font-family:monospace">UID ${esc(String(a.id).slice(0,10))}…</small></span>
    <span>${c?`<span class="adm-char" data-char="${a.id}" title="캐릭터 정보 보기"><b>${esc(c.name)}</b> <span class="dim sm">${esc(c.job||"")}${c.origin?" · "+esc(c.origin):""}</span></span>`:`<span class="dim">캐릭터 없음</span>`}</span>
    <span class="sm">${a.lastLogin?fmt(a.lastLogin):"-"}</span><span class="st ${b?"ban":""}">${b?"정지":"정상"}</span>
    <span class="row">${b?`<button class="btn alt sm" data-a="unban" data-i="${a.id}">정지 해제</button>`:`<button class="btn alt sm" data-a="ban" data-i="${a.id}" ${self?"disabled":""}>정지</button>`}
@@ -1003,16 +1003,16 @@ async function admin(){
   $("q").oninput=e=>{q=e.target.value;draw();const i=$("q");i.focus();i.setSelectionRange(q.length,q.length)};
   document.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>act(b.dataset.a,b.dataset.i));
   document.querySelectorAll("[data-char]").forEach(el=>el.onclick=()=>showChar(el.dataset.char))};
- const showChar=async id=>{const seq=++showSeq,t=accs.find(x=>x.id===id);if(!t)return;
-  try{const a=await S.getAcc(id);if(a){if(!a.character)return toast("캐릭터가 없습니다.");t.character=a.character}}catch(e){console.warn("showChar",e)}
-  if(seq!==showSeq)return;
-  const c=t.character;if(!c)return;
-  admPop("캐릭터 정보",charInfoHtml(c,{admin:true,account:nameOf(t),loginId:t.loginId,uid:t.id,lastLogin:t.lastLogin}),[
+ const showChar=id=>{const t=accs.find(x=>x.id===id),c=t&&t.character;if(!c)return;
+  const buttons=[
    {t:"HP 회복",c:"",fn:()=>adminHealChar(id)},
    {t:"상태이상 추가",fn:()=>adminAddStatus(id)},
    {t:"상태이상 제거",fn:()=>adminRemoveStatus(id)},
    {t:"닫기"}
-  ],true)};
+  ];
+  try{admPop("캐릭터 정보",charInfoHtml(c,{admin:true,account:nameOf(t),loginId:t.loginId,uid:t.id,lastLogin:t.lastLogin}),buttons,true)}
+  catch(e){console.warn("showChar",e);toast("캐릭터 정보 일부를 표시하지 못했습니다.");admPop("캐릭터 정보",`<p><b>${esc(c.name||"무명")}</b></p><p class="dim">상세 정보를 표시하지 못했습니다.</p>`,buttons,true)}
+ };
  const adminMutate=async(id,fn,okMsg)=>{try{
   const a=await S.getAcc(id);if(!a||!a.character)return toast("캐릭터가 없습니다.");
   fn(a.character);
