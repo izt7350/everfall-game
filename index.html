@@ -257,6 +257,10 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .ptline{font-size:12px;line-height:18px;color:var(--dim);text-align:right;font-variant-numeric:tabular-nums}
 #gameRoot .ptline b{color:var(--accent-text)}
 #gameRoot .pt{width:20px;height:20px;margin-left:4px;padding:0;border-radius:4px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:14px;line-height:18px;cursor:pointer;vertical-align:middle}
+#gameRoot .pt:disabled{opacity:.35;cursor:not-allowed}
+#gameRoot .allocbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:10px 0 2px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);font-size:12px;line-height:18px;color:var(--dim)}
+#gameRoot .allocbar b{color:var(--accent-text)}
+#gameRoot .strow b.pending{color:var(--accent-text)}
 #gameRoot .pt:active{transform:translateY(1px)}
 #gameRoot .battle-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:10px}
 #gameRoot .battle-head b{font-size:16px;line-height:24px}
@@ -290,7 +294,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .ch:hover{background:var(--panel2)}
 #gameRoot .ch small{margin-left:auto;color:var(--dim);font-size:12px;line-height:18px}
 #gameRoot .roster .js-name{color:var(--name-color,var(--text))}
-#gameRoot .dot{width:8px;height:8px;background:var(--ok)}
+#gameRoot .dot{width:8px;height:8px;background:var(--name-color,var(--ok))}
 
 /* chat — 이름과 본문을 한 줄에, 시간은 오른쪽 위 고정 */
 #gameRoot .chat{padding:0;min-height:440px}
@@ -1120,7 +1124,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.downed=c.downed&&typeof c.downed==="object"&&isFinite(+c.downed.until)?{since:Math.max(0,+c.downed.since||0),until:+c.downed.until,cont:String(c.downed.cont||""),area:String(c.downed.area||""),sub:String(c.downed.sub||""),place:String(c.downed.place||""),revive:c.downed.revive&&typeof c.downed.revive==="object"?{...c.downed.revive}:null,dead:!!c.downed.dead}:null;
  const jt=JOB_TRAITS[c.job]||JOB_TRAITS[JOB_ALIAS[c.job]]||{};
  const th=o.traits.reduce((a,t)=>a+((TRAITS[t]&&TRAITS[t].hp)||0),0),tm=o.traits.reduce((a,t)=>a+((TRAITS[t]&&TRAITS[t].mp)||0),0),thg=o.traits.reduce((a,t)=>a+((TRAITS[t]&&TRAITS[t].hunger)||0),0);
- const fitPool=(arr,mx,base)=>{const cur=+arr[0]||0;if(!(cur>0))return [0,mx];const old=+arr[1]||base,dmg=Math.max(0,old-cur);return [Math.max(0,Math.min(mx,mx-dmg)),mx]};
+ const fitPool=(arr,mx,base)=>{const cur=+arr[0]||0;if(!(cur>0))return [0,mx];const old=+arr[1]||base,ratio=old>0?Math.max(0,Math.min(1,cur/old)):1;return [Math.max(0,Math.min(mx,mx*ratio)),mx]};
  o.hp=fitPool(o.hp,BASE_POOL+(jt.hp||0)+th,BASE_POOL);
  o.mp=fitPool(o.mp,BASE_POOL+(jt.mp||0)+tm,BASE_POOL);
  o.hunger=fitPool(o.hunger,BASE_POOL+thg,BASE_POOL);
@@ -1208,6 +1212,7 @@ boot();
 
 function startGame(char,opts){const ids=[];try{return _start(char,opts,ids)}catch(e){ids.forEach(clearInterval);throw e}}
 function _start(char,opts,_ids){
+let statDraft={},skillDraft={},statusScrollPos=0;
 const T=(f,ms)=>{_ids.push(setInterval(f,ms))};
 
 const $=id=>document.getElementById(id);
@@ -1436,22 +1441,46 @@ function gainVitals(before){
  me.mp[0]=Math.min(after.mpMax,me.mp[0]+Math.max(0,after.mpMax-before.mpMax));
  me.hunger[0]=Math.min(after.hungerMax,me.hunger[0]+Math.max(0,after.hungerMax-before.hungerMax));
 }
-function spendStat(i){
- i=+i;if(!Number.isInteger(i)||i<0||i>=STATS.length)return;
- if(me.statPts<=0)return toast("능력치 포인트가 없다.");
- if(+me.stats[i]>=20)return toast("능력치는 최대 20이다.");
- const before=calcStats(me);
- me.stats[i]=+me.stats[i]+1;me.statPts--;
- gainVitals(before);syncVitals();bag();
+const draftSum=o=>Object.values(o).reduce((a,v)=>a+(+v||0),0);
+function stageStat(i,d){
+ i=+i;d=+d;if(!Number.isInteger(i)||i<0||i>=STATS.length||!d)return;d=d>0?1:-1;
+ const cur=+me.stats[i]||0,draft=+(statDraft[i]||0);
+ if(d>0){
+  if(me.statPts-draftSum(statDraft)<=0)return toast("능력치 포인트가 없다.");
+  if(cur+draft>=20)return toast("능력치는 최대 20이다.");
+  statDraft[i]=draft+1;
+ }else{
+  if(draft<=0)return;
+  if(draft<=1)delete statDraft[i];else statDraft[i]=draft-1;
+ }
+ renderStatus();
 }
-function spendSkill(key){
- if(!SKILL_KEYS.includes(key))return;
- if(me.skillPts<=0)return toast("기능 포인트가 없다.");
- const lv=Math.max(0,Math.min(SKILL_MAX,+(me.skills[key]||0)));
- if(lv>=SKILL_MAX)return toast("기능은 최대 20이다.");
- me.skills[key]=lv+1;me.skillPts--;
- if(me.skills[key]>=SKILL_MAX)me.skillXp[key]=0;
- syncVitals();
+function stageSkill(key,d){
+ if(!SKILL_KEYS.includes(key))return;d=+d;if(!d)return;d=d>0?1:-1;
+ const lv=Math.max(0,Math.min(SKILL_MAX,+(me.skills[key]||0))),draft=+(skillDraft[key]||0);
+ if(d>0){
+  if(me.skillPts-draftSum(skillDraft)<=0)return toast("기능 포인트가 없다.");
+  if(lv+draft>=SKILL_MAX)return toast("기능은 최대 20이다.");
+  skillDraft[key]=draft+1;
+ }else{
+  if(draft<=0)return;
+  if(draft<=1)delete skillDraft[key];else skillDraft[key]=draft-1;
+ }
+ renderStatus();
+}
+function resetAlloc(){statDraft={};skillDraft={};renderStatus()}
+function confirmAlloc(){
+ const statTotal=draftSum(statDraft),skillTotal=draftSum(skillDraft);
+ if(!statTotal&&!skillTotal)return;
+ if(statTotal>me.statPts||skillTotal>me.skillPts)return toast("포인트가 부족합니다.");
+ const before=calcStats(me);
+ Object.entries(statDraft).forEach(([i,d])=>{me.stats[+i]=Math.min(20,(+me.stats[+i]||0)+(+d||0))});
+ Object.entries(skillDraft).forEach(([k,d])=>{me.skills[k]=Math.min(SKILL_MAX,(+me.skills[k]||0)+(+d||0));if(me.skills[k]>=SKILL_MAX)me.skillXp[k]=0});
+ me.statPts=Math.max(0,me.statPts-statTotal);me.skillPts=Math.max(0,me.skillPts-skillTotal);
+ statDraft={};skillDraft={};
+ gainVitals(before);syncVitals();bag();
+ try{opts.save(cp(snap()))}catch(e){}
+ sfx("ok");toast("능력치/기능 배분을 확정했습니다.");renderStatus();
 }
 
 // ---- 장기 탐사 / 던전 탐사 ----
@@ -3428,7 +3457,7 @@ function partyRender(){
  const list=online||[{name:me.name,job:me.job,lv:me.lv,color:me.color,self:true},...me.party];
  $("pcnt").textContent=`${list.length} / 4`;
  if($("partyClear"))$("partyClear").textContent=partyData?(partyData.leader===uid?"파티 해산":"파티 탈퇴"):"해산";
- $("partyList").innerHTML=list.map((p,i)=>{const c=/^#[0-9a-fA-F]{6}$/.test(p.color||"")?p.color:"#2F6FB0";const kick=online&&partyData.leader===uid&&!p.self?`<button class="ic" data-party-kick="${esc(p.uid)}" title="내보내기">×</button>`:(!online&&!p.self?`<button class="ic" data-px="${i-1}" title="내보내기">×</button>`:"");return `<div class="ch"><span class="dot" style="--name-color:${c}"></span><span style="--name-color:${c}">${esc(p.name||"동료")}${p.self?" (나)":""}${p.leader?" 👑":""}</span><small>Lv${p.lv||1} ${esc(p.job||"모험가")}</small>${kick}</div>`}).join("");
+ $("partyList").innerHTML=list.map((p,i)=>{const c=p.self?me.color:(/^#[0-9a-fA-F]{6}$/.test(p.color||"")?p.color:"#2F6FB0");const kick=online&&partyData.leader===uid&&!p.self?`<button class="ic" data-party-kick="${esc(p.uid)}" title="내보내기">×</button>`:(!online&&!p.self?`<button class="ic" data-px="${i-1}" title="내보내기">×</button>`:"");return `<div class="ch"><span class="dot" style="--name-color:${c}"></span><span class="js-name" style="--name-color:${c}">${esc(p.name||"동료")}${p.self?" (나)":""}${p.leader?" 👑":""}</span><small>Lv${p.lv||1} ${esc(p.job||"모험가")}</small>${kick}</div>`}).join("");
 }
 function addAlly(a){
  if(!a)return;
@@ -4082,14 +4111,24 @@ let last=JSON.stringify(snap());
 T(()=>{if(me.deadPending)return;const j=JSON.stringify(snap());if(j!==last){last=j;opts.save(cp(snap()))}},3000);
 $("exitGame").onclick=()=>opts.exit(cp(snap()));
 function renderStatus(){
+ const statusEl=$("v-stat");
+ if(statusEl&&!statusEl.hidden)statusScrollPos=statusEl.scrollTop;
  const jt=JOB_TRAITS[me.job]||JOB_TRAITS[JOB_ALIAS[me.job]]||null,list=[];
  if(jt)list.push({n:jt.name,d:jt.desc||""});
  me.traits.forEach(t=>{const d=TRAITS[t];if(d)list.push({n:t,d:d.desc||""})});
- const st=calcStats(me),need=playerNeed(),maxed=me.lv>=PLAYER_MAX;
+ STATS.forEach((_,i)=>{const cap=Math.max(0,20-(+me.stats[i]||0)),d=+(statDraft[i]||0);if(d>cap){if(cap)statDraft[i]=cap;else delete statDraft[i]}});
+ SKILL_KEYS.forEach(k=>{const cap=Math.max(0,SKILL_MAX-(+me.skills[k]||0)),d=+(skillDraft[k]||0);if(d>cap){if(cap)skillDraft[k]=cap;else delete skillDraft[k]}});
+ const statDraftTotal=draftSum(statDraft),skillDraftTotal=draftSum(skillDraft),pendingTotal=statDraftTotal+skillDraftTotal;
+ const statLeft=Math.max(0,me.statPts-statDraftTotal),skillLeft=Math.max(0,me.skillPts-skillDraftTotal);
+ const canStat=me.statPts>0||statDraftTotal>0,canSkill=me.skillPts>0||skillDraftTotal>0,canAlloc=canStat||canSkill;
+ const shownStats=STATS.map((_,i)=>(+me.stats[i]||0)+(+(statDraft[i]||0)));
+ const shownSkills={...me.skills};SKILL_KEYS.forEach(k=>{shownSkills[k]=Math.max(0,Math.min(SKILL_MAX,(+me.skills[k]||0)+(+(skillDraft[k]||0))))});
+ const st=calcStats({...me,stats:shownStats,skills:shownSkills}),need=playerNeed(),maxed=me.lv>=PLAYER_MAX;
  const xpPct=maxed?100:Math.min(100,(me.xp/(need||1))*100);
- const lvHead=`<div class="lvhead"><div><div class="lv">Lv ${me.lv}${maxed?" MAX":""}</div><div class="xpt">${maxed?"최고 레벨":`${me.xp} / ${need} XP`}</div></div><div class="ptline">능력치 <b>${me.statPts}</b> · 기능 <b>${me.skillPts}</b></div></div><div class="xpbar"><i style="width:${xpPct}%"></i></div>`;
+ const lvHead=`<div class="lvhead"><div><div class="lv">Lv ${me.lv}${maxed?" MAX":""}</div><div class="xpt">${maxed?"최고 레벨":`${me.xp} / ${need} XP`}</div></div><div class="ptline">능력치 <b>${statLeft}</b> · 기능 <b>${skillLeft}</b>${pendingTotal?` <span class="dim">(대기 ${pendingTotal})</span>`:""}</div></div><div class="xpbar"><i style="width:${xpPct}%"></i></div>`;
+ const allocBar=canAlloc?`<div class="allocbar"><span>+ / − 로 조정한 뒤 <b>확인</b>을 눌러 확정하세요.</span><div class="row"><button class="btn alt sm2" id="statReset" ${pendingTotal?"":"disabled"}>초기화</button><button class="btn sm2" id="statConfirm" ${pendingTotal?"":"disabled"}>확인</button></div></div>`:"";
  const row=(l,v,c)=>`<div class="strow"><span>${l}</span><b class="${c||""}">${v}</b></div>`;
- const base=STATS.map((n,i)=>{const plus=me.statPts>0&&+me.stats[i]<20?`<button class="pt" data-sp="${i}" title="+1">+</button>`:"";return `<div class="strow"><span>${n}</span><b>${me.stats[i]}${plus}</b></div>`}).join("");
+ const base=STATS.map((n,i)=>{const cur=+me.stats[i]||0,draft=+(statDraft[i]||0),val=cur+draft,btns=canStat?`<button class="pt" data-sp="${i}" data-d="-1" title="-1" ${draft<=0?"disabled":""}>−</button><button class="pt" data-sp="${i}" data-d="1" title="+1" ${statLeft<=0||val>=20?"disabled":""}>+</button>`:"";return `<div class="strow"><span>${n}</span><b class="${draft?"pending":""}">${val}${btns}</b></div>`}).join("");
  const combat=[
   ["근접 공격력",Math.round(st.meleeAtk)],
   ["원거리 공격력",Math.round(st.rangedAtk)],
@@ -4117,7 +4156,7 @@ function renderStatus(){
   row("적재 한도",st.capacity),
   row("무게 패널티","-"+st.weightPenalty,st.weightPenalty>0?"warn":"ok")
  ].join("");
- const skills=SKILL_KEYS.map(k=>{const lv=Math.max(0,Math.min(SKILL_MAX,+(me.skills[k]||0))),sneed=SKILL_XP_TABLE[lv]||0,pct=lv>=SKILL_MAX?100:Math.min(100,((me.skillXp[k]||0)/(sneed||1))*100),plus=me.skillPts>0&&lv<SKILL_MAX?`<button class="pt" data-sk="${k}" title="+1">+</button>`:"";return `<div class="strow skrow"><span>${SKILL_NAMES[k]}</span><span class="skbar"><i style="width:${pct}%"></i></span><b>${lv}${plus}</b></div>`}).join("");
+ const skills=SKILL_KEYS.map(k=>{const lv=Math.max(0,Math.min(SKILL_MAX,+(me.skills[k]||0))),draft=+(skillDraft[k]||0),final=Math.min(SKILL_MAX,lv+draft),sneed=SKILL_XP_TABLE[final]||0,pct=final>=SKILL_MAX?100:Math.min(100,((me.skillXp[k]||0)/(sneed||1))*100),btns=canSkill?`<button class="pt" data-sk="${k}" data-d="-1" title="-1" ${draft<=0?"disabled":""}>−</button><button class="pt" data-sk="${k}" data-d="1" title="+1" ${skillLeft<=0||final>=SKILL_MAX?"disabled":""}>+</button>`:"";return `<div class="strow skrow"><span>${SKILL_NAMES[k]}</span><span class="skbar"><i style="width:${pct}%"></i></span><b class="${draft?"pending":""}">${final}${btns}</b></div>`}).join("");
  const fxRows=me.fx.map((f,i)=>{const d=statusDefOf(f);return `<div class="strow" data-fxopen="${i}" style="cursor:pointer" title="클릭해서 상세 보기"><span><b class="${f.t==="buff"?"up":"dn"}">${esc(f.label||f.n)}</b>${f.stacks>1?` <small class="dim">×${f.stacks}</small>`:""} <small class="dim">${esc(d?d.sub:"")}</small></span><span><small class="dim">${esc(fxRemainText(f))}</small> <span class="dim" style="font-size:11px">상세 ›</span></span></div>`}).join("")||`<span class="dim">상태 효과가 없다.</span>`;
  const fxSection=`<h2 style="margin-top:14px">상태 효과 <span class="cnt">${me.fx.length} / 10</span></h2><div>${fxRows}</div><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn alt sm2" id="statusCureBtn">치료하기</button></div>`;
  const tm=toolMods(),toolRows=[
@@ -4146,12 +4185,20 @@ function renderStatus(){
   ["허기 소모",tm.hungerRed?`-${tm.hungerRed}%`:""]
  ].filter(([,v])=>v);
  const toolSection=toolRows.length?`<h2 style="margin-top:14px">도구 효과 <span class="cnt">${toolRows.length}</span></h2><div class="stgrid">${toolRows.map(([l,v])=>row(l,v)).join("")}</div>${tm.magicIdPct?`<p class="dim" style="margin-top:6px">마법 감정은 해당 시스템 구현 전까지 표시만 됩니다.</p>`:""}`:"";
- $("v-stat").innerHTML=lvHead+`<h2 style="margin-top:14px">특성</h2><div class="trait-box">${list.map(x=>`<div class="trait-item"><div class="trait-name">[${esc(x.n)}]</div><div class="trait-desc">${esc(x.d)}</div></div>`).join("")||`<span class="dim">특성이 없다.</span>`}</div>`+
-  `<h2 style="margin-top:14px">기본 능력치</h2><div style="margin:8px 0 12px">${radar(me.stats,220)}</div><div class="stgrid">${base}</div>`+
+ $("v-stat").innerHTML=lvHead+allocBar+`<h2 style="margin-top:14px">특성</h2><div class="trait-box">${list.map(x=>`<div class="trait-item"><div class="trait-name">[${esc(x.n)}]</div><div class="trait-desc">${esc(x.d)}</div></div>`).join("")||`<span class="dim">특성이 없다.</span>`}</div>`+
+  `<h2 style="margin-top:14px">기본 능력치</h2><div style="margin:8px 0 12px">${radar(shownStats,220)}</div><div class="stgrid">${base}</div>`+
   `<h2 style="margin-top:14px">전투 능력치</h2><div class="stgrid">${combat}</div>`+
   `<h2 style="margin-top:14px">생존 능력치</h2><div class="stgrid">${vitals}</div>`+
-  `<h2 style="margin-top:14px">기능</h2><div class="stgrid">${skills}</div>`+fxSection+toolSection}
-$("v-stat").onclick=e=>{const sp=e.target.closest("[data-sp]"),sk=e.target.closest("[data-sk]"),fx=e.target.closest("[data-fxopen]");if(sp){spendStat(+sp.dataset.sp);return}if(sk)spendSkill(sk.dataset.sk);if(fx){openStatusDetail(me.fx[+fx.dataset.fxopen]);return}if(e.target.closest("#statusCureBtn")){openCure();return}};
+  `<h2 style="margin-top:14px">기능</h2><div class="stgrid">${skills}</div>`+fxSection+toolSection;
+ if($("v-stat"))$("v-stat").scrollTop=statusScrollPos}
+$("v-stat").onclick=e=>{const sp=e.target.closest("[data-sp]"),sk=e.target.closest("[data-sk]"),fx=e.target.closest("[data-fxopen]");
+ if(sp){stageStat(+sp.dataset.sp,+sp.dataset.d);return}
+ if(sk){stageSkill(sk.dataset.sk,+sk.dataset.d);return}
+ if(e.target.closest("#statConfirm")){confirmAlloc();return}
+ if(e.target.closest("#statReset")){resetAlloc();return}
+ if(fx){openStatusDetail(me.fx[+fx.dataset.fxopen]);return}
+ if(e.target.closest("#statusCureBtn")){openCure();return}
+};
 function grantTrait(name,chance=.02){
  if(!TRAITS[name]||me.traits.includes(name))return false;
  const day=traitDayKey();
