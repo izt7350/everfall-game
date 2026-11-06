@@ -744,6 +744,26 @@ function playClickSound(){
  }catch(e){}
 }
 clickVoicePool();
+// ---- 행동 완료 효과음 ----
+const COMPLETE_SFX_SRC="sfx/complete.mp3";
+let completeVoices=null,completeVoiceAt=0;
+function completeVoicePool(){
+ if(completeVoices)return completeVoices;
+ try{completeVoices=Array.from({length:2},()=>{const a=new Audio(COMPLETE_SFX_SRC);a.preload="auto";a.volume=.8;return a})}
+ catch(e){completeVoices=[]}
+ return completeVoices;
+}
+function playCompleteSound(){
+ if(!clickSfxOn())return;
+ const pool=completeVoicePool();if(!pool.length)return;
+ try{
+  const a=pool[completeVoiceAt++%pool.length];
+  try{a.currentTime=0}catch(e){}
+  const p=a.play();
+  if(p&&p.catch)p.catch(()=>{});
+ }catch(e){}
+}
+completeVoicePool();
 document.addEventListener("click",e=>{
  const t=e.target&&e.target.closest?e.target.closest("button,a,[role='button'],.js-name[data-uid],.js-name[data-u],.nd,.admin-link,.adm-char,.ihead[data-i],[data-eq]"):null;
  if(!t||t.matches(":disabled,[aria-disabled='true']"))return;
@@ -1654,6 +1674,7 @@ function resolveExp(partial=false){
  }
  if(newBad.length)lines.push(`<p style="color:var(--bad)">부정 특성 [${newBad.join(", ")}]을(를) 얻게 되었다.</p>`);
  logAct(partial?"중도 귀환했다.":"탐사를 마치고 귀환했다.",false);
+ if(!partial&&e.kind==="long")playCompleteSound();
  pop(partial?"중도 귀환":`${cfg.label} 완료`,lines.join(""),[{t:"확인"}])}
 function expClock(ms){const s=Math.max(0,Math.ceil(ms/1000)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;return (h?h+":":"")+String(m).padStart(2,"0")+":"+String(ss).padStart(2,"0")}
 function updateExpText(){if(!me.expedition)return;const cfg=EXPD[me.expedition.kind]||{label:"탐사"};$("exptxt").textContent=`${cfg.label} 진행 중… ${expClock(me.expedition.end-Date.now())}`}
@@ -2432,6 +2453,7 @@ function finishRest(early){
  if(r.lowHp)tryGoodTrait("회복력");
  if(r.lowMp)tryGoodTrait("깊은 잠");
  try{opts.save(cp(snap()))}catch(e){}
+ if(!early)playCompleteSound();
  modal(early?"휴식 중단":"휴식 완료",`${mins}분 휴식했습니다. HP +${hp} · 정신력 +${mp}을(를) 회복했습니다.`);
  renderAll();checkRest();try{clock()}catch(e){}
 }
@@ -2944,7 +2966,7 @@ const consume=(n,c)=>{for(let i=0;i<c;i++)me.inv.splice(me.inv.findIndex(x=>nm(x
 $("mvgo").onclick=()=>{const q=quote(mv.kind,mv.n,mv.mode,mv.baseMin);if(count("먹이")<q.food||(q.fuel&&airFuel()<q.fuel))return;
  consume("먹이",q.food);if(q.fuel){const a=airShip();if(a)a.fuel=Math.max(0,airFuel()-q.fuel)}
  me.travel={end:Date.now()+q.min*60000,dest:mv.dest,label:mv.label};$("mvmodal").hidden=true;bag();renderAll();try{render()}catch(e){}};
-function arrive(){sfx("ok");const d=me.travel.dest;me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub;const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:d.sub;if(Math.random()<.25)applyStatus("fatigue",{silent:true});bag();renderAll();try{render()}catch(e){};try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){}}
+function arrive(){sfx("ok");playCompleteSound();const d=me.travel.dest;me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub;const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:d.sub;if(Math.random()<.25)applyStatus("fatigue",{silent:true});bag();renderAll();try{render()}catch(e){};try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){}}
 T(()=>{if(me.travel){Date.now()>=me.travel.end?arrive():renderAll()}},1000);
 T(checkExpAct,1000);
 tickStatus();T(()=>{tickStatus();tickHunger();tickPet()},15000);
