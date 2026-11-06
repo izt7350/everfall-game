@@ -730,7 +730,7 @@ const AVATAR_COLORS=["#CB3533","#2F6FB0","#1F7A5C","#8A4FB0","#B26B00","#5D5D5D"
 const okColor=c=>/^#[0-9a-fA-F]{6}$/.test(String(c||""));
 const nameOk=n=>n.length>=2&&n.length<=8&&/^[가-힣A-Za-z0-9]+(?: [가-힣A-Za-z0-9]+)*$/.test(n);
 const fmt=t=>t?new Date(t).toLocaleString("ko-KR",{timeZone:"Asia/Seoul",dateStyle:"short",timeStyle:"short"}):"-";
-function toast(t){const e=document.createElement("div");e.className="toast";e.textContent=t;document.body.appendChild(e);setTimeout(()=>e.remove(),2600)}
+function toast(t,fn){const e=document.createElement("div");e.className="toast";e.style.zIndex="99999";e.textContent=t;if(fn){e.style.cursor="pointer";e.title="클릭하여 열기";e.onclick=()=>{e.remove();try{fn()}catch(err){console.warn(err)}}}document.body.appendChild(e);setTimeout(()=>e.remove(),fn?6000:2600);return e}
 // ---- 클릭 효과음 ----
 const CLICK_SFX_SRC="sfx/button_press_trimmed.wav";
 let clickVoices=null,clickVoiceAt=0;
@@ -4058,26 +4058,43 @@ function subscribeChat(tab,force){
   const v=s.val()||{};
   chatData[tab]=Object.entries(v).map(([id,m])=>({id,...(m||{})})).filter(m=>m&&typeof m.t==="string")
    .sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+  if(tab==="whisper"&&whisperUser&&uid){try{remove(ref(realtimeDB,"whisperPing/"+uid+"/"+whisperUser.uid)).catch(()=>{})}catch(e){}}
   if(cur===tab)render();
  },err=>{
   console.warn("chat",tab,err);
   if(cur===tab)$("log").innerHTML=`<div class="dim" style="padding:8px">채팅을 불러오지 못했어요. Firebase Realtime Database 규칙을 확인해 주세요.</div>`;
  });
 }
+function openWhisperFromPing(from,name){
+ if(!from||from===uid)return;
+ try{startWhisper(from,name||"상대")}catch(e){console.warn(e)}
+}
 function subscribeWhisperPing(){
  if(!uid)return;
  if(whisperPingUnsub){try{whisperPingUnsub()}catch(e){}whisperPingUnsub=null}
  let first=true;
  whisperPingUnsub=onValue(ref(realtimeDB,"whisperPing/"+uid),s=>{
-  const v=s.val()||{};let unread=0;
+  const v=s.val()||{};let unread=0,latest=null;
   Object.entries(v).forEach(([from,p])=>{
    if(!p||typeof p!=="object"||!isFinite(+p.at)||from===uid)return;
    if(whisperUser&&whisperUser.uid===from&&cur==="whisper"){try{remove(ref(realtimeDB,"whisperPing/"+uid+"/"+from)).catch(()=>{})}catch(e){}return}
-   if(first){unread++;return}
-   if(+p.at>(+seenPingAt[from]||0)){seenPingAt[from]=+p.at;toast(`귓속말 · ${String(p.name||"상대")}: ${String(p.t||"").slice(0,40)}`)}
+   if(first){unread++;if(!latest||+p.at>+latest.p.at)latest={from,p};return}
+   if(+p.at>(+seenPingAt[from]||0)){
+    seenPingAt[from]=+p.at;
+    const nm=String(p.name||"상대"),txt=String(p.t||"");
+    const busy=document.activeElement===$("inp")&&!!$("inp").value.trim();
+    if(!busy&&!battle&&!me.downed&&!me.deadPending&&cur!=="whisper"){try{startWhisper(from,nm)}catch(e){}}
+    toast(`귓속말 · ${nm}: ${txt.slice(0,40)}`,()=>openWhisperFromPing(from,nm));
+   }
   });
-  if(first){first=false;if(unread)toast(`읽지 않은 귓속말 ${unread}건`)}
- },err=>console.warn("whisperPing",err));
+  if(first){
+   first=false;
+   if(unread&&latest){
+    const nm=String(latest.p.name||"상대"),txt=String(latest.p.t||"");
+    toast(`읽지 않은 귓속말 ${unread}건 · ${nm}: ${txt.slice(0,40)}`,()=>openWhisperFromPing(latest.from,nm));
+   }
+  }
+ },err=>{console.warn("whisperPing",err);toast("귓속말 알림을 불러오지 못했습니다 · Firebase 규칙을 확인해 주세요.")});
 }
 
 async function resetAllChat(){
@@ -4144,7 +4161,6 @@ function startWhisper(targetUid,name){
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 귓속말을 보낼 수 없습니다.");
  if(!targetUid||targetUid===uid)return toast("자신에게는 귓속말을 보낼 수 없습니다.");
  whisperUser={uid:targetUid,name:name||"플레이어"};
- try{if(uid)remove(ref(realtimeDB,"whisperPing/"+uid+"/"+targetUid)).catch(()=>{})}catch(e){}
  const tab=$("wtab");if(!tab)return;
  tab.hidden=false;tab.innerHTML=`귓속말 <span class="dim">· ${esc(whisperUser.name)}</span>`;tab.title=`${whisperUser.name}에게 귓속말`;
  cur="whisper";
@@ -4170,7 +4186,7 @@ async function send(){const v=$("inp").value.trim();if(!v||$("inp").disabled||se
  const base={uid,name:me.name,t:v.slice(0,200),at:Date.now(),...(cur==="whisper"?{to:whisperUser.uid}:{})};
  try{
   try{await push(ref(realtimeDB,path),{...base,c:me.color})}catch(err){await push(ref(realtimeDB,path),base)}
-  if(cur==="whisper"&&whisperUser&&whisperUser.uid){try{set(ref(realtimeDB,"whisperPing/"+whisperUser.uid+"/"+uid),{from:uid,to:whisperUser.uid,name:me.name,t:v.slice(0,200),at:base.at,c:me.color}).catch(()=>{})}catch(err){}}
+  if(cur==="whisper"&&whisperUser&&whisperUser.uid){try{set(ref(realtimeDB,"whisperPing/"+whisperUser.uid+"/"+uid),{from:uid,to:whisperUser.uid,name:me.name,t:v.slice(0,200),at:base.at,c:me.color}).catch(e=>{console.warn("whisperPing",e);toast("귓속말 알림 전송에 실패했습니다 · Firebase 규칙을 확인해 주세요.")})}catch(err){}}
   $("inp").value="";render()
  }
  catch(e){console.warn(e);toast("메시지를 보내지 못했어요. Firebase 규칙을 확인해 주세요.")}
