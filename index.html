@@ -307,13 +307,13 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .ctab{flex:0 0 auto;height:48px;padding:0 4px;border:0;background:none;color:var(--dim);font-size:14px;line-height:22px;font-weight:500;position:relative}
 #gameRoot .ctab[aria-selected="true"]{color:var(--accent-text);border-bottom:0}
 #gameRoot .ctab[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px;background:var(--accent)}
-#gameRoot .log{display:block;padding:4px 20px 8px;font-size:14px;line-height:22px;gap:0}
-#gameRoot .msg{position:relative;display:block;padding:12px 64px 12px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:22px;color:var(--text);letter-spacing:-0.1px}
+#gameRoot .log{display:block;padding:4px 20px 8px;font-size:14px;line-height:20px;gap:0}
+#gameRoot .msg{position:relative;display:block;padding:8px 64px 8px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:20px;color:var(--text);letter-spacing:-0.1px}
 #gameRoot .msg:last-child{border-bottom:0}
 #gameRoot .msg .who{display:inline-block;margin-right:6px;font-weight:500;color:var(--name-color,var(--accent-text));white-space:nowrap}
 #gameRoot .msg .txt{overflow-wrap:anywhere}
-#gameRoot .msg .when{position:absolute;right:0;top:15px;font-size:12px;line-height:18px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
-#gameRoot .msg.notice{background:var(--panel2);border-left:0;border-bottom:0;border-radius:8px;padding:10px 64px 10px 12px;margin:6px 0;color:var(--dim)}
+#gameRoot .msg .when{position:absolute;right:0;top:10px;font-size:12px;line-height:18px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
+#gameRoot .msg.notice{background:var(--panel2);border-left:0;border-bottom:0;border-radius:8px;padding:8px 64px 8px 12px;margin:4px 0;color:var(--dim)}
 #gameRoot .send{padding:12px 20px;border-top:1px solid var(--line);gap:8px}
 #gameRoot .send input{height:40px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font-size:14px}
 #gameRoot .send button{height:40px;min-width:64px;border:0;border-radius:8px;background:var(--accent-strong);color:#FFFFFF;font-size:14px;font-weight:500;padding:0 16px}
@@ -524,8 +524,8 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .downed-bar .btn{height:30px;font-size:12px}
 #gameRoot .down-badge{display:inline-flex;align-items:center;height:18px;padding:0 5px;margin-left:4px;border-radius:5px;background:var(--danger-soft);color:var(--bad);font-size:10px;line-height:14px;font-weight:700}
 .ai-chip.down{background:var(--danger-soft);color:var(--bad);font-weight:700}
-#gameRoot .msg.sys{color:var(--bad);background:var(--danger-soft);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent);border-radius:6px;padding:6px 64px 6px 8px;margin:4px 0}
-#gameRoot .msg.sys .when{top:8px}
+#gameRoot .msg.sys{color:var(--bad);background:var(--danger-soft);border:1px solid color-mix(in srgb,var(--bad) 35%,transparent);border-radius:6px;padding:5px 64px 5px 8px;margin:3px 0}
+#gameRoot .msg.sys .when{top:7px}
 #gameRoot .grave-row{display:flex;align-items:center;gap:8px;padding:8px 10px;margin:4px 0;border:1px solid var(--line);border-radius:6px;background:var(--panel2);font-size:13px}
 #gameRoot .grave-row .grave-name{color:var(--bad);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 #gameRoot .grave-row.trace{opacity:.65}
@@ -2291,6 +2291,16 @@ const FISHING_ITEMS=[
  {id:"ITM-F02",name:"심해어",category:"재료",sub:"요리 재료",grade:"희귀",weight:.4,effect:"허기 +20",desc:"깊은 바다에서 잡힌 생선. 살이 단단하다.",use:"재료/사용"}
 ];
 FISHING_ITEMS.forEach(d=>{ITEM_BY_NAME[d.name]=d;registerItem(d.name,true)});
+// 폐허 태그 재료 보강 — 폐허 지역에서 낡은 천만 반복되는 문제 완화
+const RUINS_ITEMS=[
+ {id:"ITM-R01",name:"부서진 벽돌",category:"재료",sub:"제작 재료",grade:"일반",weight:1.2,effect:"제작 재료",desc:"무너진 벽에서 떨어진 벽돌. 건축과 제작에 쓸 수 있다.",use:"재료",field:"높음",fieldStars:"1~6",dungeon:"보통",dungeonStars:"1~6",tag:"폐허",note:"폐허 지역 보강 재료"},
+ {id:"ITM-R02",name:"녹슨 못",category:"재료",sub:"제작 재료",grade:"일반",weight:.3,effect:"제작 재료",desc:"폐허에서 주운 녹슨 못. 작은 도구를 고칠 때 쓴다.",use:"재료",field:"높음",fieldStars:"1~6",dungeon:"보통",dungeonStars:"1~6",tag:"폐허",note:"폐허 지역 보강 재료"},
+ {id:"ITM-R03",name:"깨진 유리 조각",category:"재료",sub:"제작 재료",grade:"일반",weight:.5,effect:"제작 재료",desc:"깨진 창이나 유리 지붕에서 떨어진 조각. 날카롭다.",use:"재료",field:"높음",fieldStars:"1~6",dungeon:"보통",dungeonStars:"1~6",tag:"폐허",note:"폐허 지역 보강 재료"},
+ {id:"ITM-R04",name:"불탄 목재",category:"재료",sub:"제작 재료",grade:"일반",weight:1,effect:"제작 재료",desc:"불에 그을린 목재. 아직 쓸 만한 부분이 남아 있다.",use:"재료",field:"높음",fieldStars:"1~6",dungeon:"보통",dungeonStars:"1~6",tag:"폐허",note:"폐허 지역 보강 재료"},
+ {id:"ITM-R05",name:"찢어진 양피지",category:"재료",sub:"제작 재료",grade:"일반",weight:.2,effect:"제작 재료",desc:"글자가 흐려진 양피지. 기록의 일부를 알아볼 수 있다.",use:"재료",field:"높음",fieldStars:"1~6",dungeon:"보통",dungeonStars:"1~6",tag:"폐허",note:"폐허 지역 보강 재료"},
+ {id:"ITM-R06",name:"부서진 석판",category:"재료",sub:"제작 재료",grade:"일반",weight:1.5,effect:"제작 재료",desc:"문양이 새겨진 석판 조각. 무게가 제법 나간다.",use:"재료",field:"높음",fieldStars:"1~6",dungeon:"보통",dungeonStars:"1~6",tag:"폐허",note:"폐허 지역 보강 재료"}
+];
+RUINS_ITEMS.forEach(d=>{ITEM_DATA.push(d);ITEM_BY_NAME[d.name]=d;registerItem(d.name,true)});
 function lootObj(n){
  const it=info(n);
  if(it&&(it.t==="w"||it.t==="a")){const max=it.t==="a"?12:10;return{n,dur:max,max}}
@@ -2356,7 +2366,10 @@ function pickItem(category,grade,tag,source){
   if(!pool.length)continue;
   const exact=pool.filter(d=>d.tag===tag);
   const generic=pool.filter(d=>d.tag==="전역");
-  const use=exact.length?exact:(generic.length?generic:pool);
+  // 태그 전용 풀이 1종뿐이면(예: 폐허=낡은 천) 다른 재료도 섞어 반복을 줄인다.
+  const use=exact.length
+   ?(exact.length===1&&pool.length>1&&Math.random()>=.30?pool:exact)
+   :(generic.length?generic:pool);
   return use[Math.floor(Math.random()*use.length)].name;
  }
  return null;
