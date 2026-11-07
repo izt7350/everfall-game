@@ -432,12 +432,12 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot #ttabs .ttab{flex:1;padding:8px;background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);font:inherit;cursor:pointer}
 #gameRoot #ttabs .ttab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
 #gameRoot .tr .sname{min-width:0;font:inherit}
-#gameRoot .tr .effline{display:block;font-size:11px;line-height:17px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
 #gameRoot .tr .tname{display:block;width:100%;min-width:0;padding:0;margin:0;border:0;background:none;color:var(--text);font:inherit;text-align:left;cursor:pointer}
 #gameRoot .tr .tname:hover{color:var(--accent-text)}
 #gameRoot .tr .tname .tcaret{display:inline-block;margin-left:6px;font-size:10px;color:var(--dim);transition:transform .15s}
 #gameRoot .tr .tname[aria-expanded="true"] .tcaret{transform:rotate(180deg)}
-#gameRoot .tr .teff{grid-column:1/-1;margin-top:2px;font-size:11px;line-height:17px;color:var(--dim)}
+#gameRoot .tr .teff{grid-column:1/-1;margin-top:2px;font-size:11px;line-height:17px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* auth */
 #app .card{border-radius:12px;border-color:var(--line);padding:32px;box-shadow:var(--shadow-md)}
@@ -5210,7 +5210,7 @@ function merchantGoods(){
  }
  return out;
 }
-let curGoods=GOODS,tradeHub=false,tradeTab="buy";
+let curGoods=GOODS,tradeHub=false,tradeTab="buy",tradeOpen=null;
 const tmsg=t=>$("tmsg").textContent=t;
 // 판매가는 구매가의 약 35% 수준. 상인 계열 보정은 이 위에 적용된다.
 const SELL_RATE=.35;
@@ -5242,8 +5242,8 @@ function tradeRender(){
  $("tg").textContent=me.gold+" G";
  $("ttabs").querySelectorAll("[data-ttab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.ttab===tradeTab?"true":"false"));
  if(tradeTab==="buy"){
-  $("tl").innerHTML=curGoods.map(g=>{const [n,b,fixed]=g,unit=fixed?buyP(b):buyP(price(n,b));
-   return `<div class="tr shoprow"><span class="sname">${esc(n)}<small>구매가 ${unit} G</small><span class="effline" title="${esc(effText(n))}">${esc(effText(n))}</span></span><button class="btn" data-a="buy" data-n="${esc(n)}" data-p="${unit}">구매</button></div>`;
+  $("tl").innerHTML=curGoods.map(g=>{const [n,b,fixed]=g,unit=fixed?buyP(b):buyP(price(n,b)),op=tradeOpen===n;
+   return `<div class="tr shoprow"><button type="button" class="tname" data-name="${esc(n)}" aria-expanded="${op}">${esc(n)}<span class="tcaret">▾</span><small>구매가 ${unit} G</small></button><button class="btn" data-a="buy" data-n="${esc(n)}" data-p="${unit}">구매</button>${op?`<div class="teff" title="${esc(effText(n))}">${esc(effText(n))}</div>`:""}</div>`;
   }).join("")||`<p class="dim">판매 중인 아이템이 없다.</p>`;
  }else{
   const seen=new Set(),rows=[];
@@ -5252,10 +5252,12 @@ function tradeRender(){
    const it=info(n);if(it.bound)continue;
    seen.add(n);rows.push({n,q:count(n),unit:shopSellUnit(n)});
   }
-  $("tl").innerHTML=rows.map(r=>`<div class="tr shoprow"><span class="sname">${esc(r.n)}<small>보유 ${r.q} · 개당 ${r.unit} G</small><span class="effline" title="${esc(effText(r.n))}">${esc(effText(r.n))}</span></span><button class="btn alt" data-a="sell" data-n="${esc(r.n)}" data-p="${r.unit}">판매</button></div>`).join("")||`<p class="dim">판매할 아이템이 없다.</p>`;
+  $("tl").innerHTML=rows.map(r=>{const op=tradeOpen===r.n;
+   return `<div class="tr shoprow"><button type="button" class="tname" data-name="${esc(r.n)}" aria-expanded="${op}">${esc(r.n)}<span class="tcaret">▾</span><small>보유 ${r.q} · 개당 ${r.unit} G</small></button><button class="btn alt" data-a="sell" data-n="${esc(r.n)}" data-p="${r.unit}">판매</button>${op?`<div class="teff" title="${esc(effText(r.n))}">${esc(effText(r.n))}</div>`:""}</div>`;
+  }).join("")||`<p class="dim">판매할 아이템이 없다.</p>`;
  }
 }
-function openTrade(t,g,opts={}){if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");if(me.travel)return toast("이동 중에는 거래할 수 없습니다.");if(actionLock("휴식 중에는 거래할 수 없습니다."))return;curGoods=g;tradeHub=!!opts.hub;tradeTab="buy";$("ttitle").textContent=t;tradeRender();const sp=Math.round(hubSpread()*100);tmsg(tradeHub?`거점 상인 시세 · 수도 시장 대비 구매 +${sp}% / 판매 -${sp}%`:"");$("tmodal").hidden=false}
+function openTrade(t,g,opts={}){if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");if(me.travel)return toast("이동 중에는 거래할 수 없습니다.");if(actionLock("휴식 중에는 거래할 수 없습니다."))return;curGoods=g;tradeHub=!!opts.hub;tradeTab="buy";tradeOpen=null;$("ttitle").textContent=t;tradeRender();const sp=Math.round(hubSpread()*100);tmsg(tradeHub?`거점 상인 시세 · 수도 시장 대비 구매 +${sp}% / 판매 -${sp}%`:"");$("tmodal").hidden=false}
 $("trade").onclick=()=>openTrade("시장 거래",marketGoods("kardor"));
 $("etrade").onclick=()=>openTrade("시장 거래",marketGoods("elis"));
 $("atrade").onclick=()=>openTrade("만민의 광장 시장",marketGoods("ark"));
@@ -5283,8 +5285,10 @@ $("buyFeed").onclick=()=>{
  modal("먹이 구입","먹이 1개를 구입했습니다.");
 };
 $("tclose").onclick=()=>$("tmodal").hidden=true;
-$("ttabs").onclick=e=>{const b=e.target.closest("[data-ttab]");if(!b)return;tradeTab=b.dataset.ttab;tradeRender()};
+$("ttabs").onclick=e=>{const b=e.target.closest("[data-ttab]");if(!b)return;tradeTab=b.dataset.ttab;tradeOpen=null;tradeRender()};
 $("tl").onclick=e=>{
+ const nameBtn=e.target.closest(".tname");
+ if(nameBtn){const n=nameBtn.dataset.name;tradeOpen=tradeOpen===n?null:n;tradeRender();return}
  const b=e.target.closest("button[data-a]");if(!b||b.disabled)return;
  const n=b.dataset.n,unit=Math.max(1,+b.dataset.p||0),act=b.dataset.a;
  if(me.downed||me.deadPending)return tmsg("쓰러진 상태에서는 거래할 수 없다.");
@@ -5319,7 +5323,7 @@ $("tl").onclick=e=>{
    tmsg(`${n} ×${rm.length} 판매 (+${total} G)`);
    awardAction("talk",ACTION_XP.trade,info(n).grade||"일반","talk");
    if(total>=50)tryGoodTrait("상인의 촉");
-   bag();tradeRender();
+   tradeOpen=null;bag();tradeRender();
   });
  }
 };
