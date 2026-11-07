@@ -856,6 +856,9 @@ function adminLogDetail(r){
  if(d.before!=null&&d.after!=null)add("HP 변화",`${num(d.before)} → ${num(d.after)}${hpMax?` / ${num(hpMax)}`:""}`);
  else if(d.hp!=null){const h=Array.isArray(d.hp)?pool(d.hp):(isFinite(+d.hp)?`${num(d.hp)}${hpMax?` / ${num(hpMax)}`:""}`:null);if(h)add("HP",h)}
  if(d.hungerBefore!=null&&d.hungerAfter!=null)add("허기 변화",`${num(d.hungerBefore)} → ${num(d.hungerAfter)}`);
+ if(d.mpBefore!=null&&d.mpAfter!=null&&d.mpBefore!==d.mpAfter)add("정신력 변화",`${num(d.mpBefore)} → ${num(d.mpAfter)}`);
+ if(d.mpDmg!=null)add("정신력 피해",`-${num(d.mpDmg)}`);
+ if(d.mpCost)add("정신력 소모",`-${num(d.mpCost)}`);
  const mp=pool(d.mp);if(mp)add("정신력",mp);
  const hg=pool(d.hunger);if(hg)add("허기",hg);
  if(d.dmg!=null)add("받은 피해",`${num(d.dmg)}`);
@@ -932,12 +935,19 @@ let U=null,me={uid:null,name:"",admin:false},acc=null,draft;
 const RESUME_KEY="everfall_in_game";
 const resumeOn=()=>{try{return sessionStorage.getItem(RESUME_KEY)==="1"}catch(e){return false}};
 const resumeSet=v=>{try{if(v)sessionStorage.setItem(RESUME_KEY,"1");else sessionStorage.removeItem(RESUME_KEY)}catch(e){}};
-async function boot(){let user=null;try{if(auth.authStateReady)await auth.authStateReady();user=auth.currentUser}catch(e){user=auth.currentUser}if(user){me={uid:user.uid,name:user.email?.split("@")[0]||"플레이어",admin:false};await enter()}else{resumeSet(false);go("login")}}
+const isIOS=()=>/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const keepLoginPref=()=>{try{return localStorage.getItem("everfall_keep_login")!=="0"}catch(e){return true}};
+async function applyPersistence(keep){
+ const local=isIOS()||keep;
+ try{await setPersistence(auth,local?browserLocalPersistence:browserSessionPersistence);return local}
+ catch(e){console.warn("persistence",e);return false}
+}
+async function boot(){await applyPersistence(keepLoginPref());let user=null;try{if(auth.authStateReady)await auth.authStateReady();user=auth.currentUser}catch(e){user=auth.currentUser}if(user){me={uid:user.uid,name:user.email?.split("@")[0]||"플레이어",admin:false};await enter()}else{resumeSet(false);go("login")}}
 function go(s,x){({login,signup,banned,create,lobby,admin,adminLogin})[s](x)}
 const app=h=>{$("app").innerHTML=h};
 function authEmail(id){return id.toLowerCase()+"@everfall.game"}
-function login(){let keepPref=true;try{keepPref=localStorage.getItem("everfall_keep_login")!=="0"}catch(e){}app(`<div class="card center"><h1 class="brand">Everfall</h1><div class="dim" style="margin-top:8px">무너진 세계에서 살아남아라</div><div class="stack" style="margin-top:32px;text-align:left;gap:16px"><div class="field"><h3 style="margin:0">아이디</h3><input type="text" id="lid" placeholder="아이디를 입력하세요" autocomplete="username"></div><div class="field"><h3 style="margin:0">비밀번호</h3><input type="password" id="lpw" placeholder="비밀번호를 입력하세요" autocomplete="current-password"></div><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim);cursor:pointer"><input type="checkbox" id="keepLogin" ${keepPref?"checked":""} style="width:16px;height:16px;accent-color:var(--accent)"> 로그인 유지</label></div><div class="err" id="err" style="margin-top:12px;text-align:left;font-size:12px;line-height:18px;color:var(--bad)"></div><div class="stack" style="margin-top:20px;gap:8px"><button class="btn big" id="doLogin">로그인</button><button class="btn alt big" id="toSignup">회원가입</button></div><div class="dim sm" style="margin-top:16px">이메일 없이 아이디와 비밀번호만으로 가입할 수 있어요.</div><button type="button" class="admin-link" id="toAdmin">관리자 페이지</button></div>`);$("doLogin").onclick=doLogin;$("toSignup").onclick=()=>go("signup");$("toAdmin").onclick=()=>go("adminLogin");[$("lid"),$("lpw")].forEach(i=>i.onkeydown=e=>{if(e.key==="Enter")doLogin()})}
-async function doLogin(){const e=$("err"),id=$("lid").value.trim(),pw=$("lpw").value;e.textContent="";if(!/^[A-Za-z0-9]{4,12}$/.test(id)||!pw){e.textContent="아이디와 비밀번호를 확인해 주세요.";return}const keep=$("keepLogin")?$("keepLogin").checked:true;try{localStorage.setItem("everfall_keep_login",keep?"1":"0")}catch(_){} $("doLogin").disabled=true;try{try{await setPersistence(auth,keep?browserLocalPersistence:browserSessionPersistence)}catch(err){console.warn("persistence",err)}const c=await signInWithEmailAndPassword(auth,authEmail(id),pw);me={uid:c.user.uid,name:id,admin:false};await enter()}catch(x){e.textContent="아이디 또는 비밀번호가 올바르지 않습니다.";$("doLogin").disabled=false}}
+function login(){let keepPref=true;try{keepPref=localStorage.getItem("everfall_keep_login")!=="0"}catch(e){}app(`<div class="card center"><h1 class="brand">Everfall</h1><div class="dim" style="margin-top:8px">무너진 세계에서 살아남아라</div><div class="stack" style="margin-top:32px;text-align:left;gap:16px"><div class="field"><h3 style="margin:0">아이디</h3><input type="text" id="lid" placeholder="아이디를 입력하세요" autocomplete="username"></div><div class="field"><h3 style="margin:0">비밀번호</h3><input type="password" id="lpw" placeholder="비밀번호를 입력하세요" autocomplete="current-password"></div><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim);cursor:pointer"><input type="checkbox" id="keepLogin" ${isIOS()||keepPref?"checked":""}${isIOS()?" disabled":""} style="width:16px;height:16px;accent-color:var(--accent)"> 로그인 유지</label></div><div class="err" id="err" style="margin-top:12px;text-align:left;font-size:12px;line-height:18px;color:var(--bad)"></div><div class="stack" style="margin-top:20px;gap:8px"><button class="btn big" id="doLogin">로그인</button><button class="btn alt big" id="toSignup">회원가입</button></div><div class="dim sm" style="margin-top:16px">이메일 없이 아이디와 비밀번호만으로 가입할 수 있어요.</div><button type="button" class="admin-link" id="toAdmin">관리자 페이지</button></div>`);$("doLogin").onclick=doLogin;$("toSignup").onclick=()=>go("signup");$("toAdmin").onclick=()=>go("adminLogin");[$("lid"),$("lpw")].forEach(i=>i.onkeydown=e=>{if(e.key==="Enter")doLogin()})}
+async function doLogin(){const e=$("err"),id=$("lid").value.trim(),pw=$("lpw").value;e.textContent="";if(!/^[A-Za-z0-9]{4,12}$/.test(id)||!pw){e.textContent="아이디와 비밀번호를 확인해 주세요.";return}const keep=$("keepLogin")?$("keepLogin").checked:true;try{localStorage.setItem("everfall_keep_login",keep?"1":"0")}catch(_){} $("doLogin").disabled=true;try{await applyPersistence(keep);const c=await signInWithEmailAndPassword(auth,authEmail(id),pw);me={uid:c.user.uid,name:id,admin:false};await enter()}catch(x){e.textContent="아이디 또는 비밀번호가 올바르지 않습니다.";$("doLogin").disabled=false}}
 function signup(){app(`<div class="card center"><h1 class="brand">Everfall</h1><div class="dim" style="margin-top:8px">회원가입</div><div class="stack" style="margin-top:32px;text-align:left;gap:16px"><div class="field"><h3 style="margin:0">아이디 (영문·숫자 4~12자)</h3><input type="text" id="sid" maxlength="12" autocomplete="username" placeholder="아이디를 입력하세요"></div><div class="field"><h3 style="margin:0">비밀번호 (6자 이상)</h3><input type="password" id="sp1" autocomplete="new-password" placeholder="비밀번호를 입력하세요"></div><div class="field"><h3 style="margin:0">비밀번호 확인</h3><input type="password" id="sp2" autocomplete="new-password" placeholder="비밀번호를 다시 입력하세요"></div></div><div class="err" id="err" style="margin-top:12px;text-align:left;font-size:12px;line-height:18px;color:var(--bad)"></div><div class="stack" style="margin-top:20px;gap:8px"><button class="btn big" id="sgo">가입하기</button><button class="btn alt big" id="sbk">취소</button></div><div class="dim sm" style="margin-top:16px">이메일 없이 아이디와 비밀번호만 사용합니다. 비밀번호를 잊으면 복구가 어려우니 안전하게 보관해 주세요.</div></div>`);$("sbk").onclick=()=>go("login");$("sgo").onclick=doSignup}
 async function doSignup(){const e=$("err"),id=$("sid").value.trim(),p1=$("sp1").value,p2=$("sp2").value;e.textContent="";if(!/^[A-Za-z0-9]{4,12}$/.test(id)){e.textContent="아이디는 영문·숫자 4~12자로 입력해 주세요.";return}if(p1.length<6){e.textContent="비밀번호는 6자 이상이어야 합니다.";return}if(p1!==p2){e.textContent="비밀번호 확인이 일치하지 않습니다.";return}$("sgo").disabled=true;let user=null;try{const c=await createUserWithEmailAndPassword(auth,authEmail(id),p1);user=c.user;const ok=await S.claimLoginId(id,user.uid);if(!ok){await deleteUser(user);e.textContent="이미 사용 중인 아이디입니다.";$("sgo").disabled=false;return}me={uid:user.uid,name:id,admin:false};acc={createdAt:Date.now(),character:null,loginId:id};await S.setAcc(me.uid,acc);toast("가입이 완료됐어요!");go("create")}catch(x){e.textContent=x.code==="auth/email-already-in-use"?"이미 사용 중인 아이디입니다.":"가입에 실패했어요. Firebase 설정을 확인해 주세요.";$("sgo").disabled=false}}
 function kit(job="모험가"){
@@ -1182,7 +1192,7 @@ async function make(){const e=$("err");e.textContent="";
  try{const J=JOBS[draft.job],jt=JOB_TRAITS[draft.job]||{};
   const K=jobKitData(draft.job),cstats=traitStats(draft.stats,draft.job,draft.traits),vit=+cstats[4]||BASE,int=+cstats[2]||BASE,hpMax=J.hp+10*(vit-5)+(jt.hp||0)+traitSum(draft.traits,"hp"),mpMax=J.mp+10*(int-5)+(jt.mp||0)+traitSum(draft.traits,"mp"),hungerMax=J.hg+3*(vit-5)+traitSum(draft.traits,"hunger"),gold=K.gold+(jt.gold||0),skills={...DEFAULT_SKILLS,...jobSkillBonuses(draft.job)};
   
-  acc.character={name:draft.name,origin:draft.origin,job:draft.job,avatar:draft.avatar,avatarColor:draft.avatarColor||null,photo:draft.photo,trait:draft.traits[0],traits:draft.traits.slice(),traitApplied:true,stats:cstats,hp:[hpMax,hpMax],mp:[mpMax,mpMax],hunger:[hungerMax,hungerMax],gold,skills,lv:1,xp:0,skillXp:{...DEFAULT_SKILLS},statPts:0,skillPts:0,crafted:[],lastTraitDay:"",rest:null,...kit(draft.job),sub:null,day:1,cont:draft.origin,area:"cap",createdAt:Date.now(),potionGrant:true,potionGrant20:true};
+  acc.character={name:draft.name,origin:draft.origin,job:draft.job,avatar:draft.avatar,avatarColor:draft.avatarColor||null,photo:draft.photo,trait:draft.traits[0],traits:draft.traits.slice(),traitApplied:true,stats:cstats,hp:[hpMax,hpMax],mp:[mpMax,mpMax],hunger:[hungerMax,hungerMax],gold,skills,lv:1,xp:0,skillXp:{...DEFAULT_SKILLS},statPts:0,skillPts:0,crafted:[],lastTraitDay:"",rest:null,...kit(draft.job),sub:null,day:1,cont:draft.origin,area:"cap",createdAt:Date.now(),mpAt:Date.now(),mpCarry:0,potionGrant:true,potionGrant20:true};
   await S.setAcc(me.uid,acc);go("lobby")}
  catch(x){e.textContent="저장에 실패했어요. Firebase 데이터베이스 규칙을 확인해 주세요.";$("mk").disabled=false}}
 
@@ -1202,7 +1212,7 @@ function lobby(){const c=acc.character;
  }
 
 // ---- 관리자: 회원 관리 ----
-function adminLogin(){let keepPref=true;try{keepPref=localStorage.getItem("everfall_keep_login")!=="0"}catch(e){}app(`<div class="card center"><h1 class="brand">관리자</h1><div class="dim" style="margin-top:8px">관리자 계정으로 로그인</div><div class="stack" style="margin-top:32px;text-align:left;gap:16px"><div class="field"><h3 style="margin:0">아이디</h3><input type="text" id="aid" placeholder="관리자 아이디" autocomplete="username"></div><div class="field"><h3 style="margin:0">비밀번호</h3><input type="password" id="apw" placeholder="비밀번호" autocomplete="current-password"></div><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim);cursor:pointer"><input type="checkbox" id="keepLogin" ${keepPref?"checked":""} style="width:16px;height:16px;accent-color:var(--accent)"> 로그인 유지</label></div><div class="err" id="err" style="margin-top:12px;text-align:left;font-size:12px;line-height:18px;color:var(--bad)"></div><div class="stack" style="margin-top:20px;gap:8px"><button class="btn big" id="doAdmin">관리자 로그인</button><button class="btn alt big" id="admBack">돌아가기</button></div><div class="dim sm" style="margin-top:16px">관리자 권한이 있는 계정만 접속할 수 있습니다.</div></div>`);
+function adminLogin(){let keepPref=true;try{keepPref=localStorage.getItem("everfall_keep_login")!=="0"}catch(e){}app(`<div class="card center"><h1 class="brand">관리자</h1><div class="dim" style="margin-top:8px">관리자 계정으로 로그인</div><div class="stack" style="margin-top:32px;text-align:left;gap:16px"><div class="field"><h3 style="margin:0">아이디</h3><input type="text" id="aid" placeholder="관리자 아이디" autocomplete="username"></div><div class="field"><h3 style="margin:0">비밀번호</h3><input type="password" id="apw" placeholder="비밀번호" autocomplete="current-password"></div><label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--dim);cursor:pointer"><input type="checkbox" id="keepLogin" ${isIOS()||keepPref?"checked":""}${isIOS()?" disabled":""} style="width:16px;height:16px;accent-color:var(--accent)"> 로그인 유지</label></div><div class="err" id="err" style="margin-top:12px;text-align:left;font-size:12px;line-height:18px;color:var(--bad)"></div><div class="stack" style="margin-top:20px;gap:8px"><button class="btn big" id="doAdmin">관리자 로그인</button><button class="btn alt big" id="admBack">돌아가기</button></div><div class="dim sm" style="margin-top:16px">관리자 권한이 있는 계정만 접속할 수 있습니다.</div></div>`);
  $("doAdmin").onclick=doAdminLogin;$("admBack").onclick=()=>go("login");
  [$("aid"),$("apw")].forEach(i=>i.onkeydown=e=>{if(e.key==="Enter")doAdminLogin()})}
  async function doAdminLogin(){
@@ -1210,7 +1220,7 @@ function adminLogin(){let keepPref=true;try{keepPref=localStorage.getItem("everf
   if(!/^[A-Za-z0-9]{4,12}$/.test(id)||!pw){e.textContent="아이디와 비밀번호를 확인해 주세요.";return}
   const keep=$("keepLogin")?$("keepLogin").checked:true;try{localStorage.setItem("everfall_keep_login",keep?"1":"0")}catch(_){}
   $("doAdmin").disabled=true;
-  try{try{await setPersistence(auth,keep?browserLocalPersistence:browserSessionPersistence)}catch(err){console.warn("persistence",err)}const c=await signInWithEmailAndPassword(auth,authEmail(id),pw);
+  try{await applyPersistence(keep);const c=await signInWithEmailAndPassword(auth,authEmail(id),pw);
    if(!(await S.getAdmin(c.user.uid))){await signOut(auth);e.textContent="관리자 권한이 없는 계정입니다.";$("doAdmin").disabled=false;return}
    me={uid:c.user.uid,name:id,admin:true};acc=null;go("admin")}
   catch(x){e.textContent="아이디 또는 비밀번호가 올바르지 않습니다.";$("doAdmin").disabled=false}}
@@ -1373,7 +1383,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.skillPts=Math.max(0,Math.floor(+c.skillPts||0));
  o.crafted=Array.isArray(c.crafted)?c.crafted.filter(x=>typeof x==="string").slice(-600):[];
  o.speedPotionGrant=!!c.speedPotionGrant;
- o.potionGrant=!!c.potionGrant;o.potionGrant20=!!c.potionGrant20;
+ o.potionGrant=!!c.potionGrant;o.potionGrant20=!!c.potionGrant20;o.mpAt=isFinite(+c.mpAt)?+c.mpAt:Date.now();o.mpCarry=Math.max(0,+c.mpCarry||0);
  o.party=Array.isArray(c.party)?c.party.map(normAlly).filter(Boolean).slice(0,4):[];
  o.partyId=typeof c.partyId==="string"?c.partyId:null;
  o.partyLeader=typeof c.partyLeader==="string"?c.partyLeader:null;
@@ -1687,7 +1697,7 @@ const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||cha
  downed:opts.downed!==undefined?opts.downed:(char.downed&&typeof char.downed==="object"&&isFinite(+char.downed.until)?{...char.downed}:null),deadPending:false,
  expLogs:cp(Array.isArray(char.expLogs)?char.expLogs.slice(-200):[]),expMeta:char.expMeta&&typeof char.expMeta==="object"?{...char.expMeta}:null,
  expArchive:cp(Array.isArray(char.expArchive)?char.expArchive.slice(0,1):[]),
- walkDay:typeof char.walkDay==="string"?char.walkDay:"",walkMin:Math.max(0,+char.walkMin||0),walkRolls:Math.max(0,Math.floor(+char.walkRolls||0)),potionGrant:!!char.potionGrant,potionGrant20:!!char.potionGrant20};
+ walkDay:typeof char.walkDay==="string"?char.walkDay:"",walkMin:Math.max(0,+char.walkMin||0),walkRolls:Math.max(0,Math.floor(+char.walkRolls||0)),potionGrant:!!char.potionGrant,potionGrant20:!!char.potionGrant20,mpAt:isFinite(+char.mpAt)?+char.mpAt:Date.now(),mpCarry:Math.max(0,+char.mpCarry||0)};
 const uid=opts.uid||null;
 // ---- 관리자 전용 활동 로그 (캐릭터별 링 버퍼) ----
 const LOG_SLOTS=200,charId=Math.max(0,Math.floor(+char.createdAt||0));
@@ -2058,17 +2068,20 @@ function resolveExp(partial=false){
   const snap={id:sid,proposalId:proposalId||null,monster:{name:last.name,hp:last.win?0:1,maxHp:1,grade:"",role:""},players:[{uid,name:me.name,hp:me.hp[0],maxHp:me.hp[1]},...party.slice(1).map(f=>({uid:f.ally&&f.ally.uid||"",name:f.name,hp:f.hp,maxHp:f.maxHp}))],participants:[uid,...party.slice(1).map(f=>f.ally&&f.ally.uid).filter(Boolean)],log:battleLogs.flatMap(b=>[`${b.name} · ${b.rounds}턴 ${b.win?"승리":"패배"}`,...b.log]).slice(-80),status:defeated?"lose":"win",result:{id:sid,xpEach:gain,skillXp:skillGain,skillByUid:{},loot:found,chest:chestData},at:Date.now()};
   set(ref(realtimeDB,"parties/"+me.partyId+"/battle"),snap).catch(()=>{if(!partySyncWarned){partySyncWarned=true;toast("파티 전투 동기화 실패 · Firebase 규칙을 확인해 주세요.")}});
  }
+ const mpBefore=+me.mp[0]||0,mpCost=Math.min(mpBefore,Math.max(0,segs)*(e.kind==="dungeon"?3:2));
  spendHunger(Math.max(0,segs)*2);
+ spendMp(mpCost);
+ const mpAfter=+me.mp[0]||0;
  barsRender();renderStatus();bag();renderAll();
  const fxNow=(me.fx||[]).map(f=>f&&(f.label||f.n)),fxAdded=fxNow.filter(x=>x&&!fxBefore.includes(x)),fxRemoved=fxBefore.filter(x=>x&&!fxNow.includes(x));
- logChar("expedition",`${cfg.label} ${partial?"중도 귀환":"완료"} · 계획 ${e.min}분 · 아이템 ${found.length}개 · 조우 ${enc}회 · HP ${hpBefore} → ${me.hp[0]}/${me.hp[1]} · 허기 ${hungerBefore} → ${me.hunger[0]}/${me.hunger[1]}`,{kind:e.kind,min:e.min,elapsed:Math.floor(elapsed),partial,area:(areaObj&&areaObj.name)||e.area,found,lost,encounters:enc,battles:battleLogs.length,wins:battleLogs.filter(b=>b.win).length,dmg,box,defeated,before:hpBefore,after:me.hp[0],hp:me.hp.slice(),mp:me.mp.slice(),hungerBefore,hungerAfter:me.hunger[0],hunger:me.hunger.slice(),xp:gain,skillXp:skillGain,fx:fxNow,fxAdded,fxRemoved,expLogs:(me.expLogs||[]).slice(-10)});
+ logChar("expedition",`${cfg.label} ${partial?"중도 귀환":"완료"} · 계획 ${e.min}분 · 아이템 ${found.length}개 · 조우 ${enc}회 · HP ${hpBefore} → ${me.hp[0]}/${me.hp[1]} · 정신력 ${mpBefore} → ${mpAfter} · 허기 ${hungerBefore} → ${me.hunger[0]}/${me.hunger[1]}`,{kind:e.kind,min:e.min,elapsed:Math.floor(elapsed),partial,area:(areaObj&&areaObj.name)||e.area,found,lost,encounters:enc,battles:battleLogs.length,wins:battleLogs.filter(b=>b.win).length,dmg,mpCost,mpBefore,mpAfter,box,defeated,before:hpBefore,after:me.hp[0],hp:me.hp.slice(),mp:me.mp.slice(),hungerBefore,hungerAfter:me.hunger[0],hunger:me.hunger.slice(),xp:gain,skillXp:skillGain,fx:fxNow,fxAdded,fxRemoved,expLogs:(me.expLogs||[]).slice(-10)});
  clearProposal();
  if(me.hp[0]<=0||me.hunger[0]<=0){triggerDowned();return}
  const lines=[];
  if(partial)lines.push(`<p class="dim">${Math.floor(elapsed)}분 진행 · 완료한 ${segs*30}분만큼의 보상</p>`);
  if(found.length)lines.push(`<p><b>획득</b> ${esc(tally(found))}</p>`);
  if(!partial&&box)lines.push(`<p><b>던전 보상 상자</b>를 얻었다.</p>`);
- if(segs)lines.push(`<p>몬스터 조우 ${enc}회 · 경험치 +${gain} · HP -${dmg}</p>`);
+ if(segs)lines.push(`<p>몬스터 조우 ${enc}회 · 경험치 +${gain} · HP -${dmg}${mpCost?` · 정신력 -${mpCost}`:""}</p>`);
  if(bossDefeat)lines.push(`<p class="dim">보스에게 패배해 HP 1로 귀환했다. 던전 보상 상자는 얻지 못했다.</p>`);
  else if(defeated)lines.push(`<p class="dim">전투에서 패배해 간신히 귀환했다.</p>`);
  if(battleLogs.length){const html=battleLogs.map(b=>{const tag=b.role==="정예"?"[정예] ":b.role==="보스"?"[보스] ":"";return `<div style="margin-top:8px"><b>${esc(tag+b.name)}</b> <span class="dim">${b.rounds}턴 ${b.win?"승리":"패배"}</span><div class="explog-pop" style="max-height:130px">${b.log.map(t=>`<div class="explog-line">${esc(t)}</div>`).join("")}</div></div>`}).join("");lines.push(`<details style="margin-top:10px"><summary>전투 로그 보기</summary>${html}</details>`)}
@@ -2358,6 +2371,44 @@ function spendActionHunger(n=1){
  if(me.hunger[0]<=0){try{checkVitals()}catch(e){};return false}
  return true;
 }
+function spendMp(n){
+ const amt=Math.max(0,Math.floor(+n||0));if(!amt)return 0;
+ const before=me.mp[0];me.mp[0]=Math.max(0,before-amt);
+ if(me.mp[0]!==before)try{barsRender()}catch(e){}
+ return before-me.mp[0];
+}
+function nightMinutesBetween(start,end){
+ if(!(end>start))return 0;
+ const H=3600000,D=86400000,OFF=9*H,s=start+OFF,e=end+OFF;
+ let total=0;
+ for(let d=Math.floor(s/D)-1;d<=Math.floor(e/D);d++){
+  const a=Math.max(s,d*D+21*H),b=Math.min(e,(d+1)*D+6*H);
+  if(b>a)total+=(b-a)/60000;
+ }
+ return total;
+}
+let nightSkip=false;
+function nightMpApply(now){
+ if(me.downed||me.deadPending||me.expedition||me.rest){
+  if(!nightSkip){nightSkip=true;me.mpAt=now;me.mpCarry=0}
+  return;
+ }
+ if(nightSkip){nightSkip=false;me.mpAt=now;me.mpCarry=0;return}
+ if(!isFinite(+me.mpAt)){me.mpAt=now;return}
+ const last=+me.mpAt;
+ if(last>now){me.mpAt=now;return}
+ const mins=nightMinutesBetween(last,now);
+ if(mins<=0)return;
+ const total=Math.max(0,+me.mpCarry||0)+mins,cost=Math.floor(total/15);
+ me.mpAt=now;me.mpCarry=total-cost*15;
+ if(cost>0){
+  me.mp[0]=Math.max(0,me.mp[0]-cost);
+  try{barsRender()}catch(e){}
+  try{opts.save(cp(snap()))}catch(e){}
+ }
+}
+function applyOfflineNightMp(){nightMpApply(Date.now())}
+function tickNightMp(){nightMpApply(Date.now())}
 
 $("name").textContent=me.name;$("origin").textContent=me.origin;$("job").textContent=me.job;
 const openOwnProfile=()=>openPlayerProfile(uid,me.name);
@@ -3934,6 +3985,13 @@ const SHORT_ELITE=[
  {h:.57,a:.55,d:.86},{h:.73,a:.73,d:.92},{h:.63,a:.66,d:.95},{h:.85,a:.95,d:.97},{h:.80,a:.93,d:.99},
  {h:1.15,a:1.38,d:1.00},{h:1.21,a:1.37,d:1.02},{h:1.26,a:1.54,d:1.10},{h:1.31,a:1.44,d:1.15},{h:1.36,a:1.68,d:1.17}
 ];
+// ★3~6 장비 업그레이드 필요성을 높이는 단기 탐사 전용 추가 배율. ★1~2와 ★7 이상은 기존 난도 유지.
+const SHORT_PRESSURE=[
+ {h:1,a:1,d:1},{h:1,a:1,d:1},
+ {h:1.25,a:1.14,d:1.05},{h:1.25,a:1.16,d:1.06},{h:1.18,a:1.12,d:1.06},{h:1.18,a:1.12,d:1.08},
+ {h:1,a:1,d:1},{h:1,a:1,d:1},{h:1,a:1,d:1},{h:1,a:1,d:1},
+ {h:1,a:1,d:1},{h:1,a:1,d:1},{h:1,a:1,d:1},{h:1,a:1,d:1},{h:1,a:1,d:1}
+];
 const LONG_K=[.711,.934,.846,.945,.886,.870,.776,.789,.940,1.010,.936,1.076,1.019,1.077,1.118];
 const DUNGEON_K=[.604,.792,.586,.673,.575,.566,.492,.482,.485,.498,.443,.507,.483,.486,.467];
 // index 0 = 1인, 1 = 2인, 2 = 3인, 3 = 4인, 4 = 5인
@@ -3954,6 +4012,7 @@ function scaleMonster(mon,star,opts={}){
   const role=mon.role==="보스"?"boss":mon.role==="정예"?"elite":"normal";
   const base=role==="normal"?SHORT_NORMAL[s-1]:SHORT_ELITE[s-1];
   let h=base.h,a=base.a,d=base.d;
+  if(mode==="short"){const pr=SHORT_PRESSURE[s-1]||{h:1,a:1,d:1};h*=pr.h;a*=pr.a;d*=pr.d}
   if(mode!=="short"){
    const k=(mode==="long"?LONG_K:DUNGEON_K)[s-1];
    const q=(mode==="long"?LONG_PARTY_Q:DUNGEON_PARTY_Q)[s-1][pn-1]||1;
@@ -4272,6 +4331,14 @@ $("explore").onclick=()=>{if(actionLock("휴식 중에는 탐사할 수 없습�
   if(Math.random()<.15){applyStatus("wound",{silent:true});statusAdded="상처";msg+=" · 상처 상태이상"}
   logChar("trap",`함정 피해 -${dmg} · HP ${hpBefore} → ${me.hp[0]}${statusAdded?` · ${statusAdded}`:""}`,{dmg,before:hpBefore,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],mp:me.mp.slice(),hunger:me.hunger.slice(),statusAdded,area:me.area,sub:me.sub||"",fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
   modal("함정",msg);bag();return
+ }
+ const mpTrapChance=.02*Math.max(.15,1-Math.min(.85,(tm.trapFindPct||0)/100));
+ if(me.mp[0]>0&&Math.random()<mpTrapChance){
+  const mpDmg=Math.max(1,Math.round(me.mp[1]*.10*Math.max(.2,1-Math.min(.8,(tm.trapDamageRed||0)/100))));
+  const mpBefore=+me.mp[0]||0;
+  me.mp[0]=Math.max(0,me.mp[0]-mpDmg);barsRender();
+  logChar("trap",`정신력 함정 · 정신력 ${mpBefore} → ${me.mp[0]}`,{mpDmg,mpBefore,mpAfter:me.mp[0],mp:me.mp.slice(),area:me.area,sub:me.sub||""});
+  modal("정신력 함정",`환각 함정에 걸렸다. 정신력 -${mpDmg}`);bag();return
  }
  if(r<.6){
   // 비전투 탐사 보상은 1종류만. 재료는 최대 3개, 완제품은 1개.
@@ -5466,7 +5533,7 @@ const pubProfile=()=>({name:me.name,job:me.job,origin:me.origin,day:me.day,color
 let lastProfile=JSON.stringify(pubProfile()),profileAt=0;
 if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(uid,p).catch(()=>{})}
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry});
 // 기존 캐릭터 1회 지급: 이동속도 증가 포션 20개
 const SPEED_POTION_GRANT_CUTOFF=Date.parse("2026-11-07T23:59:59+09:00");
 if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
@@ -5610,6 +5677,8 @@ function tryBadTrait(name){
 }
 applyOfflinePet();
 applyOfflineHunger();
+applyOfflineNightMp();
+T(tickNightMp,60000);
 renderStatus();
 try{renderProposalPanels()}catch(e){}
 render();bag();renderAll();clock();
