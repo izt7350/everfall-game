@@ -50,10 +50,6 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .inv-search-row .sm2{height:36px;padding:0 10px}
 #gameRoot .inv-result{margin:0 0 6px}
 #gameRoot .ihead{cursor:pointer;font-weight:600}
-#gameRoot .ihead .lockbtn{background:none;border:0;padding:0 3px;margin:0 1px 0 0;font-size:13px;line-height:1;cursor:pointer;vertical-align:middle;opacity:.7}
-#gameRoot .ihead .lockbtn:hover{opacity:1}
-#gameRoot .ihead .lockbtn.locked{opacity:1}
-#gameRoot .ihead .lockbtn:disabled{opacity:.3;cursor:not-allowed}
 #gameRoot .ibtn{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
 #gameRoot .sm2{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:3px;padding:2px 8px;font-size:12px;cursor:pointer}
 #gameRoot .btn.sm2{background:var(--accent);color:#fff;border:0}
@@ -3553,6 +3549,7 @@ function btns(x,i){const n=nm(x),it=info(n),dis=(me.travel||me.rest||me.expediti
  if(isIngredient(n))h+=B("make","만들기");
  if(isHpPotion(n))h+=`<button class="sm2${isPotionAutoLocked(n)?" lock-on":""}" data-a="autolock" data-i="${i}"${dis}>${isPotionAutoLocked(n)?"자동소비 잠금 해제":"자동소비 잠금"}</button>`;
  if(!it.bound)h+=D("gift","선물하기")+D("drop","버리기")+D("destroy","파기");
+ h+=`<button class="sm2${locked?" lock-on":""}" data-a="itemlock" data-i="${i}"${dis}>${locked?"잠금 해제":"잠금"}</button>`;
  return h}
 let invQuery="";
 function invGroupedRows(){
@@ -3568,7 +3565,7 @@ function invListHtml(){
  }):rows;
  if(!rows.length)return `<p class="dim">소지품이 없다.</p>`;
  if(!matched.length)return `<p class="dim">‘${esc(invQuery.trim())}’에 해당하는 소지품이 없다.</p>`;
- const list=matched.map(r=>{const rn=nm(r.x),lk=isItemLocked(rn),noAct=me.travel||me.rest||me.expedition||me.downed||me.deadPending;return `<div class="irow"><div class="ihead" data-i="${r.i}">${esc(rn)}<button type="button" class="lockbtn${lk?" locked":""}" data-a="itemlock" data-i="${r.i}"${noAct?" disabled":""} title="${lk?"잠금 해제":"잠금"}" aria-label="${lk?"잠금 해제":"잠금"}" aria-pressed="${lk}">${lk?"🔒":"🔓"}</button>${r.q>1?` ×${r.q}`:""}${dura(r.x)}${info(rn).bound?`<span class="bd">귀속</span>`:""}${isHpPotion(rn)&&isPotionAutoLocked(rn)?`<span class="bd">자동 잠금</span>`:""}</div><div class="ibtn">${btns(r.x,r.i)}</div></div>`}).join("");
+ const list=matched.map(r=>{const rn=nm(r.x);return `<div class="irow"><div class="ihead" data-i="${r.i}">${esc(rn)}${r.q>1?` ×${r.q}`:""}${dura(r.x)}${info(rn).bound?`<span class="bd">귀속</span>`:""}${isHpPotion(rn)&&isPotionAutoLocked(rn)?`<span class="bd">자동 잠금</span>`:""}</div><div class="ibtn">${btns(r.x,r.i)}</div></div>`}).join("");
  return `${words.length?`<p class="dim sm inv-result">검색 결과 ${matched.length}종</p>`:""}${list}`;
 }
 function invRefreshList(){
