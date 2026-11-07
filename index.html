@@ -811,7 +811,7 @@ function charInfoHtml(c,meta){
  const jt=JOB_TRAITS[c.job]||JOB_TRAITS[JOB_ALIAS[c.job]]||null;
  const chips=(meta.downed?`<span class="ai-chip down">[쓰러짐]</span>`:"")+(jt?`<span class="ai-chip accent">[${esc(jt.name)}]</span>`:"")+list.map(x=>`<span class="ai-chip">[${esc(x)}]</span>`).join("");
  const downLine=meta.downed?`<div class="ai-sub" style="color:var(--bad);font-weight:700">쓰러짐 · ${Math.max(0,Math.ceil((+meta.downed.until-Date.now())/60000))}분 남음</div>`:"";
- const pool=v=>Array.isArray(v)?[Math.max(0,+v[0]||0),Math.max(0,+v[1]||0)]:[0,0];
+ const pool=v=>Array.isArray(v)?[Math.max(0,Math.round(+v[0]||0)),Math.max(0,Math.round(+v[1]||0))]:[0,0];
  const pbar=(label,v,color)=>{const [cur,max]=pool(v),pct=max?Math.min(100,cur/max*100):0;return `<div class="ai-bar"><div class="ai-bar-head"><span>${label}</span><b>${max?`${cur} / ${max}`:"-"}</b></div><div class="ai-track"><i style="width:${pct}%;background:${color}"></i></div></div>`};
  const hasPhoto=okPhoto(c.photo),col=okColor(c.avatarColor)?c.avatarColor:"";
  const av=`<span class="ai-avatar" style="${hasPhoto?`background-image:url(${c.photo})`:`background:${col||"var(--accent-soft)"}`}"></span>`;
@@ -945,6 +945,119 @@ function radar(st,w){const n=STATS.length,mx=Math.max(15,...st),R=62,C=100;
  const dp=STATS.map((_,i)=>pt(i,R*st[i]/mx).map(f).join(",")).join(" ");
  const lab=STATS.map((s,i)=>{const[x,y]=pt(i,R+17);return `<text x="${f(x)}" y="${f(y+4)}" text-anchor="middle" style="font-size:11px;fill:var(--text)">${s} <tspan style="fill:var(--accent);font-weight:700">${st[i]}</tspan></text>`}).join("");
  return `<svg viewBox="0 0 200 200" style="width:${w}px;max-width:100%;display:block;margin:6px auto">${ring}${axes}<polygon points="${dp}" style="fill:var(--accent);fill-opacity:.28;stroke:var(--accent);stroke-width:2"/>${lab}</svg>`}
+// ---- 상태 효과 ----
+const STATUS_DB={},STATUS_BY_NAME={},STATUS_LIST=[];
+const FX_LIMIT=10;
+const LEGACY_FX={"든든함":"heartyMeal","예민함":"anxiety","각성":"awaken","찰과상":"wound"};
+const defStatus=o=>{const d={maxStacks:1,min:60,ef:{},clear:[],...o};STATUS_DB[d.id]=d;STATUS_BY_NAME[d.n]=d;STATUS_LIST.push(d);return d};
+[
+ // 일상 버프 14
+ defStatus({id:"clearMind",n:"맑은 정신",t:"buff",sub:"일상",d:"완전히 푹 잔 뒤 머리가 맑아진 상태.",min:60,ef:{mpPct:10,mpRegenPct:20,magicPct:5}}),
+ defStatus({id:"deepSleep",n:"숙면",t:"buff",sub:"일상",d:"깊은 잠을 자고 몸이 개운한 상태.",min:60,ef:{hpPct:5,mpRegenPct:15}}),
+ defStatus({id:"heartyMeal",n:"든든한 식사",t:"buff",sub:"일상",d:"배가 부르고 몸에 기운이 도는 상태.",min:30,ef:{hpPct:5,defPct:5},meal:1}),
+ defStatus({id:"vitality",n:"활력",t:"buff",sub:"일상",d:"최근 식사로 몸이 가볍게 들뜬 상태.",min:30,ef:{atkPct:5,movePct:5}}),
+ defStatus({id:"warmBody",n:"따뜻한 몸",t:"buff",sub:"일상",d:"불가에서 몸을 녹인 상태.",min:30,ef:{coldResist:20,hpRegenPct:10}}),
+ defStatus({id:"calm",n:"평온",t:"buff",sub:"일상",d:"안전한 곳에서 마음을 가라앉힌 상태.",min:30,ef:{mpRegenPct:10,fearResist:20}}),
+ defStatus({id:"walkJoy",n:"산책의 즐거움",t:"buff",sub:"일상",d:"가벼운 산책으로 기분이 좋아진 상태.",min:30,ef:{movePct:5,luck:1}}),
+ defStatus({id:"tidyCamp",n:"정갈한 야영",t:"buff",sub:"일상",d:"잘 정돈된 야영지에서 쉰 상태.",min:60,ef:{campBonus:30,ambushRed:10}}),
+ defStatus({id:"goodNews",n:"좋은 소식",t:"buff",sub:"일상",d:"기분 좋은 소식을 들은 상태.",min:60,ef:{negotiate:5,luck:1}}),
+ defStatus({id:"regularCustomer",n:"단골 손님",t:"buff",sub:"일상",d:"같은 상점에서 얼굴을 익힌 상태.",min:60,ef:{buyPct:-3,sellPct:3}}),
+ defStatus({id:"prayer",n:"기도의 시간",t:"buff",sub:"일상",d:"신전에서 기도하고 마음을 비운 상태.",min:60,ef:{healPct:10,resistPct:10}}),
+ defStatus({id:"allyCheer",n:"동료의 격려",t:"buff",sub:"일상",d:"파티원의 격려로 사기가 오른 상태.",min:30,ef:{atkPct:3,defPct:3}}),
+ defStatus({id:"feast",n:"만찬",t:"buff",sub:"일상",d:"파티가 함께 만든 풍성한 식사.",min:90,ef:{hpPct:10,mpPct:10},meal:1}),
+ defStatus({id:"vigor",n:"생기",t:"buff",sub:"일상",d:"몸과 마음이 충만한 상태.",min:30,ef:{movePct:5,evasionPct:2}}),
+ defStatus({id:"hastePotion",n:"이동속도 증가",t:"buff",sub:"아이템",d:"이동 속도가 70% 증가한다. (3시간)",min:180,ef:{movePct:70}}),
+ // 음식·아이템 버프 15
+ defStatus({id:"atkBless",n:"공격의 가호",t:"buff",sub:"아이템",d:"공격력이 오르는 가호.",min:15,ef:{atkPct:10}}),
+ defStatus({id:"defBless",n:"수호의 가호",t:"buff",sub:"아이템",d:"방어력이 오르는 가호.",min:15,ef:{defPct:10}}),
+ defStatus({id:"mentalFocus",n:"정신 집중",t:"buff",sub:"아이템",d:"정신을 집중해 마법이 강해진 상태.",min:15,ef:{magicPct:10,mpRegenPct:10}}),
+ defStatus({id:"swift",n:"신속",t:"buff",sub:"아이템",d:"몸놀림이 빨라진 상태.",min:15,ef:{speedFlat:3,evasionPct:5}}),
+ defStatus({id:"critFlow",n:"치명의 흐름",t:"buff",sub:"아이템",d:"급소를 노리기 쉬운 상태.",min:15,ef:{critPct:5,critDmgPct:10}}),
+ defStatus({id:"regeneration",n:"재생",t:"buff",sub:"아이템",d:"상처가 천천히 아무는 상태.",min:15,ef:{hpRegenPct:20}}),
+ defStatus({id:"unyielding",n:"불굴",t:"buff",sub:"아이템",d:"상태이상을 버티는 힘이 오른 상태.",min:15,ef:{resistPct:20}}),
+ defStatus({id:"heartyBite",n:"든든한 한 끼",t:"buff",sub:"음식",d:"일반 요리로 배를 채운 상태.",min:60,ef:{hpPct:3},meal:1,legacy:1}),
+ defStatus({id:"heartyMeal2",n:"기운찬 식사",t:"buff",sub:"음식",d:"고급 요리로 기운이 오른 상태.",min:120,ef:{atkPct:3,defPct:3},meal:1,legacy:1}),
+ defStatus({id:"fineMeal",n:"정갈한 식사",t:"buff",sub:"음식",d:"희귀 요리로 몸이 정돈된 상태.",min:180,ef:{atkPct:5,defPct:5,mpPct:5},meal:1,legacy:1}),
+ defStatus({id:"heroFeast",n:"영웅의 만찬",t:"buff",sub:"음식",d:"영웅급 요리로 강해진 상태.",min:240,ef:{atkPct:7,defPct:7,hpPct:7},meal:1,legacy:1}),
+ defStatus({id:"legendFeast",n:"전설의 만찬",t:"buff",sub:"음식",d:"전설급 요리로 힘이 넘치는 상태.",min:300,ef:{atkPct:10,defPct:10,hpPct:10,luck:1},meal:1,legacy:1}),
+ defStatus({id:"mythFeast",n:"신화의 성찬",t:"buff",sub:"음식",d:"신화급 요리로 한계를 넘은 상태.",min:360,ef:{atkPct:12,defPct:12,hpPct:12,mpPct:12,luck:2},meal:1,legacy:1}),
+ defStatus({id:"dishBuff",n:"요리 버프",t:"buff",sub:"음식",d:"요리로 얻은 일시적인 효과.",min:60,ef:{},meal:1}),
+ defStatus({id:"awaken",n:"각성",t:"buff",sub:"음식",d:"정신이 또렷해진 상태.",min:60,ef:{mpRegenPct:20,magicPct:5},legacy:1}),
+ defStatus({id:"luckySip",n:"행운의 한 모금",t:"buff",sub:"음식",d:"행운이 깃든 차를 마신 상태.",min:60,ef:{luck:2},legacy:1}),
+ defStatus({id:"purifyAura",n:"정화의 기운",t:"buff",sub:"아이템",d:"정화 향의 힘이 나쁜 기운을 밀어낸다.",min:180,ef:{resistPct:10}}),
+ defStatus({id:"signalFlare",n:"비상 신호",t:"buff",sub:"아이템",d:"신호탄을 터뜨려 도주할 준비를 했다.",min:15,ef:{fleePct:10}}),
+ // 환경 버프 5
+ defStatus({id:"sunlight",n:"햇살 아래",t:"buff",sub:"환경",d:"따뜻한 햇빛을 받는 상태.",min:60,env:1,ef:{mpRegenPct:5,luck:1}}),
+ defStatus({id:"rainShelter",n:"비를 피함",t:"buff",sub:"환경",d:"비를 피해 몸을 보호한 상태.",min:30,env:1,ef:{coldResist:10}}),
+ defStatus({id:"warmFire",n:"따뜻한 불가",t:"buff",sub:"환경",d:"불가 곁에서 몸을 녹인 상태.",min:30,env:1,ef:{coldResist:20,hpRegenPct:10}}),
+ defStatus({id:"starlight",n:"별빛 아래",t:"buff",sub:"환경",d:"별빛이 은밀함을 도와주는 상태.",min:60,env:1,ef:{stealth:5,magicPct:3}}),
+ defStatus({id:"mistVeil",n:"안개의 은밀함",t:"buff",sub:"환경",d:"안개가 몸을 가려주는 상태.",min:60,env:1,ef:{stealth:10,accuracyPct:-5}}),
+ // 전투 상태이상 15
+ defStatus({id:"bleed",n:"출혈",t:"debuff",sub:"전투",d:"상처에서 피가 계속 흐른다.",min:60,maxStacks:3,ef:{hpDot10:-2,movePct:-5},clear:["붕대"],treat:{item:"붕대"}}),
+ defStatus({id:"poison",n:"중독",t:"debuff",sub:"전투",d:"독이 몸에 퍼졌다.",min:60,maxStacks:3,ef:{hpDot10:-1,healPct:-20},clear:["해독제"],treat:{item:"해독제"}}),
+ defStatus({id:"burn",n:"화상",t:"debuff",sub:"전투",d:"불에 데어 계속 아프다.",min:60,maxStacks:2,ef:{hpDot10:-2,defPct:-10},clear:["치유 연고"],treat:{item:"치유 연고"}}),
+ defStatus({id:"freeze",n:"빙결",t:"debuff",sub:"전투",d:"몸이 얼어 움직임이 둔해졌다.",min:60,ef:{speedPct:-30,evasionPct:-10},clear:["따뜻한 곳"],treat:{action:"따뜻한 곳에서 해제"}}),
+ defStatus({id:"silence",n:"침묵",t:"debuff",sub:"전투",d:"목이 막혀 주문을 외울 수 없다.",min:60,ef:{},flags:{magic:1},clear:["정화 향"],treat:{item:"정화 향"}}),
+ defStatus({id:"confusion",n:"혼란",t:"debuff",sub:"전투",d:"정신이 흐려 판단이 흔들린다.",min:60,ef:{accuracyPct:-15,evasionPct:-10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
+ defStatus({id:"fear",n:"공포",t:"debuff",sub:"전투",d:"두려움에 몸이 굳었다.",min:60,ef:{atkPct:-10,fleePct:10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
+ defStatus({id:"weaken",n:"약화",t:"debuff",sub:"전투",d:"저주로 힘이 빠진 상태.",min:60,ef:{atkPct:-15},clear:["정화 향"],treat:{item:"정화 향"}}),
+ defStatus({id:"defBreak",n:"방어 파괴",t:"debuff",sub:"전투",d:"방어구나 자세가 무너졌다.",min:60,ef:{defPct:-20},clear:["방어구 수리"],treat:{action:"방어구 수리로만 해제 (치유 불가)"}}),
+ defStatus({id:"slow",n:"둔화",t:"debuff",sub:"전투",d:"발이 무거워졌다.",min:60,ef:{speedPct:-20},clear:["30분 이상 휴식"],treat:{action:"30분 이상 휴식"}}),
+ defStatus({id:"bind",n:"속박",t:"debuff",sub:"전투",d:"몸이 묶여 움직이기 어렵다.",min:60,ef:{speedPct:-30},flags:{flee:1},clear:["근력 판정"],treat:{action:"근력 판정으로 해제"}}),
+ defStatus({id:"paralysis",n:"마비",t:"debuff",sub:"전투",d:"몸이 굳어 행동할 수 없다.",min:60,ef:{},flags:{act:1},clear:["해독제"],treat:{item:"해독제"}}),
+ defStatus({id:"sleep",n:"수면",t:"debuff",sub:"전투",d:"잠에 빠져 행동할 수 없다.",min:60,ef:{},flags:{act:1},clear:["피격","30분 이상 휴식"],treat:{action:"피격 또는 30분 이상 휴식"}}),
+ defStatus({id:"taunt",n:"도발",t:"debuff",sub:"전투",d:"적이 자신을 우선 공격한다.",min:60,ef:{},clear:["2회 피격"],treat:{action:"2회 피격으로 해제"}}),
+ defStatus({id:"corrosion",n:"부식",t:"debuff",sub:"전투",d:"장비와 살이 함께 상한다.",min:60,ef:{defPct:-15,durability:-1},clear:["수리","정화 향"],treat:{item:"정화 향"}}),
+ // 탐색·환경 상태이상 16
+ defStatus({id:"fatigue",n:"피로",t:"debuff",sub:"탐색",d:"몸이 무거워졌다.",min:90,ef:{hpPct:-5,speedPct:-5},clear:["30분 이상 휴식"],treat:{action:"30분 이상 휴식"}}),
+ defStatus({id:"exhaustion",n:"탈진",t:"debuff",sub:"탐색",d:"기력이 완전히 빠졌다.",min:360,ef:{atkPct:-10,defPct:-10,movePct:-10},clear:["3시간 이상 완전 휴식"],treat:{action:"3시간 이상 완전 휴식"}}),
+ defStatus({id:"starvation",n:"굶주림",t:"debuff",sub:"탐색",d:"배가 고파 힘이 빠졌다.",min:60,ef:{hpDot10:-1,atkPct:-10},clear:["식사"],treat:{action:"식사"}}),
+ defStatus({id:"dehydration",n:"탈수",t:"debuff",sub:"탐색",d:"물이 부족하다.",min:60,ef:{mpRegenPct:-30,mpDot10:-1},clear:["물"],treat:{action:"물 마시기"}}),
+ defStatus({id:"chill",n:"한기",t:"debuff",sub:"탐색",d:"몸이 차가워졌다.",min:60,ef:{speedPct:-10,healPct:-10},clear:["따뜻한 곳"],treat:{action:"따뜻한 곳에서 해제"}}),
+ defStatus({id:"hypothermia",n:"저체온",t:"debuff",sub:"탐색",d:"몸이 깊게 식었다.",min:120,ef:{hpDot10:-2,speedPct:-20},clear:["따뜻한 곳"],treat:{action:"따뜻한 곳에서 해제"}}),
+ defStatus({id:"heatstroke",n:"열사병",t:"debuff",sub:"탐색",d:"더위에 몸이 과열됐다.",min:120,ef:{mpDot10:-2,accuracyPct:-10},clear:["그늘·물"],treat:{action:"그늘에서 물 마시기"}}),
+ defStatus({id:"wound",n:"상처",t:"debuff",sub:"탐색",d:"피부가 찢어졌다.",min:1440,ef:{healPct:-20},clear:["붕대"],treat:{item:"붕대"}}),
+ defStatus({id:"infection",n:"감염",t:"debuff",sub:"탐색",d:"상처에 세균이 들어갔다.",min:0,ef:{healPct:-30},clear:["치유 연고"],treat:{item:"치유 연고"}}),
+ defStatus({id:"disease",n:"질병",t:"debuff",sub:"탐색",d:"몸이 앓고 있다.",min:0,ef:{atkPct:-10,defPct:-10,healPct:-20},clear:["약초"],treat:{item:"약초"}}),
+ defStatus({id:"foodPoison",n:"식중독",t:"debuff",sub:"탐색",d:"상한 음식으로 배가 아프다.",min:60,ef:{hungerDot10:-10,hpDot10:-1},clear:["해독제"],treat:{item:"해독제"}}),
+ defStatus({id:"herbPoison",n:"독초 중독",t:"debuff",sub:"탐색",d:"독초를 먹거나 만졌다.",min:60,ef:{hpDot10:-2,mpDot10:-5},clear:["해독제"],treat:{item:"해독제"}}),
+ defStatus({id:"sleepDeprived",n:"수면 부족",t:"debuff",sub:"탐색",d:"잠이 부족해 집중이 안 된다.",min:0,ef:{mpPct:-10,accuracyPct:-5},clear:["수면"],treat:{action:"수면"}}),
+ defStatus({id:"anxiety",n:"불안",t:"debuff",sub:"탐색",d:"마음이 편치 않다.",min:60,ef:{mpRegenPct:-20,fearResist:-10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
+ defStatus({id:"panic",n:"공황",t:"debuff",sub:"탐색",d:"극심한 불안에 빠졌다.",min:60,ef:{fleePct:20,accuracyPct:-20},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
+ defStatus({id:"wet",n:"젖은 몸",t:"debuff",sub:"탐색",d:"옷과 몸이 젖었다.",min:60,ef:{coldResist:-10},clear:["건조"],treat:{action:"건조"}}),
+ // 부상·질병·저주 12
+ defStatus({id:"fracture",n:"골절",t:"debuff",sub:"부상",d:"팔, 다리가 부러진 상태.",min:1440,ef:{atkPct:-15,speedPct:-20},clear:["부목"],treat:{item:"부목"}}),
+ defStatus({id:"headInjury",n:"머리 부상",t:"debuff",sub:"부상",d:"머리를 다쳐 집중이 어렵다.",min:1440,ef:{accuracyPct:-10,mpRegenPct:-10},clear:["붕대"],treat:{item:"붕대"}}),
+ defStatus({id:"frostbite",n:"동상",t:"debuff",sub:"부상",d:"추위로 살갗이 상했다.",min:0,ef:{atkPct:-10,speedPct:-10},clear:["따뜻한 곳","치유 연고"],treat:{item:"치유 연고"}}),
+ defStatus({id:"heatburn",n:"열창",t:"debuff",sub:"부상",d:"더위로 피부가 상했다.",min:1440,ef:{hpDot10:-1},clear:["치유 연고"],treat:{item:"치유 연고"}}),
+ defStatus({id:"allergy",n:"알레르기",t:"debuff",sub:"부상",d:"꽃가루·허브에 몸이 반응한다.",min:60,ef:{accuracyPct:-5,stealth:-20},clear:["약초"],treat:{item:"약초"}}),
+ defStatus({id:"nightmare",n:"악몽",t:"debuff",sub:"부상",d:"잠에서 깨어도 기분이 나쁘다.",min:60,ef:{mpPct:-10,fearResist:-10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
+ defStatus({id:"curseWeak",n:"저주: 쇠약",t:"debuff",sub:"저주",d:"저주로 모든 힘이 빠졌다.",min:0,ef:{allStatsPct:-10},clear:["정화 향"],treat:{item:"정화 향"}}),
+ defStatus({id:"curseMisfortune",n:"저주: 불운",t:"debuff",sub:"저주",d:"저주로 운이 따르지 않는다.",min:0,ef:{critPct:-5,dropPct:-10},clear:["정화 향"],treat:{item:"정화 향"}}),
+ defStatus({id:"curseTrack",n:"저주: 추적",t:"debuff",sub:"저주",d:"무언가가 자신을 쫓는다.",min:0,ef:{encounterPct:30},clear:["정화 향"],treat:{item:"정화 향"}}),
+ defStatus({id:"curseSilence",n:"저주: 침묵의 봉인",t:"debuff",sub:"저주",d:"마법의 말이 막혔다.",min:0,ef:{},flags:{magic:1},clear:["정화 향"],treat:{item:"정화 향"}}),
+ defStatus({id:"soulSplit",n:"영혼 갈림",t:"debuff",sub:"저주",d:"영혼이 일부 떨어져 나갔다.",min:0,ef:{mpPct:-20,mpRegenPct:-50},clear:["정화 향"],treat:{item:"정화 향"}}),
+ defStatus({id:"voidMark",n:"공허의 표식",t:"debuff",sub:"저주",d:"공허의 힘이 몸에 남았다.",min:0,ef:{dmgTakenPct:10,healPct:-20},clear:["정화 향"],treat:{item:"정화 향"}}),
+ defStatus({id:"guilt",n:"죄책감",t:"debuff",sub:"추모",d:"그 얼굴이 자꾸 떠오른다. 악몽을 꾼다.",min:360,ef:{healPct:-20,hpRegenPct:-20,mpRegenPct:-20},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
+ defStatus({id:"sad",n:"슬픔",t:"debuff",sub:"추모",d:"남의 일 같지 않아 마음이 쓰인다.",min:360,ef:{mpPct:-10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
+ defStatus({id:"mourn",n:"애도",t:"buff",sub:"추모",d:"떠난 곳은 이곳보다는 더 좋은 곳일 것이다.",min:360,ef:{mpPct:10}})
+].forEach(d=>{});
+const CURE_RATES={
+ bleed:{self:60,other:70},poison:{self:60,other:70},burn:{self:55,other:65},silence:{self:55,other:65},
+ confusion:{self:55,other:65},fear:{self:55,other:65},weaken:{self:55,other:65},paralysis:{self:50,other:60},
+ corrosion:{self:50,other:60},wound:{self:60,other:70},infection:{self:45,other:60},disease:{self:45,other:60},
+ foodPoison:{self:60,other:70},herbPoison:{self:55,other:65},anxiety:{self:55,other:65},panic:{self:50,other:60},
+ fracture:{self:45,other:60},headInjury:{self:50,other:60},frostbite:{self:50,other:60},heatburn:{self:55,other:65},
+ allergy:{self:60,other:70},nightmare:{self:55,other:65},curseWeak:{self:35,other:50},curseMisfortune:{self:35,other:50},
+ curseTrack:{self:35,other:50},curseSilence:{self:35,other:50},soulSplit:{self:30,other:45},voidMark:{self:30,other:45}
+};
+Object.entries(CURE_RATES).forEach(([id,r])=>{if(STATUS_DB[id])STATUS_DB[id].cure={...r}});
+Object.entries(LEGACY_FX).forEach(([n,id])=>{if(STATUS_DB[id]&&!STATUS_BY_NAME[n])STATUS_BY_NAME[n]=STATUS_DB[id]});
+// 위 배열은 defStatus가 직접 등록한다.
+function fxRemainMs(f,now=Date.now()){return f&&+f.exp>0?Math.max(0,+f.exp-now):null}
+function fxRemainText(f,now=Date.now()){const ms=fxRemainMs(f,now);if(ms==null)return "해제까지";const m=Math.ceil(ms/60000);return m>=60?`${Math.floor(m/60)}시간 ${m%60?`${m%60}분`:""}`.trim():`${m}분`}
+function statusDefOf(x){return STATUS_DB[x]||STATUS_BY_NAME[x]||(x&&STATUS_DB[x.id])||(x&&STATUS_BY_NAME[x.n])||null}
+
 const used=()=>draft.stats.reduce((a,b)=>a+b,0)-BASE*STATS.length;
 function create(){
  draft={name:"",origin:ORIGINS[0],job:"기사",avatar:"",avatarColor:null,photo:null,traits:[],stats:STATS.map(()=>BASE)};
@@ -984,16 +1097,16 @@ function mark(){
  document.querySelectorAll("#gCol .swatch").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===draft.avatarColor)));
  const ac=$("avCol");if(ac)ac.value=draft.avatarColor||AVATAR_COLORS[0];
 }
-const bar=(l,v,c)=>`<div class="bar"><div class="l"><span>${l}</span><span>${v}</span></div><div class="tr"><i style="width:${Math.min(100,v/1.3)}%;background:${c}"></i></div></div>`;
+const bar=(l,v,m,c)=>{v=Math.max(0,Math.round(+v||0));m=Math.max(1,Math.round(+m||0));const p=Math.max(0,Math.min(100,v/m*100));return `<div class="bar"><div class="l"><span>${l}</span><span>${v} / ${m}</span></div><div class="tr"><i style="width:${p}%;background:${c}"></i></div></div>`};
 function jobStats(st,job=(typeof draft!=="undefined"&&draft.job)){const s=st.slice(),b=JOB_STAT[job];if(b)s[b[0]]+=b[1];return s}
 function traitStats(st,job,traits){const s=jobStats(st,job);(Array.isArray(traits)?traits:[traits]).forEach(t=>{const tr=TRAITS[t];if(tr&&tr.agi)s[1]+=tr.agi});return s}
 function traitSum(list,key){return (Array.isArray(list)?list:[]).reduce((a,t)=>a+((TRAITS[t]&&TRAITS[t][key])||0),0)}
-function pv(){const J=JOBS[draft.job],jt=JOB_TRAITS[draft.job]||{},K=jobKitData(draft.job),hpBonus=traitSum(draft.traits,"hp"),mpBonus=traitSum(draft.traits,"mp");
+function pv(){const J=JOBS[draft.job],jt=JOB_TRAITS[draft.job]||{},K=jobKitData(draft.job),hpBonus=traitSum(draft.traits,"hp"),mpBonus=traitSum(draft.traits,"mp"),hgBonus=traitSum(draft.traits,"hunger"),cstats=traitStats(draft.stats,draft.job,draft.traits),vit=+cstats[4]||BASE,int=+cstats[2]||BASE,hpMax=J.hp+10*(vit-5)+(jt.hp||0)+hpBonus,mpMax=J.mp+10*(int-5)+(jt.mp||0)+mpBonus,hungerMax=J.hg+3*(vit-5)+hgBonus;
  const startItems=[K.weapon,K.armor,K.acc1,K.bag,...K.items.map(([n,q])=>q>1?`${n}×${q}`:n)].filter(Boolean).join(" · ");
  $("pv").innerHTML=`${faceHtml(draft)}<div class="nm">${esc(draft.name||"이름 없음")}</div>
  <div class="r">출신지 <b>${draft.origin}</b></div><div class="r">직업 <b>${draft.job}</b></div><div class="r">특성 <b>${draft.traits.length?draft.traits.map(esc).join(", "):"미선택"}</b></div><div class="r">생존 <b>1일째</b></div><div class="r">소지금 <b>${K.gold+(jt.gold||0)} G</b></div>
- ${bar("HP",J.hp+(jt.hp||0)+hpBonus,"var(--hp)")}${bar("정신력",J.mp+(jt.mp||0)+mpBonus,"var(--mp)")}${bar("허기",J.hg,"var(--hunger)")}
- <h3>스탯</h3>${radar(traitStats(draft.stats,draft.job,draft.traits),200)}
+ ${bar("HP",hpMax,hpMax,"var(--hp)")}${bar("정신력",mpMax,mpMax,"var(--mp)")}${bar("허기",hungerMax,hungerMax,"var(--hunger)")}
+ <h3>스탯</h3>${radar(cstats,200)}
  <h3>시작 소지품</h3><div class="sm">${esc(startItems)}</div>
  <h3>시작 위치</h3><div class="sm">${draft.origin} · ${draft.origin==="카르도르"?"철문 아래의 도시":"수도"}</div>`}
 async function make(){const e=$("err");e.textContent="";
@@ -1002,9 +1115,9 @@ async function make(){const e=$("err");e.textContent="";
  if(used()<POINTS){e.textContent=`분배하지 않은 스탯 포인트가 ${POINTS-used()}개 남아 있어요.`;return}
  $("mk").disabled=true;
  try{const J=JOBS[draft.job],jt=JOB_TRAITS[draft.job]||{};
-  const K=jobKitData(draft.job),hpMax=J.hp+(jt.hp||0)+traitSum(draft.traits,"hp"),mpMax=J.mp+(jt.mp||0)+traitSum(draft.traits,"mp"),gold=K.gold+(jt.gold||0),skills={...DEFAULT_SKILLS,...jobSkillBonuses(draft.job)};
+  const K=jobKitData(draft.job),cstats=traitStats(draft.stats,draft.job,draft.traits),vit=+cstats[4]||BASE,int=+cstats[2]||BASE,hpMax=J.hp+10*(vit-5)+(jt.hp||0)+traitSum(draft.traits,"hp"),mpMax=J.mp+10*(int-5)+(jt.mp||0)+traitSum(draft.traits,"mp"),hungerMax=J.hg+3*(vit-5)+traitSum(draft.traits,"hunger"),gold=K.gold+(jt.gold||0),skills={...DEFAULT_SKILLS,...jobSkillBonuses(draft.job)};
   
-  acc.character={name:draft.name,origin:draft.origin,job:draft.job,avatar:draft.avatar,avatarColor:draft.avatarColor||null,photo:draft.photo,trait:draft.traits[0],traits:draft.traits.slice(),traitApplied:true,stats:traitStats(draft.stats,draft.job,draft.traits),hp:[hpMax,hpMax],mp:[mpMax,mpMax],hunger:[J.hg,J.hg],gold,skills,lv:1,xp:0,skillXp:{...DEFAULT_SKILLS},statPts:0,skillPts:0,crafted:[],lastTraitDay:"",rest:null,...kit(draft.job),sub:null,day:1,cont:draft.origin,area:"cap",createdAt:Date.now(),potionGrant:true};
+  acc.character={name:draft.name,origin:draft.origin,job:draft.job,avatar:draft.avatar,avatarColor:draft.avatarColor||null,photo:draft.photo,trait:draft.traits[0],traits:draft.traits.slice(),traitApplied:true,stats:cstats,hp:[hpMax,hpMax],mp:[mpMax,mpMax],hunger:[hungerMax,hungerMax],gold,skills,lv:1,xp:0,skillXp:{...DEFAULT_SKILLS},statPts:0,skillPts:0,crafted:[],lastTraitDay:"",rest:null,...kit(draft.job),sub:null,day:1,cont:draft.origin,area:"cap",createdAt:Date.now(),potionGrant:true};
   await S.setAcc(me.uid,acc);go("lobby")}
  catch(x){e.textContent="저장에 실패했어요. Firebase 데이터베이스 규칙을 확인해 주세요.";$("mk").disabled=false}}
 
@@ -1013,7 +1126,7 @@ function lobby(){const c=acc.character;
  app(`<div class="card"><div class="top"><h2 style="margin:0">내 캐릭터</h2><span class="dim sm">${esc(me.name)}</span></div>
  <div class="pv">${faceHtml(c)}<div class="nm">${esc(c.name)}</div>
  <div class="r">출신지 <b>${esc(c.origin)}</b></div><div class="r">직업 <b>${esc(c.job)}</b></div><div class="r">소지금 <b>${c.gold??100} G</b></div><div class="r">생존 <b>${dayOf(c)}일째</b></div>
- ${c.hp?bar("HP",c.hp[0],"var(--hp)")+bar("정신력",c.mp[0],"var(--mp)")+bar("허기",c.hunger[0],"var(--hunger)"):""}${c.stats?radar(c.stats,200):""}</div>
+ ${Array.isArray(c.hp)&&Array.isArray(c.mp)&&Array.isArray(c.hunger)?bar("HP",c.hp[0],c.hp[1],"var(--hp)")+bar("정신력",c.mp[0],c.mp[1],"var(--mp)")+bar("허기",c.hunger[0],c.hunger[1],"var(--hunger)"):""}${c.stats?radar(c.stats,200):""}</div>
  <div class="stack" style="margin-top:14px"><button class="btn big" id="play">게임 입장</button>
  ${me.admin?`<button class="btn alt" id="admReset" style="width:100%">캐릭터 초기화</button>`:""}
  <div class="row"><button class="btn alt" id="lo" style="flex:1">로그아웃</button></div></div></div>`);
@@ -1201,10 +1314,11 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.downed=c.downed&&typeof c.downed==="object"&&isFinite(+c.downed.until)?{since:Math.max(0,+c.downed.since||0),until:+c.downed.until,cont:String(c.downed.cont||""),area:String(c.downed.area||""),sub:String(c.downed.sub||""),place:String(c.downed.place||""),revive:c.downed.revive&&typeof c.downed.revive==="object"?{...c.downed.revive}:null,dead:!!c.downed.dead}:null;
  const jt=JOB_TRAITS[c.job]||JOB_TRAITS[JOB_ALIAS[c.job]]||{};
  const th=o.traits.reduce((a,t)=>a+((TRAITS[t]&&TRAITS[t].hp)||0),0),tm=o.traits.reduce((a,t)=>a+((TRAITS[t]&&TRAITS[t].mp)||0),0),thg=o.traits.reduce((a,t)=>a+((TRAITS[t]&&TRAITS[t].hunger)||0),0);
- const fitPool=(arr,mx,base)=>{const cur=+arr[0]||0;if(!(cur>0))return [0,mx];const old=+arr[1]||base,ratio=old>0?Math.max(0,Math.min(1,cur/old)):1;return [Math.max(0,Math.min(mx,mx*ratio)),mx]};
- o.hp=fitPool(o.hp,BASE_POOL+(jt.hp||0)+th,BASE_POOL);
- o.mp=fitPool(o.mp,BASE_POOL+(jt.mp||0)+tm,BASE_POOL);
- o.hunger=fitPool(o.hunger,BASE_POOL+thg,BASE_POOL);
+ const st=o.stats||[],vit=Math.max(1,Math.round(+st[4]||BASE)),int=Math.max(1,Math.round(+st[2]||BASE));
+ const fitPool=(arr,mx,base)=>{const raw=+arr[0],cur=isFinite(raw)?raw:0,old=+arr[1],hasMax=isFinite(old)&&old>0,max=Math.max(1,Math.round(Math.max(hasMax?old:0,mx))),val=hasMax?Math.round(max*Math.max(0,Math.min(1,cur/old))):Math.max(0,Math.min(max,Math.round(cur)));return [Math.max(0,Math.min(max,val)),max]};
+ o.hp=fitPool(o.hp,BASE_POOL+10*(vit-5)+(jt.hp||0)+th,BASE_POOL);
+ o.mp=fitPool(o.mp,BASE_POOL+10*(int-5)+(jt.mp||0)+tm,BASE_POOL);
+ o.hunger=fitPool(o.hunger,BASE_POOL+3*(vit-5)+thg,BASE_POOL);
  if(!c.traitApplied){
   if(o.traits.includes("날렵함")&&o.stats){o.stats=o.stats.slice();o.stats[1]=+o.stats[1]+TRAITS["날렵함"].agi}
   o.traitApplied=true;
@@ -1933,115 +2047,7 @@ const adj=(E,x,y)=>E.some(e=>(e[0]===x&&e[1]===y)||(e[0]===y&&e[1]===x));
 function linePath(E,f,t){const prev={[f]:null},q=[f];while(q.length){const x=q.shift();if(x===t)break;E.forEach(e=>{const y=e[0]===x?e[1]:e[1]===x?e[0]:null;if(y&&!(y in prev)){prev[y]=x;q.push(y)}})}if(!(t in prev))return null;const r=[];for(let x=t;x!==f;x=prev[x])r.unshift(x);return r}
 const view={area:me.area==="cap"?null:me.area,sel:me.area==="cap"?"cap":me.sub};
 
-// ---- 상태 효과 ----
-const STATUS_DB={},STATUS_BY_NAME={},STATUS_LIST=[];
-const FX_LIMIT=10;
-const LEGACY_FX={"든든함":"heartyMeal","예민함":"anxiety","각성":"awaken","찰과상":"wound"};
-const defStatus=o=>{const d={maxStacks:1,min:60,ef:{},clear:[],...o};STATUS_DB[d.id]=d;STATUS_BY_NAME[d.n]=d;STATUS_LIST.push(d);return d};
-[
- // 일상 버프 14
- defStatus({id:"clearMind",n:"맑은 정신",t:"buff",sub:"일상",d:"완전히 푹 잔 뒤 머리가 맑아진 상태.",min:60,ef:{mpPct:10,mpRegenPct:20,magicPct:5}}),
- defStatus({id:"deepSleep",n:"숙면",t:"buff",sub:"일상",d:"깊은 잠을 자고 몸이 개운한 상태.",min:60,ef:{hpPct:5,mpRegenPct:15}}),
- defStatus({id:"heartyMeal",n:"든든한 식사",t:"buff",sub:"일상",d:"배가 부르고 몸에 기운이 도는 상태.",min:30,ef:{hpPct:5,defPct:5},meal:1}),
- defStatus({id:"vitality",n:"활력",t:"buff",sub:"일상",d:"최근 식사로 몸이 가볍게 들뜬 상태.",min:30,ef:{atkPct:5,movePct:5}}),
- defStatus({id:"warmBody",n:"따뜻한 몸",t:"buff",sub:"일상",d:"불가에서 몸을 녹인 상태.",min:30,ef:{coldResist:20,hpRegenPct:10}}),
- defStatus({id:"calm",n:"평온",t:"buff",sub:"일상",d:"안전한 곳에서 마음을 가라앉힌 상태.",min:30,ef:{mpRegenPct:10,fearResist:20}}),
- defStatus({id:"walkJoy",n:"산책의 즐거움",t:"buff",sub:"일상",d:"가벼운 산책으로 기분이 좋아진 상태.",min:30,ef:{movePct:5,luck:1}}),
- defStatus({id:"tidyCamp",n:"정갈한 야영",t:"buff",sub:"일상",d:"잘 정돈된 야영지에서 쉰 상태.",min:60,ef:{campBonus:30,ambushRed:10}}),
- defStatus({id:"goodNews",n:"좋은 소식",t:"buff",sub:"일상",d:"기분 좋은 소식을 들은 상태.",min:60,ef:{negotiate:5,luck:1}}),
- defStatus({id:"regularCustomer",n:"단골 손님",t:"buff",sub:"일상",d:"같은 상점에서 얼굴을 익힌 상태.",min:60,ef:{buyPct:-3,sellPct:3}}),
- defStatus({id:"prayer",n:"기도의 시간",t:"buff",sub:"일상",d:"신전에서 기도하고 마음을 비운 상태.",min:60,ef:{healPct:10,resistPct:10}}),
- defStatus({id:"allyCheer",n:"동료의 격려",t:"buff",sub:"일상",d:"파티원의 격려로 사기가 오른 상태.",min:30,ef:{atkPct:3,defPct:3}}),
- defStatus({id:"feast",n:"만찬",t:"buff",sub:"일상",d:"파티가 함께 만든 풍성한 식사.",min:90,ef:{hpPct:10,mpPct:10},meal:1}),
- defStatus({id:"vigor",n:"생기",t:"buff",sub:"일상",d:"몸과 마음이 충만한 상태.",min:30,ef:{movePct:5,evasionPct:2}}),
- defStatus({id:"hastePotion",n:"이동속도 증가",t:"buff",sub:"아이템",d:"이동 속도가 70% 증가한다. (3시간)",min:180,ef:{movePct:70}}),
- // 음식·아이템 버프 15
- defStatus({id:"atkBless",n:"공격의 가호",t:"buff",sub:"아이템",d:"공격력이 오르는 가호.",min:15,ef:{atkPct:10}}),
- defStatus({id:"defBless",n:"수호의 가호",t:"buff",sub:"아이템",d:"방어력이 오르는 가호.",min:15,ef:{defPct:10}}),
- defStatus({id:"mentalFocus",n:"정신 집중",t:"buff",sub:"아이템",d:"정신을 집중해 마법이 강해진 상태.",min:15,ef:{magicPct:10,mpRegenPct:10}}),
- defStatus({id:"swift",n:"신속",t:"buff",sub:"아이템",d:"몸놀림이 빨라진 상태.",min:15,ef:{speedFlat:3,evasionPct:5}}),
- defStatus({id:"critFlow",n:"치명의 흐름",t:"buff",sub:"아이템",d:"급소를 노리기 쉬운 상태.",min:15,ef:{critPct:5,critDmgPct:10}}),
- defStatus({id:"regeneration",n:"재생",t:"buff",sub:"아이템",d:"상처가 천천히 아무는 상태.",min:15,ef:{hpRegenPct:20}}),
- defStatus({id:"unyielding",n:"불굴",t:"buff",sub:"아이템",d:"상태이상을 버티는 힘이 오른 상태.",min:15,ef:{resistPct:20}}),
- defStatus({id:"heartyBite",n:"든든한 한 끼",t:"buff",sub:"음식",d:"일반 요리로 배를 채운 상태.",min:60,ef:{hpPct:3},meal:1,legacy:1}),
- defStatus({id:"heartyMeal2",n:"기운찬 식사",t:"buff",sub:"음식",d:"고급 요리로 기운이 오른 상태.",min:120,ef:{atkPct:3,defPct:3},meal:1,legacy:1}),
- defStatus({id:"fineMeal",n:"정갈한 식사",t:"buff",sub:"음식",d:"희귀 요리로 몸이 정돈된 상태.",min:180,ef:{atkPct:5,defPct:5,mpPct:5},meal:1,legacy:1}),
- defStatus({id:"heroFeast",n:"영웅의 만찬",t:"buff",sub:"음식",d:"영웅급 요리로 강해진 상태.",min:240,ef:{atkPct:7,defPct:7,hpPct:7},meal:1,legacy:1}),
- defStatus({id:"legendFeast",n:"전설의 만찬",t:"buff",sub:"음식",d:"전설급 요리로 힘이 넘치는 상태.",min:300,ef:{atkPct:10,defPct:10,hpPct:10,luck:1},meal:1,legacy:1}),
- defStatus({id:"mythFeast",n:"신화의 성찬",t:"buff",sub:"음식",d:"신화급 요리로 한계를 넘은 상태.",min:360,ef:{atkPct:12,defPct:12,hpPct:12,mpPct:12,luck:2},meal:1,legacy:1}),
- defStatus({id:"dishBuff",n:"요리 버프",t:"buff",sub:"음식",d:"요리로 얻은 일시적인 효과.",min:60,ef:{},meal:1}),
- defStatus({id:"awaken",n:"각성",t:"buff",sub:"음식",d:"정신이 또렷해진 상태.",min:60,ef:{mpRegenPct:20,magicPct:5},legacy:1}),
- defStatus({id:"luckySip",n:"행운의 한 모금",t:"buff",sub:"음식",d:"행운이 깃든 차를 마신 상태.",min:60,ef:{luck:2},legacy:1}),
- defStatus({id:"purifyAura",n:"정화의 기운",t:"buff",sub:"아이템",d:"정화 향의 힘이 나쁜 기운을 밀어낸다.",min:180,ef:{resistPct:10}}),
- defStatus({id:"signalFlare",n:"비상 신호",t:"buff",sub:"아이템",d:"신호탄을 터뜨려 도주할 준비를 했다.",min:15,ef:{fleePct:10}}),
- // 환경 버프 5
- defStatus({id:"sunlight",n:"햇살 아래",t:"buff",sub:"환경",d:"따뜻한 햇빛을 받는 상태.",min:60,env:1,ef:{mpRegenPct:5,luck:1}}),
- defStatus({id:"rainShelter",n:"비를 피함",t:"buff",sub:"환경",d:"비를 피해 몸을 보호한 상태.",min:30,env:1,ef:{coldResist:10}}),
- defStatus({id:"warmFire",n:"따뜻한 불가",t:"buff",sub:"환경",d:"불가 곁에서 몸을 녹인 상태.",min:30,env:1,ef:{coldResist:20,hpRegenPct:10}}),
- defStatus({id:"starlight",n:"별빛 아래",t:"buff",sub:"환경",d:"별빛이 은밀함을 도와주는 상태.",min:60,env:1,ef:{stealth:5,magicPct:3}}),
- defStatus({id:"mistVeil",n:"안개의 은밀함",t:"buff",sub:"환경",d:"안개가 몸을 가려주는 상태.",min:60,env:1,ef:{stealth:10,accuracyPct:-5}}),
- // 전투 상태이상 15
- defStatus({id:"bleed",n:"출혈",t:"debuff",sub:"전투",d:"상처에서 피가 계속 흐른다.",min:60,maxStacks:3,ef:{hpDot10:-2,movePct:-5},clear:["붕대"],treat:{item:"붕대"}}),
- defStatus({id:"poison",n:"중독",t:"debuff",sub:"전투",d:"독이 몸에 퍼졌다.",min:60,maxStacks:3,ef:{hpDot10:-1,healPct:-20},clear:["해독제"],treat:{item:"해독제"}}),
- defStatus({id:"burn",n:"화상",t:"debuff",sub:"전투",d:"불에 데어 계속 아프다.",min:60,maxStacks:2,ef:{hpDot10:-2,defPct:-10},clear:["치유 연고"],treat:{item:"치유 연고"}}),
- defStatus({id:"freeze",n:"빙결",t:"debuff",sub:"전투",d:"몸이 얼어 움직임이 둔해졌다.",min:60,ef:{speedPct:-30,evasionPct:-10},clear:["따뜻한 곳"],treat:{action:"따뜻한 곳에서 해제"}}),
- defStatus({id:"silence",n:"침묵",t:"debuff",sub:"전투",d:"목이 막혀 주문을 외울 수 없다.",min:60,ef:{},flags:{magic:1},clear:["정화 향"],treat:{item:"정화 향"}}),
- defStatus({id:"confusion",n:"혼란",t:"debuff",sub:"전투",d:"정신이 흐려 판단이 흔들린다.",min:60,ef:{accuracyPct:-15,evasionPct:-10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
- defStatus({id:"fear",n:"공포",t:"debuff",sub:"전투",d:"두려움에 몸이 굳었다.",min:60,ef:{atkPct:-10,fleePct:10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
- defStatus({id:"weaken",n:"약화",t:"debuff",sub:"전투",d:"저주로 힘이 빠진 상태.",min:60,ef:{atkPct:-15},clear:["정화 향"],treat:{item:"정화 향"}}),
- defStatus({id:"defBreak",n:"방어 파괴",t:"debuff",sub:"전투",d:"방어구나 자세가 무너졌다.",min:60,ef:{defPct:-20},clear:["방어구 수리"],treat:{action:"방어구 수리로만 해제 (치유 불가)"}}),
- defStatus({id:"slow",n:"둔화",t:"debuff",sub:"전투",d:"발이 무거워졌다.",min:60,ef:{speedPct:-20},clear:["30분 이상 휴식"],treat:{action:"30분 이상 휴식"}}),
- defStatus({id:"bind",n:"속박",t:"debuff",sub:"전투",d:"몸이 묶여 움직이기 어렵다.",min:60,ef:{speedPct:-30},flags:{flee:1},clear:["근력 판정"],treat:{action:"근력 판정으로 해제"}}),
- defStatus({id:"paralysis",n:"마비",t:"debuff",sub:"전투",d:"몸이 굳어 행동할 수 없다.",min:60,ef:{},flags:{act:1},clear:["해독제"],treat:{item:"해독제"}}),
- defStatus({id:"sleep",n:"수면",t:"debuff",sub:"전투",d:"잠에 빠져 행동할 수 없다.",min:60,ef:{},flags:{act:1},clear:["피격","30분 이상 휴식"],treat:{action:"피격 또는 30분 이상 휴식"}}),
- defStatus({id:"taunt",n:"도발",t:"debuff",sub:"전투",d:"적이 자신을 우선 공격한다.",min:60,ef:{},clear:["2회 피격"],treat:{action:"2회 피격으로 해제"}}),
- defStatus({id:"corrosion",n:"부식",t:"debuff",sub:"전투",d:"장비와 살이 함께 상한다.",min:60,ef:{defPct:-15,durability:-1},clear:["수리","정화 향"],treat:{item:"정화 향"}}),
- // 탐색·환경 상태이상 16
- defStatus({id:"fatigue",n:"피로",t:"debuff",sub:"탐색",d:"몸이 무거워졌다.",min:90,ef:{hpPct:-5,speedPct:-5},clear:["30분 이상 휴식"],treat:{action:"30분 이상 휴식"}}),
- defStatus({id:"exhaustion",n:"탈진",t:"debuff",sub:"탐색",d:"기력이 완전히 빠졌다.",min:360,ef:{atkPct:-10,defPct:-10,movePct:-10},clear:["3시간 이상 완전 휴식"],treat:{action:"3시간 이상 완전 휴식"}}),
- defStatus({id:"starvation",n:"굶주림",t:"debuff",sub:"탐색",d:"배가 고파 힘이 빠졌다.",min:60,ef:{hpDot10:-1,atkPct:-10},clear:["식사"],treat:{action:"식사"}}),
- defStatus({id:"dehydration",n:"탈수",t:"debuff",sub:"탐색",d:"물이 부족하다.",min:60,ef:{mpRegenPct:-30,mpDot10:-1},clear:["물"],treat:{action:"물 마시기"}}),
- defStatus({id:"chill",n:"한기",t:"debuff",sub:"탐색",d:"몸이 차가워졌다.",min:60,ef:{speedPct:-10,healPct:-10},clear:["따뜻한 곳"],treat:{action:"따뜻한 곳에서 해제"}}),
- defStatus({id:"hypothermia",n:"저체온",t:"debuff",sub:"탐색",d:"몸이 깊게 식었다.",min:120,ef:{hpDot10:-2,speedPct:-20},clear:["따뜻한 곳"],treat:{action:"따뜻한 곳에서 해제"}}),
- defStatus({id:"heatstroke",n:"열사병",t:"debuff",sub:"탐색",d:"더위에 몸이 과열됐다.",min:120,ef:{mpDot10:-2,accuracyPct:-10},clear:["그늘·물"],treat:{action:"그늘에서 물 마시기"}}),
- defStatus({id:"wound",n:"상처",t:"debuff",sub:"탐색",d:"피부가 찢어졌다.",min:1440,ef:{healPct:-20},clear:["붕대"],treat:{item:"붕대"}}),
- defStatus({id:"infection",n:"감염",t:"debuff",sub:"탐색",d:"상처에 세균이 들어갔다.",min:0,ef:{healPct:-30},clear:["치유 연고"],treat:{item:"치유 연고"}}),
- defStatus({id:"disease",n:"질병",t:"debuff",sub:"탐색",d:"몸이 앓고 있다.",min:0,ef:{atkPct:-10,defPct:-10,healPct:-20},clear:["약초"],treat:{item:"약초"}}),
- defStatus({id:"foodPoison",n:"식중독",t:"debuff",sub:"탐색",d:"상한 음식으로 배가 아프다.",min:60,ef:{hungerDot10:-10,hpDot10:-1},clear:["해독제"],treat:{item:"해독제"}}),
- defStatus({id:"herbPoison",n:"독초 중독",t:"debuff",sub:"탐색",d:"독초를 먹거나 만졌다.",min:60,ef:{hpDot10:-2,mpDot10:-5},clear:["해독제"],treat:{item:"해독제"}}),
- defStatus({id:"sleepDeprived",n:"수면 부족",t:"debuff",sub:"탐색",d:"잠이 부족해 집중이 안 된다.",min:0,ef:{mpPct:-10,accuracyPct:-5},clear:["수면"],treat:{action:"수면"}}),
- defStatus({id:"anxiety",n:"불안",t:"debuff",sub:"탐색",d:"마음이 편치 않다.",min:60,ef:{mpRegenPct:-20,fearResist:-10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
- defStatus({id:"panic",n:"공황",t:"debuff",sub:"탐색",d:"극심한 불안에 빠졌다.",min:60,ef:{fleePct:20,accuracyPct:-20},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
- defStatus({id:"wet",n:"젖은 몸",t:"debuff",sub:"탐색",d:"옷과 몸이 젖었다.",min:60,ef:{coldResist:-10},clear:["건조"],treat:{action:"건조"}}),
- // 부상·질병·저주 12
- defStatus({id:"fracture",n:"골절",t:"debuff",sub:"부상",d:"팔, 다리가 부러진 상태.",min:1440,ef:{atkPct:-15,speedPct:-20},clear:["부목"],treat:{item:"부목"}}),
- defStatus({id:"headInjury",n:"머리 부상",t:"debuff",sub:"부상",d:"머리를 다쳐 집중이 어렵다.",min:1440,ef:{accuracyPct:-10,mpRegenPct:-10},clear:["붕대"],treat:{item:"붕대"}}),
- defStatus({id:"frostbite",n:"동상",t:"debuff",sub:"부상",d:"추위로 살갗이 상했다.",min:0,ef:{atkPct:-10,speedPct:-10},clear:["따뜻한 곳","치유 연고"],treat:{item:"치유 연고"}}),
- defStatus({id:"heatburn",n:"열창",t:"debuff",sub:"부상",d:"더위로 피부가 상했다.",min:1440,ef:{hpDot10:-1},clear:["치유 연고"],treat:{item:"치유 연고"}}),
- defStatus({id:"allergy",n:"알레르기",t:"debuff",sub:"부상",d:"꽃가루·허브에 몸이 반응한다.",min:60,ef:{accuracyPct:-5,stealth:-20},clear:["약초"],treat:{item:"약초"}}),
- defStatus({id:"nightmare",n:"악몽",t:"debuff",sub:"부상",d:"잠에서 깨어도 기분이 나쁘다.",min:60,ef:{mpPct:-10,fearResist:-10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
- defStatus({id:"curseWeak",n:"저주: 쇠약",t:"debuff",sub:"저주",d:"저주로 모든 힘이 빠졌다.",min:0,ef:{allStatsPct:-10},clear:["정화 향"],treat:{item:"정화 향"}}),
- defStatus({id:"curseMisfortune",n:"저주: 불운",t:"debuff",sub:"저주",d:"저주로 운이 따르지 않는다.",min:0,ef:{critPct:-5,dropPct:-10},clear:["정화 향"],treat:{item:"정화 향"}}),
- defStatus({id:"curseTrack",n:"저주: 추적",t:"debuff",sub:"저주",d:"무언가가 자신을 쫓는다.",min:0,ef:{encounterPct:30},clear:["정화 향"],treat:{item:"정화 향"}}),
- defStatus({id:"curseSilence",n:"저주: 침묵의 봉인",t:"debuff",sub:"저주",d:"마법의 말이 막혔다.",min:0,ef:{},flags:{magic:1},clear:["정화 향"],treat:{item:"정화 향"}}),
- defStatus({id:"soulSplit",n:"영혼 갈림",t:"debuff",sub:"저주",d:"영혼이 일부 떨어져 나갔다.",min:0,ef:{mpPct:-20,mpRegenPct:-50},clear:["정화 향"],treat:{item:"정화 향"}}),
- defStatus({id:"voidMark",n:"공허의 표식",t:"debuff",sub:"저주",d:"공허의 힘이 몸에 남았다.",min:0,ef:{dmgTakenPct:10,healPct:-20},clear:["정화 향"],treat:{item:"정화 향"}}),
- defStatus({id:"guilt",n:"죄책감",t:"debuff",sub:"추모",d:"그 얼굴이 자꾸 떠오른다. 악몽을 꾼다.",min:360,ef:{healPct:-20,hpRegenPct:-20,mpRegenPct:-20},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
- defStatus({id:"sad",n:"슬픔",t:"debuff",sub:"추모",d:"남의 일 같지 않아 마음이 쓰인다.",min:360,ef:{mpPct:-10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
- defStatus({id:"mourn",n:"애도",t:"buff",sub:"추모",d:"떠난 곳은 이곳보다는 더 좋은 곳일 것이다.",min:360,ef:{mpPct:10}})
-].forEach(d=>{});
-const CURE_RATES={
- bleed:{self:60,other:70},poison:{self:60,other:70},burn:{self:55,other:65},silence:{self:55,other:65},
- confusion:{self:55,other:65},fear:{self:55,other:65},weaken:{self:55,other:65},paralysis:{self:50,other:60},
- corrosion:{self:50,other:60},wound:{self:60,other:70},infection:{self:45,other:60},disease:{self:45,other:60},
- foodPoison:{self:60,other:70},herbPoison:{self:55,other:65},anxiety:{self:55,other:65},panic:{self:50,other:60},
- fracture:{self:45,other:60},headInjury:{self:50,other:60},frostbite:{self:50,other:60},heatburn:{self:55,other:65},
- allergy:{self:60,other:70},nightmare:{self:55,other:65},curseWeak:{self:35,other:50},curseMisfortune:{self:35,other:50},
- curseTrack:{self:35,other:50},curseSilence:{self:35,other:50},soulSplit:{self:30,other:45},voidMark:{self:30,other:45}
-};
-Object.entries(CURE_RATES).forEach(([id,r])=>{if(STATUS_DB[id])STATUS_DB[id].cure={...r}});
-Object.entries(LEGACY_FX).forEach(([n,id])=>{if(STATUS_DB[id]&&!STATUS_BY_NAME[n])STATUS_BY_NAME[n]=STATUS_DB[id]});
-// 위 배열은 defStatus가 직접 등록한다.
+// ---- 상태 효과 정의는 상단 전역으로 이동 ----
 
 const STATUS_NUM_KEYS=["atkPct","atkFlat","rangedFlat","magicFlat","defFlat","meleePct","rangedPct","magicPct","defPct","hpPct","mpPct","hungerPct","speedPct","speedFlat","accuracyPct","evasionPct","critPct","critDmgPct","healPct","dropPct","encounterPct","resistPct","movePct","fleePct","luck","coldResist","fearResist","stealth","negotiate","buyPct","sellPct","campBonus","ambushRed","hpRegenPct","mpRegenPct","hpDot10","mpDot10","hungerDot10","dmgTakenPct","allStatsPct","durability"];
 function emptyMods(){const m={flags:{}};STATUS_NUM_KEYS.forEach(k=>m[k]=0);return m}
@@ -2068,8 +2074,7 @@ function fixFxEntry(f,now=Date.now()){
  if(f.stacks!=null)f.stacks=Math.max(1,Math.min(9,+f.stacks||1));
  return f;
 }
-function fxRemainMs(f,now=Date.now()){return f&&+f.exp>0?Math.max(0,+f.exp-now):null}
-function fxRemainText(f,now=Date.now()){const ms=fxRemainMs(f,now);if(ms==null)return "해제까지";const m=Math.ceil(ms/60000);return m>=60?`${Math.floor(m/60)}시간 ${m%60?`${m%60}분`:""}`.trim():`${m}분`}
+
 function fxEffectsText(d,stacks=1,ef){
  if(!d)return "";const out=[],E=ef||d.ef||{},f=(k,l)=>{const v=(E[k]||0)*stacks;if(v)out.push(l(v))};
  f("atkFlat",v=>`공격력 ${v>0?"+":""}${v}`);f("rangedFlat",v=>`원거리 공격력 ${v>0?"+":""}${v}`);f("magicFlat",v=>`마법 공격력 ${v>0?"+":""}${v}`);f("defFlat",v=>`방어력 ${v>0?"+":""}${v}`);
@@ -2080,7 +2085,7 @@ function fxEffectsText(d,stacks=1,ef){
  if(d.flags&&d.flags.act)out.push("행동 불가");if(d.flags&&d.flags.flee)out.push("도주 불가");if(d.flags&&d.flags.magic)out.push("마법 사용 불가");
  return out.join(", ")||"특별한 효과 없음";
 }
-function statusDefOf(x){return STATUS_DB[x]||STATUS_BY_NAME[x]||(x&&STATUS_DB[x.id])||(x&&STATUS_BY_NAME[x.n])||null}
+
 function statusTreatment(d){
  if(!d)return {action:"치료 불가"};
  if(d.treat)return d.treat;
@@ -2252,7 +2257,7 @@ updateProfileCard();
 const nameEl=$("name");
 const fitName=()=>{let s=24;nameEl.style.fontSize="24px";while(s>15&&nameEl.scrollWidth>nameEl.clientWidth){s--;nameEl.style.fontSize=s+"px"}};
 fitName();requestAnimationFrame(fitName);window.addEventListener("resize",fitName);
-function barsRender(){$("bars").innerHTML=[["HP",me.hp,"var(--hp)"],["정신력",me.mp,"var(--mp)"],["허기",me.hunger,"var(--hunger)"]].map(([l,[v,m],c])=>`<div class="bar"><div class="lab"><span>${l}</span><span>${v} / ${m}</span></div><div class="track"><div class="fill" style="width:${v/m*100}%;background:${c}"></div></div></div>`).join("")}
+function barsRender(){$("bars").innerHTML=[["HP",me.hp,"var(--hp)"],["정신력",me.mp,"var(--mp)"],["허기",me.hunger,"var(--hunger)"]].map(([l,[v,m],c])=>{v=Math.max(0,Math.round(+v||0));m=Math.max(1,Math.round(+m||0));return `<div class="bar"><div class="lab"><span>${l}</span><span>${v} / ${m}</span></div><div class="track"><div class="fill" style="width:${Math.max(0,Math.min(100,v/m*100))}%;background:${c}"></div></div></div>`}).join("")}
 function fxRender(){$("fxcnt").textContent=`${Math.min(me.fx.length,10)} / 10`;
  me.fx=Array.isArray(me.fx)?me.fx.filter(Boolean):[];me.fx.forEach(f=>fixFxEntry(f));
  while(me.fx.length>FX_LIMIT){let bi=-1,oldest=Infinity;me.fx.forEach((f,j)=>{if(f&&f.t==="buff"&&(+f.at||0)<oldest){oldest=+f.at||0;bi=j}});if(bi<0)break;me.fx.splice(bi,1)}
