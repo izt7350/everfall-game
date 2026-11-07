@@ -1377,6 +1377,9 @@ const isLegacyTestVehicle=v=>!!v&&((v.type==="말"&&v.name==="바람")||(v.type=
 const isLegacyTestPet=p=>!!p&&p.name==="콩이"&&p.species==="강아지";
 function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&&v.length>=2&&isFinite(+v[0])&&isFinite(+v[1])?[+v[0],+v[1]]:d,o={...c};
  o.name=String(c.name||"무명");o.items=a(c.items,[]).filter(x=>typeof x==="string"||(x&&typeof x.n==="string"));
+ // 드로셀 캐릭터 1회성 일반 회복 포션 20개 지급
+ o.drosselPotion20=!!c.drosselPotion20;
+ if(o.name==="드로셀"&&!o.drosselPotion20){for(let i=0;i<20;i++)o.items.push("일반 회복 포션");o.drosselPotion20=true}
  o.equip=a(c.equip,[{n:"녹슨 단검",dur:4,max:10},{n:"낡은 가죽 갑옷",dur:6,max:12}]).filter(x=>x&&typeof x.n==="string");
  o.fx=a(c.fx,[]).filter(f=>f&&typeof f.n==="string");o.hp=pr(c.hp,[100,100]);o.mp=pr(c.mp,[100,100]);o.hunger=pr(c.hunger,[100,100]);
  o.stats=Array.isArray(c.stats)&&c.stats.length===STATS.length?c.stats.map(x=>+x||BASE):null;o.gold=isFinite(+c.gold)?+c.gold:100;
@@ -1389,7 +1392,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.skillPts=Math.max(0,Math.floor(+c.skillPts||0));
  o.crafted=Array.isArray(c.crafted)?c.crafted.filter(x=>typeof x==="string").slice(-600):[];
  o.speedPotionGrant=!!c.speedPotionGrant;
- o.potionGrant=!!c.potionGrant;o.potionGrant20=!!c.potionGrant20;o.mpAt=isFinite(+c.mpAt)?+c.mpAt:Date.now();o.mpCarry=Math.max(0,+c.mpCarry||0);
+ o.potionGrant=!!c.potionGrant;o.potionGrant20=!!c.potionGrant20||!!o.drosselPotion20;o.mpAt=isFinite(+c.mpAt)?+c.mpAt:Date.now();o.mpCarry=Math.max(0,+c.mpCarry||0);
  o.party=Array.isArray(c.party)?c.party.map(normAlly).filter(Boolean).slice(0,4):[];
  o.partyId=typeof c.partyId==="string"?c.partyId:null;
  o.partyLeader=typeof c.partyLeader==="string"?c.partyLeader:null;
@@ -3308,7 +3311,6 @@ const REST_OPTIONS=[{m:30,hp:5,mp:2},{m:60,hp:10,mp:6},{m:180,hp:35,mp:20},{m:36
 function atHub(){return me.area!=="cap"&&!!(curSub()&&curSub().hub)}
 function merchantHere(){
  if(me.cont==="마왕성"){const g=W().gate;return !!g&&me.area===g.id&&!!(curSub()&&curSub().hub)}
- if(me.area==="cap")return true;
  return !!(curSub()&&curSub().hub)
 }
 function restGain(hp,mp){
