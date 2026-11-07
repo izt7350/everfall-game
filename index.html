@@ -432,6 +432,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot #ttabs .ttab{flex:1;padding:8px;background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);font:inherit;cursor:pointer}
 #gameRoot #ttabs .ttab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
 #gameRoot .tr .sname{min-width:0;font:inherit}
+#gameRoot .tr .effline{display:block;font-size:11px;line-height:17px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #gameRoot .tr .tname{display:block;width:100%;min-width:0;padding:0;margin:0;border:0;background:none;color:var(--text);font:inherit;text-align:left;cursor:pointer}
 #gameRoot .tr .tname:hover{color:var(--accent-text)}
 #gameRoot .tr .tname .tcaret{display:inline-block;margin-left:6px;font-size:10px;color:var(--dim);transition:transform .15s}
@@ -5242,7 +5243,7 @@ function tradeRender(){
  $("ttabs").querySelectorAll("[data-ttab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.ttab===tradeTab?"true":"false"));
  if(tradeTab==="buy"){
   $("tl").innerHTML=curGoods.map(g=>{const [n,b,fixed]=g,unit=fixed?buyP(b):buyP(price(n,b));
-   return `<div class="tr shoprow"><span class="sname">${esc(n)}<small>구매가 ${unit} G</small></span><button class="btn" data-a="buy" data-n="${esc(n)}" data-p="${unit}">구매</button></div>`;
+   return `<div class="tr shoprow"><span class="sname">${esc(n)}<small>구매가 ${unit} G</small><span class="effline" title="${esc(effText(n))}">${esc(effText(n))}</span></span><button class="btn" data-a="buy" data-n="${esc(n)}" data-p="${unit}">구매</button></div>`;
   }).join("")||`<p class="dim">판매 중인 아이템이 없다.</p>`;
  }else{
   const seen=new Set(),rows=[];
@@ -5251,7 +5252,7 @@ function tradeRender(){
    const it=info(n);if(it.bound)continue;
    seen.add(n);rows.push({n,q:count(n),unit:shopSellUnit(n)});
   }
-  $("tl").innerHTML=rows.map(r=>`<div class="tr shoprow"><span class="sname">${esc(r.n)}<small>보유 ${r.q} · 개당 ${r.unit} G</small></span><button class="btn alt" data-a="sell" data-n="${esc(r.n)}" data-p="${r.unit}">판매</button></div>`).join("")||`<p class="dim">판매할 아이템이 없다.</p>`;
+  $("tl").innerHTML=rows.map(r=>`<div class="tr shoprow"><span class="sname">${esc(r.n)}<small>보유 ${r.q} · 개당 ${r.unit} G</small><span class="effline" title="${esc(effText(r.n))}">${esc(effText(r.n))}</span></span><button class="btn alt" data-a="sell" data-n="${esc(r.n)}" data-p="${r.unit}">판매</button></div>`).join("")||`<p class="dim">판매할 아이템이 없다.</p>`;
  }
 }
 function openTrade(t,g,opts={}){if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");if(me.travel)return toast("이동 중에는 거래할 수 없습니다.");if(actionLock("휴식 중에는 거래할 수 없습니다."))return;curGoods=g;tradeHub=!!opts.hub;tradeTab="buy";$("ttitle").textContent=t;tradeRender();const sp=Math.round(hubSpread()*100);tmsg(tradeHub?`거점 상인 시세 · 수도 시장 대비 구매 +${sp}% / 판매 -${sp}%`:"");$("tmodal").hidden=false}
