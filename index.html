@@ -514,6 +514,11 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 .trade-item small{color:var(--dim);white-space:nowrap}
 .trade-item button{flex:none;height:24px;padding:0 7px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--text);font:inherit;font-size:11px;cursor:pointer}
 .trade-item button:disabled{opacity:.4;cursor:not-allowed}
+.trade-gold{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 8px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:12px;line-height:18px}
+.trade-gold b{color:var(--accent-text);font-weight:600}
+.trade-gold input{width:90px;height:26px;padding:0 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--text);font:inherit;font-size:12px;text-align:right}
+.trade-gold button{height:26px;padding:0 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--text);font:inherit;font-size:11px;cursor:pointer}
+.trade-gold small{margin-left:auto;color:var(--dim)}
 .trade-inv{max-height:170px;overflow:auto;border-top:1px solid var(--line);padding-top:6px}
 .trade-inv-title{margin:2px 0 4px;font-size:11px;line-height:16px;color:var(--dim)}
 .trade-foot{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:16px}
@@ -3902,7 +3907,7 @@ function addWalkMinutes(min){
   if(Math.random()<.10)applyStatus("fatigue");
  }
 }
-function arrive(){sfx("ok");playCompleteSound();const d=me.travel.dest,walkMin=Math.max(0,+me.travel.min||0);me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub;const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:d.sub;addWalkMinutes(walkMin);bag();renderAll();try{render()}catch(e){};try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){}}
+function arrive(){sfx("ok");playCompleteSound();const d=me.travel.dest,walkMin=Math.max(0,+me.travel.min||0);me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub??null;const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:(d.sub??null);addWalkMinutes(walkMin);bag();renderAll();try{render()}catch(e){};try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){}}
 T(()=>{if(me.travel){Date.now()>=me.travel.end?arrive():renderAll()}},1000);
 T(checkExpAct,1000);
 tickStatus();T(()=>{tickStatus();tickHunger();tickPet()},15000);
@@ -4356,7 +4361,7 @@ $("explore").onclick=()=>{if(actionLock("휴식 중에는 탐사할 수 없습�
   me.hp[0]=Math.max(1,me.hp[0]-dmg);barsRender();
   let statusAdded=null;
   let msg=`함정에 걸렸다. HP -${dmg}`;
-  if(Math.random()<.15){applyStatus("wound",{silent:true});statusAdded="상처";msg+=" · 상처 상태이상"}
+  if(Math.random()<.08){applyStatus("wound",{silent:true});statusAdded="상처";msg+=" · 상처 상태이상"}
   logChar("trap",`함정 피해 -${dmg} · HP ${hpBefore} → ${me.hp[0]}${statusAdded?` · ${statusAdded}`:""}`,{dmg,before:hpBefore,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],mp:me.mp.slice(),hunger:me.hunger.slice(),statusAdded,area:me.area,sub:me.sub||"",fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
   modal("함정",msg);bag();return
  }
@@ -4384,7 +4389,7 @@ $("explore").onclick=()=>{if(actionLock("휴식 중에는 탐사할 수 없습�
  else if(r<.6+.25*(1-encRed)){const mon=rollShortMonster(tier);if(mon)metMonster=encounterMonster(mon,{star:tier,source:mon.role==="정예"?"fieldElite":"fieldNormal",areaObj});else modal("아무것도 없음","주변을 샅샅이 뒤졌지만 쓸 만한 것은 없다.")}
  else modal("아무것도 없음","주변을 샅샅이 뒤졌지만 쓸 만한 것은 없다.");
  if(!battle&&!metMonster){
-  if(Math.random()<.05)applyStatus("wound",{silent:true});
+  if(Math.random()<.02)applyStatus("wound",{silent:true});
     if(me.hunger[0]<=0)applyStatus("starvation",{silent:true});
  }
  bag()};
@@ -5038,11 +5043,17 @@ function render(){
  decorateNames()}
 $("log").onclick=e=>{const b=e.target.closest(".who");if(!b||cur==="notice")return;openPlayerProfile(b.dataset.uid,b.dataset.u)};
 function askBlock(name){if(!name||name===me.name)return;pop("계정 차단",`<p><b>${esc(name)}</b> 님을 차단하시겠습니까?</p><p class="dim">차단하면 이 계정의 채팅이 보이지 않아요. 설정에서 해제할 수 있어요.</p>`,[{t:"차단",c:"bad",fn:()=>{if(!me.blocked.includes(name))me.blocked.push(name);render();toast("차단했습니다")}},{t:"취소"}])}
+// 거래·치료는 같은 대륙/지역/소지역에 있을 때만 허용한다.
+function sameSubArea(p){
+ if(!p)return false;
+ return String(p.cont||"")===String(me.cont||"")&&String(p.area||"")===String(me.area||"")&&String(p.sub||"")===String(me.sub||"");
+}
 async function openPlayerProfile(targetUid,name){
  let p=null;if(targetUid){try{p=await S.getProfile(targetUid)}catch(e){}}
  let d=null;if(targetUid){try{d=await S.getDowned(targetUid)}catch(e){}}
  if(d&&(+d.until<=Date.now()||d.dead))d=null;
  const self=(!!targetUid&&targetUid===uid)||(!targetUid&&name===me.name)||name===me.name;
+ const same=!self&&sameSubArea(p);
  if(p&&self&&!okPhoto(p.photo)&&okPhoto(char.photo))p.photo=char.photo;
  const buttons=[];
  if(!self&&name)buttons.push({t:"차단",c:"ghost",left:true,fn:()=>askBlock(name)});
@@ -5050,16 +5061,19 @@ async function openPlayerProfile(targetUid,name){
   if(d){
    buttons.push({t:"소생하기",c:"bad",fn:()=>attemptRevive(targetUid,name,d)});
   }else{
-   buttons.push({t:"치료하기",fn:()=>openCure(p&&Array.isArray(p.debuffInfo)&&p.debuffInfo.length?p.debuffInfo:(p&&Array.isArray(p.debuffs)?p.debuffs:[]),{uid:targetUid,name})});
-   buttons.push({t:"거래하기",fn:()=>startTrade(targetUid,name)});
+   if(same){
+    buttons.push({t:"치료하기",fn:()=>openCure(p&&Array.isArray(p.debuffInfo)&&p.debuffInfo.length?p.debuffInfo:(p&&Array.isArray(p.debuffs)?p.debuffs:[]),{uid:targetUid,name,cont:p&&p.cont,area:p&&p.area,sub:p&&p.sub})});
+    buttons.push({t:"거래하기",fn:()=>startTrade(targetUid,name)});
+   }
    buttons.push({t:"귓속말",fn:()=>startWhisper(targetUid,name)});
    if(partyData&&partyData.leader===uid)buttons.push({t:"파티 초대",fn:()=>invitePlayer(targetUid)});
    else if(p&&p.partyId&&!me.partyId)buttons.push({t:"파티 가입 요청",fn:()=>requestJoin(p.partyId,p.partyLeader||targetUid)});
   }
  }
  buttons.push({t:"닫기"});
- if(!p)return admPop("캐릭터 정보",`<div class="ai"><div class="ai-head"><span class="ai-avatar"></span><div class="ai-id"><div class="ai-name">${esc(name||"알 수 없음")}</div><div class="ai-sub">프로필 정보가 아직 없습니다.</div>${d?'<div class="ai-sub" style="color:var(--bad);font-weight:700">쓰러짐 · '+Math.max(0,Math.ceil((+d.until-Date.now())/60000))+'분 남음</div>':""}</div></div></div>`,buttons,true);
- admPop("캐릭터 정보",charInfoHtml(p,{uid:targetUid,lastLogin:p.at,downed:d}),buttons,true)}
+ const areaNote=(!self&&targetUid&&name&&!d&&!same)?`<p class="dim" style="margin:0 0 8px;color:var(--bad)">같은 소지역에 있어야 거래하거나 치료할 수 있습니다.</p>`:"";
+ if(!p)return admPop("캐릭터 정보",`${areaNote}<div class="ai"><div class="ai-head"><span class="ai-avatar"></span><div class="ai-id"><div class="ai-name">${esc(name||"알 수 없음")}</div><div class="ai-sub">프로필 정보가 아직 없습니다.</div>${d?'<div class="ai-sub" style="color:var(--bad);font-weight:700">쓰러짐 · '+Math.max(0,Math.ceil((+d.until-Date.now())/60000))+'분 남음</div>':""}</div></div></div>`,buttons,true);
+ admPop("캐릭터 정보",areaNote+charInfoHtml(p,{uid:targetUid,lastLogin:p.at,downed:d}),buttons,true)}
 function startWhisper(targetUid,name){
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 귓속말을 보낼 수 없습니다.");
  if(!targetUid||targetUid===uid)return toast("자신에게는 귓속말을 보낼 수 없습니다.");
@@ -5353,6 +5367,7 @@ function showCModal(title,who,html){
 }
 function openCure(debuffs,target){
  if(actionLock("휴식 중에는 치료할 수 없습니다."))return;
+ if(target&&!sameSubArea(target))return toast("같은 소지역에 있어야 치료할 수 있습니다.");
  const self=!target;
  const raw=Array.isArray(debuffs)?debuffs:me.fx.filter(f=>f.t==="debuff").map(f=>({id:f.id,remain:fxRemainMs(f)}));
  const list=raw.map(x=>{
@@ -5422,6 +5437,7 @@ $("cl").onclick=async e=>{
 };
 async function requestHeal(target,name,chance,success){
  if(!uid||!target||!target.uid){toast("치료 요청을 보낼 수 없습니다.");return false}
+ if(!sameSubArea(target)){toast("같은 소지역에 있어야 치료할 수 있습니다.");return false}
  try{
   await push(ref(realtimeDB,"healRequests/"+target.uid),{from:uid,fromName:me.name,debuff:String(name||""),chance:Math.round(chance),success:!!success,at:Date.now()});
   $("cmodal").hidden=true;
@@ -5435,8 +5451,10 @@ function subscribeHeals(){
  if(healUnsub){healUnsub();healUnsub=null}
  healUnsub=onValue(ref(realtimeDB,"healRequests/"+uid),s=>{
   const v=s.val()||{};
-  Object.entries(v).forEach(([rid,r])=>{
+  Object.entries(v).forEach(async ([rid,r])=>{
    if(!r||healSeen.has(rid))return;healSeen.add(rid);
+   const sp=await S.getProfile(r.from).catch(()=>null);
+   if(!sameSubArea(sp)){toast(`${r.fromName||"누군가"}님과 같은 소지역이 아니어서 치료가 적용되지 않았습니다.`);remove(ref(realtimeDB,"healRequests/"+uid+"/"+rid)).catch(()=>{});return}
    const name=String(r.debuff||""),success=r.success!==false,chance=r.chance?` (성공률 ${r.chance}%)`:"";
    if(!success){toast(`${r.fromName||"누군가"}님이 ‘${name}’ 치료에 실패했습니다.${chance}`)}
    else{
@@ -5459,6 +5477,7 @@ function tradeDom(){
    if(b.hasAttribute("data-tcancel"))return cancelTrade();
    if(b.hasAttribute("data-tready"))return tradeToggleReady();
    if(b.hasAttribute("data-tfinal"))return finalizeTrade();
+    if(b.hasAttribute("data-tgold"))return tradeSetGold();
    if(b.dataset.tadd!=null)return tradeAdd(+b.dataset.tadd);
    if(b.dataset.trm!=null)return tradeRemove(+b.dataset.trm)}}
  return tradeEl;
@@ -5467,6 +5486,7 @@ function tradeOffer(v,who){
  const list=v&&v.offers&&v.offers[who];
  return Array.isArray(list)?list:[];
 }
+function tradeGold(v,who){const n=+((v&&v.gold&&v.gold[who])||0);return Math.max(0,Math.floor(isFinite(n)?n:0))}
 function closeTradePop(){if(tradeEl)tradeEl.hidden=true}
 function tradeFinish(){
  if(tradeUnsub){try{tradeUnsub()}catch(e){}tradeUnsub=null}
@@ -5484,11 +5504,14 @@ function settleTrade(v){
  const key=tradePair+":"+((v&&v.at)||"")+":done";
  if(tradeDone.has(key))return;
  tradeDone.add(key);
- const otherId=v.a===uid?v.b:v.a,theirs=tradeOffer(v,otherId);
+ const otherId=v.a===uid?v.b:v.a,theirs=tradeOffer(v,otherId),myGold=tradeGold(v,uid),theirGold=tradeGold(v,otherId);
  let forced=0;
  theirs.forEach(x=>{const it=cp(x);if(!addItem(it)){me.inv.push(it);forced++}});
+ me.gold=Math.max(0,(+me.gold||0)-myGold+theirGold);
  bag();
- toast(forced?"거래 완료 · 가방이 가득 차 일부 아이템이 소지품에 들어갔습니다.":"거래가 완료되었습니다.");
+ try{opts.save(cp(snap()))}catch(e){}
+ const net=theirGold-myGold,netText=net?` · 골드 ${net>0?"+":""}${net} G`:"";
+ toast(forced?`거래 완료 · 가방이 가득 차 일부 아이템이 소지품에 들어갔습니다.${netText}`:`거래가 완료되었습니다.${netText}`);
  tradeFinish();
 }
 function subscribeTrade(pair){
@@ -5515,21 +5538,26 @@ function renderTradePop(){
  if(!st){box.hidden=true;return}
  const otherId=st.a===uid?st.b:st.a,otherName=tradeProfileName(st,otherId);
  const mine=tradeOffer(st,uid),theirs=tradeOffer(st,otherId);
+ const myGold=tradeGold(st,uid),theirGold=tradeGold(st,otherId);
  const myReady=!!(st.ready&&st.ready[uid]),theirReady=!!(st.ready&&st.ready[otherId]);
  const waiting=st.status==="invite",canEdit=st.status==="open"&&!myReady;
  const offerRows=arr=>arr.length?arr.map((x,i)=>tradeItemHtml(x,canEdit?`<button type="button" data-trm="${i}">내리기</button>`:"")).join(""):`<div class="trade-empty">올린 아이템이 없습니다.</div>`;
  const invRows=me.inv.length?me.inv.map((x,i)=>tradeItemHtml(x,`<button type="button" data-tadd="${i}">올리기</button>`)).join(""):`<div class="trade-empty">소지품이 없습니다.</div>`;
+ const goldMine=`<div class="trade-gold"><span>골드</span><b>${myGold} G</b>${canEdit?`<input type="number" id="tradeGold" min="0" max="${me.gold}" value="${myGold}"><button type="button" data-tgold>적용</button>`:""}<small class="dim">보유 ${me.gold} G</small></div>`;
+ const goldTheirs=`<div class="trade-gold"><span>골드</span><b>${theirGold} G</b></div>`;
+ const goldEl=$("tradeGold"),typedGold=goldEl&&document.activeElement===goldEl?goldEl.value:null;
  box.innerHTML=`<div class="trade-box"><h3>거래</h3><p class="trade-sub">${esc(me.name)} ↔ ${esc(otherName)}</p>
   <div class="trade-cols">
-   <section class="trade-col"><h4>내 제안 <span>${mine.length}개</span></h4><div class="trade-offer">${offerRows(mine)}</div>
+   <section class="trade-col"><h4>내 제안 <span>${mine.length}개 · ${myGold} G</span></h4>${goldMine}<div class="trade-offer">${offerRows(mine)}</div>
     ${canEdit?`<div class="trade-inv-title">소지품에서 올리기</div><div class="trade-inv">${invRows}</div>`:`<div class="trade-inv-title">${myReady?"확정했습니다. 수정하려면 확정을 취소하세요.":""}</div>`}</section>
-   <section class="trade-col"><h4>상대의 제안 <span>${theirs.length}개</span></h4><div class="trade-offer">${theirs.length?theirs.map(x=>tradeItemHtml(x,"")).join(""):`<div class="trade-empty">올린 아이템이 없습니다.</div>`}</div>
+   <section class="trade-col"><h4>상대의 제안 <span>${theirs.length}개 · ${theirGold} G</span></h4>${goldTheirs}<div class="trade-offer">${theirs.length?theirs.map(x=>tradeItemHtml(x,"")).join(""):`<div class="trade-empty">올린 아이템이 없습니다.</div>`}</div>
     <div class="trade-inv-title">${theirReady?'<span class="trade-badge">확정함</span>':'아직 확정하지 않았습니다.'}</div></section>
   </div>
   <div class="trade-foot"><button type="button" class="btn alt left" data-tcancel>${waiting?"요청 취소":"나가기"}</button>
    <span class="trade-status">${waiting?"상대의 수락을 기다리는 중…":`${myReady?"확정함":"확정 전"} · ${theirReady?"상대 확정함":"상대 확정 전"}`}</span>
    ${waiting?"":`<button type="button" class="btn ${myReady?"alt":""}" data-tready ${st.status!=="open"?"disabled":""}>${myReady?"확정 취소":"확정"}</button>`}
    ${!waiting&&st.status==="open"&&myReady&&theirReady?'<button type="button" class="btn" data-tfinal>확인</button>':""}</div></div>`;
+ if(typedGold!=null){const el=$("tradeGold");if(el)el.value=typedGold}
  box.hidden=false;
 }
 async function startTrade(targetUid,name){
@@ -5537,11 +5565,13 @@ async function startTrade(targetUid,name){
  if(!uid)return toast("로그인 정보를 확인할 수 없습니다.");
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");
  if(!targetUid||targetUid===uid)return toast("자신과는 거래할 수 없습니다.");
+ const tp=await S.getProfile(targetUid).catch(()=>null);
+ if(!sameSubArea(tp))return toast("같은 소지역에 있어야 거래할 수 있습니다.");
  if(tradePair||tradeState)return toast("이미 거래 중입니다.");
  const pair=pairKey(uid,targetUid);
  pendingInvite=null;tradeInviteKey="";
  tradePair=pair;tradeOther={uid:targetUid,name:name||"상대"};
- tradeState={a:uid,b:targetUid,names:{[uid]:me.name,[targetUid]:name||"상대"},status:"invite",offers:{[uid]:[],[targetUid]:[]},ready:{},at:Date.now()};
+ tradeState={a:uid,b:targetUid,names:{[uid]:me.name,[targetUid]:name||"상대"},status:"invite",offers:{[uid]:[],[targetUid]:[]},gold:{[uid]:0,[targetUid]:0},ready:{},at:Date.now()};
  renderTradePop();
  try{
   await set(ref(realtimeDB,"trades/"+pair),tradeState);
@@ -5572,17 +5602,39 @@ async function tradeRemove(i){
  catch(e){console.warn(e);toast("아이템을 내리지 못했어요.")}
  finally{tradeBusy=false}
 }
+async function tradeSetGold(){
+ if(!tradeState||tradeState.status!=="open"||tradeBusy)return;
+ if(tradeState.ready&&tradeState.ready[uid])return toast("확정을 취소한 뒤 골드를 수정할 수 있습니다.");
+ const el=$("tradeGold");if(!el)return;
+ let v=Math.floor(+el.value||0);
+ if(!isFinite(v)||v<0)v=0;
+ if(v>me.gold)v=me.gold;
+ const prev=tradeGold(tradeState,uid);
+ tradeState.gold=tradeState.gold||{};tradeState.gold[uid]=v;
+ renderTradePop();
+ if(v===prev)return;
+ tradeBusy=true;
+ try{await set(ref(realtimeDB,"trades/"+tradePair+"/gold/"+uid),v)}
+ catch(e){console.warn(e);tradeState.gold[uid]=prev;renderTradePop();toast("골드 제안을 저장하지 못했어요.")}
+ finally{tradeBusy=false}
+}
 async function tradeToggleReady(){
- if(!tradeState||tradeState.status!=="open")return;
+ if(!tradeState||tradeState.status!=="open"||tradeBusy)return;
  const on=!(tradeState.ready&&tradeState.ready[uid]);
+ if(on&&me.gold<tradeGold(tradeState,uid))return toast("보유 골드가 부족합니다.");
  tradeState.ready=tradeState.ready||{};tradeState.ready[uid]=on;renderTradePop();
  try{await set(ref(realtimeDB,"trades/"+tradePair+"/ready/"+uid),on||null)}
  catch(e){console.warn(e);tradeState.ready[uid]=!on;renderTradePop();toast("확정 상태를 저장하지 못했어요.")}
 }
 async function finalizeTrade(){
- if(!tradeState||tradeState.status!=="open")return;
+ if(!tradeState||tradeState.status!=="open"||tradeBusy)return;
  const otherId=tradeState.a===uid?tradeState.b:tradeState.a;
  if(!(tradeState.ready&&tradeState.ready[uid]&&tradeState.ready[otherId]))return toast("양쪽 모두 확정해야 합니다.");
+ const myGold=tradeGold(tradeState,uid),theirGold=tradeGold(tradeState,otherId);
+ if(me.gold<myGold)return toast("보유 골드가 부족합니다.");
+ const op=await S.getProfile(otherId).catch(()=>null);
+ if(!op)return toast("상대 정보를 확인할 수 없습니다.");
+ if((+op.gold||0)<theirGold)return toast("상대의 골드가 부족합니다.");
  try{await update(ref(realtimeDB,"trades/"+tradePair),{status:"done",doneBy:uid,doneAt:Date.now()})}
  catch(e){console.warn(e);toast("거래를 완료하지 못했어요.")}
 }
@@ -5605,6 +5657,8 @@ async function acceptTradeInvite(pair,inv){
  try{await remove(ref(realtimeDB,"tradeInvites/"+uid+"/"+pair))}catch(e){}
  tradeInviteKey="";pendingInvite=null;
  if(tradePair||tradeState)return;
+ const sp=await S.getProfile(inv.from).catch(()=>null);
+ if(!sameSubArea(sp))return toast("같은 소지역에 있어야 거래할 수 있습니다.");
  let curTrade=null;
  try{const s=await get(ref(realtimeDB,"trades/"+pair));curTrade=s.exists()?s.val():null}catch(e){}
  if(!curTrade||["cancelled","declined","done"].includes(curTrade.status))return toast("거래 요청이 취소되었습니다.");
@@ -5641,7 +5695,10 @@ function subscribeTradeInvites(){
 }
 if(uid){subscribeHeals();subscribeTradeInvites()}
 
-const pubProfile=()=>({name:me.name,job:me.job,origin:me.origin,day:me.day,color:me.color,avatarColor:okColor(char.avatarColor)?char.avatarColor:null,photo:okPhoto(char.photo)?char.photo:null,hp:me.hp.slice(),mp:me.mp.slice(),hunger:me.hunger.slice(),gold:me.gold,lv:me.lv,xp:me.xp,traits:me.traits.slice(),stats:me.stats.slice(),skills:{...me.skills},equipped:cp(me.equipped),partyId:me.partyId,partyLeader:me.partyLeader,guild:me.guild,intro:me.intro,debuffs:me.fx.filter(f=>f&&f.t==="debuff").map(f=>String(f.n||"")),debuffInfo:me.fx.filter(f=>f&&f.t==="debuff").map(f=>({n:String(f.n||""),label:f.label||f.n,remain:fxRemainMs(f)})),cont:me.cont,area:me.area,sub:me.sub,place:locText()});
+const pubProfile=()=>{
+ const p={name:me.name,job:me.job,origin:me.origin,day:me.day,color:me.color,avatarColor:okColor(char.avatarColor)?char.avatarColor:null,photo:okPhoto(char.photo)?char.photo:null,hp:me.hp.slice(),mp:me.mp.slice(),hunger:me.hunger.slice(),gold:me.gold,lv:me.lv,xp:me.xp,traits:me.traits.slice(),stats:me.stats.slice(),skills:{...me.skills},equipped:cp(me.equipped),partyId:me.partyId,partyLeader:me.partyLeader,guild:me.guild,intro:me.intro,debuffs:me.fx.filter(f=>f&&f.t==="debuff").map(f=>String(f.n||"")),debuffInfo:me.fx.filter(f=>f&&f.t==="debuff").map(f=>({n:String(f.n||""),label:f.label||f.n,remain:fxRemainMs(f)})),cont:me.cont,area:me.area,sub:me.sub,place:locText()};
+ return JSON.parse(JSON.stringify(p));
+};
 let lastProfile=JSON.stringify(pubProfile()),profileAt=0;
 if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(uid,p).catch(()=>{})}
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
