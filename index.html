@@ -5232,11 +5232,11 @@ const buyP=p=>Math.max(1,Math.round(p*(tradeHub?1+hubSpread():1)*(JT().buy||1)*t
 // 팔기 위한 물건(귀중품)의 기준 판매가. 실제 판매 시 상인/특성/도구 보정이 적용된다.
 const TREASURE_SELL={"청동 장식품":24,"빛바랜 은화":27,"값나가는 향료":30,"은세공 손거울":94,"상아 조각상":104,"금박 목상":112,"푸른 보석함":285,"왕실 문장 방패":310,"고대 은화 주머니":335,"용의 비늘 장식":1180,"별빛 수정 촛대":1280,"성기사의 성물함":1390,"영웅왕의 왕관 조각":4720,"심연의 진주":5140,"불멸의 황금 성배":5550,"세계수의 열매 결정":18880,"종말의 별 조각":20560,"신성한 창세의 유물":22200};
 const treasureSell=n=>{const b=+TREASURE_SELL[n]||0;return b?Math.max(1,Math.round(b*dailyMarketMod()*(tradeHub?1-hubSpread():1)*(JT().sell||1)*traitProduct("sell")*(1+(toolMods().sellPct||0)/100))):0};
-// 특정 아이템의 고정 판매가. 상인/특성/도구 보정은 적용된다.
-const FIXED_SELL={"이동 속도 증가 포션":10};
-const fixedSell=n=>{const b=+FIXED_SELL[n]||0;return b?Math.max(1,Math.round(b*(tradeHub?1-hubSpread():1)*(JT().sell||1)*traitProduct("sell")*(1+(toolMods().sellPct||0)/100))):0};
+// 특정 아이템의 고정 거래가. 구매/판매 모두 상인·특성·도구 보정 없이 동일하게 적용된다.
+const FIXED_PRICE={"이동속도 증가 포션":15};
+const fixedPrice=n=>+FIXED_PRICE[n]||0;
 function shopSellUnit(n){
- if(FIXED_SELL[n])return fixedSell(n);
+ if(FIXED_PRICE[n])return fixedPrice(n);
  if(TREASURE_SELL[n])return treasureSell(n);
  const g=curGoods.find(x=>x[0]===n),d=ITEM_BY_NAME[n]||info(n);
  const base=g?(g[2]?g[1]:price(n,g[1])):(d?price(n,marketBasePrice(d)):null);
@@ -5260,7 +5260,7 @@ function tradeRender(){
  $("tg").textContent=me.gold+" G";
  $("ttabs").querySelectorAll("[data-ttab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.ttab===tradeTab?"true":"false"));
  if(tradeTab==="buy"){
-  $("tl").innerHTML=curGoods.map(g=>{const [n,b,fixed]=g,unit=fixed?buyP(b):buyP(price(n,b)),op=tradeOpen===n;
+  $("tl").innerHTML=curGoods.map(g=>{const [n,b,fixed]=g,unit=fixedPrice(n)||(fixed?buyP(b):buyP(price(n,b))),op=tradeOpen===n;
    return `<div class="tr shoprow"><button type="button" class="tname" data-name="${esc(n)}" aria-expanded="${op}">${esc(n)}<span class="tcaret">▾</span><small>구매가 ${unit} G</small></button><button class="btn" data-a="buy" data-n="${esc(n)}" data-p="${unit}">구매</button>${op?`<div class="teff" title="${esc(effText(n))}">${esc(effText(n))}</div>`:""}</div>`;
   }).join("")||`<p class="dim">판매 중인 아이템이 없다.</p>`;
  }else{
