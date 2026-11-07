@@ -405,6 +405,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .sc{background:var(--panel2);border-radius:8px;padding:12px}
 #gameRoot .modal{background:rgba(0,0,0,.45)}
 #gameRoot .mbox{background:var(--panel);border:0;border-radius:12px;padding:24px;box-shadow:var(--shadow-md)}
+#gameRoot #pop{z-index:60}
 #gameRoot .mbox h3{margin:0 0 12px;font-size:18px;line-height:26px;font-weight:700;color:var(--text)}
 @keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 @media (max-width:640px){
@@ -426,7 +427,11 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .set-field label{font-size:12px;line-height:18px;color:var(--dim)}
 #gameRoot .tr{padding:10px 0;border-bottom:1px solid var(--line)}
 #gameRoot .tr:last-child{border-bottom:0}
-#gameRoot .tr.treasure{grid-template-columns:1fr auto auto}
+#gameRoot .tr.shoprow{grid-template-columns:1fr auto}
+#gameRoot #ttabs{display:flex;border-bottom:1px solid var(--line);margin:8px 0;position:sticky;top:0;background:var(--panel);z-index:1}
+#gameRoot #ttabs .ttab{flex:1;padding:8px;background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);font:inherit;cursor:pointer}
+#gameRoot #ttabs .ttab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
+#gameRoot .tr .sname{min-width:0;font:inherit}
 #gameRoot .tr .tname{display:block;width:100%;min-width:0;padding:0;margin:0;border:0;background:none;color:var(--text);font:inherit;text-align:left;cursor:pointer}
 #gameRoot .tr .tname:hover{color:var(--accent-text)}
 #gameRoot .tr .tname .tcaret{display:inline-block;margin-left:6px;font-size:10px;color:var(--dim);transition:transform .15s}
@@ -653,7 +658,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 <div class="modal" id="mvmodal" hidden><div class="mbox" style="width:340px;max-width:90vw"><h3 id="mvt" style="line-height:1.4"></h3><div class="modes" id="mvm"></div><p id="mvi" style="text-align:left;font-size:14px"></p><div style="display:flex;gap:8px;justify-content:center"><button class="btn alt" id="mvno">취소</button><button class="btn" id="mvgo">이동</button></div></div></div>
 <div class="modal" id="rmodal" hidden><div class="mbox" style="text-align:left;width:440px"><h3>아래의 무기를 수리할까? <span style="float:right;font-size:13px;font-weight:400"><b id="rg"></b></span></h3><div id="rl"></div><p id="rmsg" style="font-size:13px;color:var(--dim);min-height:1.5em;margin:8px 0"></p><div style="text-align:right"><button class="btn" id="rclose">닫기</button></div></div></div>
 <div class="modal" id="cmodal" hidden><div class="mbox" style="width:340px"><h3 id="ctitle">치료할 상태이상을 선택하세요</h3><p class="dim" id="cwho" style="margin:0 0 8px"></p><div id="cl" class="cl"></div><div style="margin-top:10px"><button class="btn alt" id="cclose">취소</button></div></div></div>
-<div class="modal sheet" id="tmodal" hidden><div class="mbox" style="text-align:left;width:440px"><h3><span id="ttitle">시장 거래</span> <span style="float:right;font-size:13px;font-weight:400">보유금 <b id="tg"></b></span></h3><div id="tl"></div><p id="tmsg" style="font-size:13px;color:var(--dim);min-height:1.5em;margin:8px 0"></p><div style="text-align:right"><button class="btn" id="tclose">닫기</button></div></div></div>
+<div class="modal sheet" id="tmodal" hidden><div class="mbox" style="text-align:left;width:440px;max-height:85vh;overflow:auto"><h3><span id="ttitle">시장 거래</span> <span style="float:right;font-size:13px;font-weight:400">보유금 <b id="tg"></b></span></h3><div id="ttabs"><button type="button" class="ttab" data-ttab="buy" aria-selected="true">구매</button><button type="button" class="ttab" data-ttab="sell" aria-selected="false">판매</button></div><div id="tl"></div><p id="tmsg" style="font-size:13px;color:var(--dim);min-height:1.5em;margin:8px 0"></p><div style="text-align:right"><button class="btn" id="tclose">닫기</button></div></div></div>
 <div class="modal" id="modal" hidden><div class="mbox"><h3 id="mt"></h3><p id="mb"></p><button class="btn" id="mok">확인</button></div></div>
 </div>
 <script type="module">
@@ -3491,7 +3496,7 @@ if(me.downed){subscribeOwnDowned();updateDownedBar();if(me.downed.revive)setTime
 
 // 팝업
 let popF=[];
-function pop(t,h,b,lock,sheet){$("pt").textContent=t;$("pb").innerHTML=h;popF=b;$("pbtn").innerHTML=b.map((x,k)=>`<button class="btn ${x.c===undefined?"alt":x.c}" data-k="${k}"${x.disabled?" disabled":""}>${x.t}</button>`).join("");$("pop").dataset.lock=lock?"1":"";$("pop").classList.toggle("sheet",!!sheet);$("pop").hidden=false}
+function pop(t,h,b,lock,sheet){$("pt").textContent=t;$("pb").innerHTML=h;$("pb").onclick=null;$("pb").oninput=null;popF=b;$("pbtn").innerHTML=b.map((x,k)=>`<button class="btn ${x.c===undefined?"alt":x.c}" data-k="${k}"${x.disabled?" disabled":""}>${x.t}</button>`).join("");$("pop").dataset.lock=lock?"1":"";$("pop").classList.toggle("sheet",!!sheet);$("pop").hidden=false}
 const closePop=()=>{$("pop").hidden=true;expRecordView=false};
 $("pbtn").onclick=e=>{const b=e.target.closest("[data-k]");if(!b)return;const f=popF[+b.dataset.k];closePop();if(f.fn)f.fn()};
 
@@ -5159,7 +5164,12 @@ T(clock,1000);
 const SMITH=[["철검",60],["단궁",45],["가죽 갑옷",50],["철제 방패",55]],isEq=n=>SMITH.some(x=>x[0]===n);
 const GOODS=[["통조림",12],["생수",3],["붕대",15],["부목",20],["해독제",20],["정화 향",25],["소생약",35],["약초",3],["건전지",10],["고철",5],["마력 전지",30],["먹이",6],["마력석",40],["각설탕",18],["마법 개조석",75]];
 const today=()=>new Intl.DateTimeFormat("sv",{timeZone:"Asia/Seoul"}).format(new Date());
-const price=(n,b)=>{let h=0;for(const c of today()+n)h=(h*31+c.charCodeAt(0))>>>0;return Math.max(1,Math.round(b*(0.8+(h%41)/100)))};
+const dayHash=seed=>{let h=2166136261;for(const c of String(seed)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0};
+// 시세는 하루 동안 모든 상인이 공유하는 작은 변동폭(±3%).
+const dailyMarketMod=()=>0.97+(dayHash(today())%7)/100;
+// 거점 상인은 수도 시장보다 5~10% 불리한 스프레드를 쓴다. 하루 동안 동일한 폭.
+const hubSpread=()=>0.05+(dayHash(today()+"|hubSpread")%6)/100;
+const price=(n,b)=>Math.max(1,Math.round(b*dailyMarketMod()));
 const MARKET_CATS=["재료","소모품","도구","장비"];
 // 전설/신화는 시장에 직접 유통되지 않지만, 귀중품 판매가 기준을 잡기 위해 확장해 둔다.
 const MARKET_GRADE_BASE={"일반":15,"고급":60,"희귀":180,"영웅":750,"전설":3000,"신화":12000};
@@ -5197,32 +5207,57 @@ function merchantGoods(){
  }
  return out;
 }
-let curGoods=GOODS,tradeOpen=null;
+let curGoods=GOODS,tradeHub=false,tradeTab="buy";
 const tmsg=t=>$("tmsg").textContent=t;
 // 판매가는 구매가의 약 35% 수준. 상인 계열 보정은 이 위에 적용된다.
 const SELL_RATE=.35;
-const buyP=p=>Math.max(1,Math.round(p*(JT().buy||1)*traitProduct("buy"))),sellP=p=>Math.max(1,Math.round(p*SELL_RATE*(JT().sell||1)*traitProduct("sell")*(1+(toolMods().sellPct||0)/100)));
+const buyP=p=>Math.max(1,Math.round(p*(tradeHub?1+hubSpread():1)*(JT().buy||1)*traitProduct("buy"))),sellP=p=>Math.max(1,Math.round(p*SELL_RATE*(tradeHub?1-hubSpread():1)*(JT().sell||1)*traitProduct("sell")*(1+(toolMods().sellPct||0)/100)));
 // 팔기 위한 물건(귀중품)의 기준 판매가. 실제 판매 시 상인/특성/도구 보정이 적용된다.
 const TREASURE_SELL={"청동 장식품":24,"빛바랜 은화":27,"값나가는 향료":30,"은세공 손거울":94,"상아 조각상":104,"금박 목상":112,"푸른 보석함":285,"왕실 문장 방패":310,"고대 은화 주머니":335,"용의 비늘 장식":1180,"별빛 수정 촛대":1280,"성기사의 성물함":1390,"영웅왕의 왕관 조각":4720,"심연의 진주":5140,"불멸의 황금 성배":5550,"세계수의 열매 결정":18880,"종말의 별 조각":20560,"신성한 창세의 유물":22200};
-const TREASURE_NAMES=Object.keys(TREASURE_SELL);
-const treasureSell=n=>{const b=+TREASURE_SELL[n]||0;return b?Math.max(1,Math.round(b*(JT().sell||1)*traitProduct("sell")*(1+(toolMods().sellPct||0)/100))):0};
+const treasureSell=n=>{const b=+TREASURE_SELL[n]||0;return b?Math.max(1,Math.round(b*dailyMarketMod()*(tradeHub?1-hubSpread():1)*(JT().sell||1)*traitProduct("sell")*(1+(toolMods().sellPct||0)/100))):0};
+function shopSellUnit(n){
+ if(TREASURE_SELL[n])return treasureSell(n);
+ const g=curGoods.find(x=>x[0]===n),d=ITEM_BY_NAME[n]||info(n);
+ const base=g?(g[2]?g[1]:price(n,g[1])):(d?price(n,marketBasePrice(d)):null);
+ return base==null?1:sellP(base);
+}
+function shopBuyMax(n,unit){
+ const item=lootObj(n),stackable=typeof item==="string",room=Math.max(0,cap()-usedSlots());
+ const spaceMax=stackable?(count(n)>0||room>0?99:0):room;
+ return Math.max(0,Math.min(99,Math.floor(me.gold/Math.max(1,unit)),spaceMax));
+}
+function shopQtyPopup(mode,n,unit,max,onConfirm){
+ const label=mode==="buy"?"구매":"판매",totalLabel=mode==="buy"?"총 구매가":"총 판매가";
+ const html=`<p><b>${esc(n)}</b></p><p class="dim">개당 ${label}가 ${unit} G</p>${qtyHtml(max)}<div style="display:flex;justify-content:space-between;align-items:center;font-size:14px;margin:10px 0"><span>${totalLabel}</span><b id="qtyTotal">${unit} G</b></div>`;
+ pop(`${label} 수량 선택`,html,[{t:"확인",c:"",fn:()=>{const q=qtyVal(max);onConfirm(q)}},{t:"취소"}],true);
+ const update=()=>{const q=qtyVal(max),el=$("qtyTotal");if(el)el.textContent=(unit*q)+" G"};
+ $("pb").onclick=e=>{qtyClick(e,max);update()};
+ $("pb").oninput=update;
+ update();
+}
 function tradeRender(){
  $("tg").textContent=me.gold+" G";
- const goods=curGoods.map(g=>{const [n,b,fixed]=g,p=fixed?b:price(n,b),own=count(n),bu=buyP(p),se=sellP(p),op=tradeOpen===n;
-  return `<div class="tr"><button type="button" class="tname" data-name="${n}" aria-expanded="${op}">${n}<span class="tcaret">▾</span><small>보유 ${own} · 판매 ${se} G</small></button><b>${bu} G</b><button class="btn" data-a="buy" data-n="${n}" data-p="${p}">산다</button><button class="btn alt" data-a="sell" data-n="${n}" data-p="${p}" ${own?"":"disabled"}>판다</button>${op?`<div class="teff">${effText(n)}</div>`:""}</div>`}).join("");
- const treasures=TREASURE_NAMES.filter(n=>count(n)>0);
- const treasureHtml=treasures.length?`<h3 style="margin:14px 0 4px">팔기 위한 물건</h3>`+treasures.map(n=>{
-  const it=ITEM_BY_NAME[n]||{},se=treasureSell(n),own=count(n),op=tradeOpen===n;
-  return `<div class="tr treasure"><button type="button" class="tname" data-name="${n}" aria-expanded="${op}">${n}<span class="tcaret">▾</span><small>${it.grade||""} · 보유 ${own} · 판매 ${se} G</small></button><button class="btn alt" data-a="sellTreasure" data-n="${n}" data-p="${se}">판다</button>${op?`<div class="teff">${effText(n)}</div>`:""}</div>`;
- }).join(""):"";
- $("tl").innerHTML=goods+treasureHtml;
+ $("ttabs").querySelectorAll("[data-ttab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.ttab===tradeTab?"true":"false"));
+ if(tradeTab==="buy"){
+  $("tl").innerHTML=curGoods.map(g=>{const [n,b,fixed]=g,unit=fixed?buyP(b):buyP(price(n,b));
+   return `<div class="tr shoprow"><span class="sname">${esc(n)}<small>구매가 ${unit} G</small></span><button class="btn" data-a="buy" data-n="${esc(n)}" data-p="${unit}">구매</button></div>`;
+  }).join("")||`<p class="dim">판매 중인 아이템이 없다.</p>`;
+ }else{
+  const seen=new Set(),rows=[];
+  for(const x of me.inv){
+   const n=nm(x);if(seen.has(n))continue;
+   const it=info(n);if(it.bound)continue;
+   seen.add(n);rows.push({n,q:count(n),unit:shopSellUnit(n)});
+  }
+  $("tl").innerHTML=rows.map(r=>`<div class="tr shoprow"><span class="sname">${esc(r.n)}<small>보유 ${r.q} · 개당 ${r.unit} G</small></span><button class="btn alt" data-a="sell" data-n="${esc(r.n)}" data-p="${r.unit}">판매</button></div>`).join("")||`<p class="dim">판매할 아이템이 없다.</p>`;
+ }
 }
-function openTrade(t,g){if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");if(me.travel)return toast("이동 중에는 거래할 수 없습니다.");if(actionLock("휴식 중에는 거래할 수 없습니다."))return;curGoods=g;tradeOpen=null;$("ttitle").textContent=t;tradeRender();tmsg("");$("tmodal").hidden=false}
+function openTrade(t,g,opts={}){if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");if(me.travel)return toast("이동 중에는 거래할 수 없습니다.");if(actionLock("휴식 중에는 거래할 수 없습니다."))return;curGoods=g;tradeHub=!!opts.hub;tradeTab="buy";$("ttitle").textContent=t;tradeRender();const sp=Math.round(hubSpread()*100);tmsg(tradeHub?`거점 상인 시세 · 수도 시장 대비 구매 +${sp}% / 판매 -${sp}%`:"");$("tmodal").hidden=false}
 $("trade").onclick=()=>openTrade("시장 거래",marketGoods("kardor"));
 $("etrade").onclick=()=>openTrade("시장 거래",marketGoods("elis"));
 $("atrade").onclick=()=>openTrade("만민의 광장 시장",marketGoods("ark"));
 $("strade").onclick=()=>openTrade("대장간 거래",SMITH);
-$("merchantTrade").onclick=()=>{if(!merchantHere())return toast("이곳에는 상인이 없습니다.");openTrade("상인 거래",merchantGoods())};
+$("merchantTrade").onclick=()=>{if(!merchantHere())return toast("이곳에는 상인이 없습니다.");openTrade("상인 거래",merchantGoods(),{hub:true})};
 $("buyHorse").onclick=()=>{
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");
  if(me.travel)return toast("이동 중에는 마굿간을 이용할 수 없습니다.");
@@ -5245,14 +5280,46 @@ $("buyFeed").onclick=()=>{
  modal("먹이 구입","먹이 1개를 구입했습니다.");
 };
 $("tclose").onclick=()=>$("tmodal").hidden=true;
-$("tl").onclick=e=>{const nameBtn=e.target.closest(".tname");if(nameBtn){const n=nameBtn.dataset.name;tradeOpen=tradeOpen===n?null:n;tradeRender();return}const b=e.target.closest("button");if(!b||b.disabled)return;const n=b.dataset.n,raw=+b.dataset.p,act=b.dataset.a;
+$("ttabs").onclick=e=>{const b=e.target.closest("[data-ttab]");if(!b)return;tradeTab=b.dataset.ttab;tradeRender()};
+$("tl").onclick=e=>{
+ const b=e.target.closest("button[data-a]");if(!b||b.disabled)return;
+ const n=b.dataset.n,unit=Math.max(1,+b.dataset.p||0),act=b.dataset.a;
  if(me.downed||me.deadPending)return tmsg("쓰러진 상태에서는 거래할 수 없다.");
  if(me.rest||me.expedition)return tmsg(me.rest?"휴식 중에는 거래할 수 없다.":"탐사 중에는 거래할 수 없다.");
- if(act==="sellTreasure"){const i=me.inv.findIndex(x=>nm(x)===n);if(i<0)return tmsg("보유하지 않았다.");const p=Math.max(1,+b.dataset.p||0);me.inv.splice(i,1);me.gold+=p;tradeOpen=null;tmsg(`${n} 판매 (+${p} G)`);awardAction("talk",ACTION_XP.trade,info(n).grade||"일반","talk");if(p>=50)tryGoodTrait("상인의 촉");bag();tradeRender();return}
- const buy=act==="buy",p=buy?buyP(raw):sellP(raw);
- if(buy){const item=lootObj(n);if(!canAdd(item))tmsg("가방이 가득 찼다.");else if(me.gold<p)tmsg("돈이 부족하다.");else{me.gold-=p;addItem(item);tmsg(n+" 구입");awardAction("talk",ACTION_XP.trade,info(n).grade||"일반","talk");if(p>=50)tryGoodTrait("상인의 촉")}}
- else{const i=me.inv.findIndex(x=>nm(x)===n);if(i>=0){me.inv.splice(i,1);me.gold+=p;tmsg(n+" 판매");awardAction("talk",ACTION_XP.trade,info(n).grade||"일반","talk");if(p>=50)tryGoodTrait("상인의 촉")}}
- bag();tradeRender()};
+ if(act==="buy"){
+  const max=shopBuyMax(n,unit);
+  if(max<1)return tmsg("돈이 부족하거나 가방이 가득 찼다.");
+  let done=false;
+  shopQtyPopup("buy",n,unit,max,q=>{
+   if(done)return;done=true;
+   if(me.gold<unit*q)return tmsg("돈이 부족하다.");
+   let added=0;
+   for(let i=0;i<q;i++){if(addItem(lootObj(n)))added++;else break}
+   if(!added)return tmsg("가방이 가득 찼다.");
+   const paid=unit*added;
+   me.gold-=paid;
+   tmsg(`${n} ×${added} 구입 (-${paid} G)`);
+   awardAction("talk",ACTION_XP.trade,info(n).grade||"일반","talk");
+   if(paid>=50)tryGoodTrait("상인의 촉");
+   bag();tradeRender();
+  });
+ }else if(act==="sell"){
+  const max=count(n);
+  if(max<1)return tmsg("보유하지 않았다.");
+  let done=false;
+  shopQtyPopup("sell",n,unit,max,q=>{
+   if(done)return;done=true;
+   const rm=takeItems(n,q);
+   if(!rm.length)return tmsg("보유하지 않았다.");
+   const total=unit*rm.length;
+   me.gold+=total;
+   tmsg(`${n} ×${rm.length} 판매 (+${total} G)`);
+   awardAction("talk",ACTION_XP.trade,info(n).grade||"일반","talk");
+   if(total>=50)tryGoodTrait("상인의 촉");
+   bag();tradeRender();
+  });
+ }
+};
 // ---- 대장간 수리 / 진료소 ----
 let rlist=[];
 const rcost=x=>Math.max(1,Math.round((x.max-x.dur)*2*(JT().repair||1)*traitProduct("repair")));
