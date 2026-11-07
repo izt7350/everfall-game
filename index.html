@@ -4367,11 +4367,11 @@ $("explore").onclick=()=>{if(actionLock("휴식 중에는 탐사할 수 없습�
  }
  const mpTrapChance=.02*Math.max(.15,1-Math.min(.85,(tm.trapFindPct||0)/100));
  if(me.mp[0]>0&&Math.random()<mpTrapChance){
-  const mpDmg=Math.max(1,Math.round(me.mp[1]*.10*Math.max(.2,1-Math.min(.8,(tm.trapDamageRed||0)/100))));
+  const mpDmg=4;
   const mpBefore=+me.mp[0]||0;
   me.mp[0]=Math.max(0,me.mp[0]-mpDmg);barsRender();
   logChar("trap",`정신력 함정 · 정신력 ${mpBefore} → ${me.mp[0]}`,{mpDmg,mpBefore,mpAfter:me.mp[0],mp:me.mp.slice(),area:me.area,sub:me.sub||""});
-  modal("정신력 함정",`환각 함정에 걸렸다. 정신력 -${mpDmg}`);bag();return
+  modal("함정",`끔찍한 환각을 마주했다. 정신력-4`);bag();return
  }
  if(r<.6){
   // 비전투 탐사 보상은 1종류만. 재료는 최대 3개, 완제품은 1개.
