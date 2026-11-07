@@ -621,6 +621,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
    <div class="explore" id="amarket" hidden><div><b>시장</b><span>가끔 열린다. 물품은 매일 바뀐다. (오전 9시~오후 9시)<em id="amstat"></em></span></div><button class="btn" id="atrade">거래하기</button></div>
    <div class="explore" id="emarket" hidden><div><b>시장</b><span>이틀에 한 번, 오전 9시부터 오후 9시까지 열린다. 물품은 매일 바뀐다.<em id="emstat"></em></span></div><button class="btn" id="etrade">거래하기</button></div>
    <div class="explore" id="smithy" hidden><div><b>대장간</b><span>무기 수리와 거래가 가능하다.<em id="smstat"></em></span></div><div style="display:flex;gap:6px"><button class="btn" id="strade">거래</button><button class="btn" id="srepair">수리</button></div></div>
+   <div class="explore" id="secretMerchant" hidden><div><b>상인</b><span>은밀하게 만나는 상인. 24시간 거래할 수 있다. 일반 회복 포션을 상시 판매하며, 랜덤 물품 3종은 매일 바뀐다.</span></div><button class="btn" id="merchantTrade">거래하기</button></div>
    <div class="explore" id="clinic" hidden><div><b>진료소</b><span>상태이상 치료와 부정 특성 제거가 가능하다. (특성 제거: 성기사의 휘장 1개 + 2000G)<em id="clstat"></em></span></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="cure">치료하기</button><button class="btn alt" id="traitCure">부정 특성 치료</button></div></div>
    <div class="explore" id="stable" hidden><div><b>마굿간</b><span id="stdesc">말 1000G · 먹이 40G</span><em id="ststat"></em></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="buyHorse">말 구입 (1000G)</button><button class="btn alt" id="buyFeed">먹이 구입 (40G)</button></div></div>
    <div class="explore" id="cont" hidden><div><b>대륙간 이동</b><span>관문에서 다른 대륙의 관문으로 이동한다.</span></div><div style="display:flex;gap:6px"><select id="csel"></select><button class="btn" id="cgo">이동하기</button></div></div>
@@ -836,6 +837,70 @@ function charInfoHtml(c,meta){
     <div class="ai-row"><span>최근 접속</span><b>${meta.lastLogin?fmt(meta.lastLogin):"-"}</b></div>
     ${accountRow}${uidRow}${createdRow}</div></div></div>`}
 
+function adminLogDetail(r){
+ const d=r&&r.data&&typeof r.data==="object"?r.data:null;
+ if(!d)return "";
+ const rows=[];
+ const num=v=>isFinite(+v)?Math.round(+v):null;
+ const pool=v=>{if(!Array.isArray(v)||v.length<2)return null;const a=num(v[0]),b=num(v[1]);return a==null||b==null?null:`${a} / ${b}`};
+ const add=(label,val)=>{if(val!=null&&val!=="")rows.push(`<div class="ai-row"><span>${esc(label)}</span><b>${val}</b></div>`)};
+ const fxList=v=>Array.isArray(v)&&v.length?v.map(x=>typeof x==="string"?x:(x&&(x.label||x.n||x.id))||"?").join(", "):null;
+ const loc=d.place||[d.cont,d.area,d.sub].filter(Boolean).join(" · ");
+ const kindName=k=>({long:"장기 탐사",dungeon:"던전 탐사"}[k]||k||"탐사");
+ const roleName=v=>({normal:"일반",elite:"정예",boss:"보스"}[v]||v);
+ const resultName=v=>({win:"승리",lose:"패배",battle:"전투 중"}[v]||v);
+ const whyName=v=>({hp:"HP 0",hunger:"허기 0",unknown:"원인 불명"}[v]||v);
+ const sourceName=v=>({fieldNormal:"필드 일반",fieldElite:"필드 정예",fieldNamed:"필드 네임드",dungeonNormal:"던전 일반",dungeonElite:"던전 정예",dungeonBoss:"던전 보스",dungeonChest:"던전 보상 상자",gather:"채집"}[v]||"기타");
+ const tallyLog=a=>{const m={};a.forEach(x=>{const k=String(x);m[k]=(m[k]||0)+1});return Object.entries(m).map(([k,v])=>v>1?`${k} ×${v}`:k).join(", ")};
+ const hpMax=d.maxHp??(Array.isArray(d.hp)?d.hp[1]:null);
+ if(d.before!=null&&d.after!=null)add("HP 변화",`${num(d.before)} → ${num(d.after)}${hpMax?` / ${num(hpMax)}`:""}`);
+ else if(d.hp!=null){const h=Array.isArray(d.hp)?pool(d.hp):(isFinite(+d.hp)?`${num(d.hp)}${hpMax?` / ${num(hpMax)}`:""}`:null);if(h)add("HP",h)}
+ if(d.hungerBefore!=null&&d.hungerAfter!=null)add("허기 변화",`${num(d.hungerBefore)} → ${num(d.hungerAfter)}`);
+ const mp=pool(d.mp);if(mp)add("정신력",mp);
+ const hg=pool(d.hunger);if(hg)add("허기",hg);
+ if(d.dmg!=null)add("받은 피해",`${num(d.dmg)}`);
+ if(d.statusAdded)add("추가된 상태이상",esc(d.statusAdded));
+ const fx=fxList(d.fx);if(fx)add("상태 효과",esc(fx));
+ if(Array.isArray(d.fxAdded)&&d.fxAdded.length)add("추가된 상태이상",esc(d.fxAdded.join(", ")));
+ if(Array.isArray(d.fxRemoved)&&d.fxRemoved.length)add("해제된 상태이상",esc(d.fxRemoved.join(", ")));
+ if(loc)add("위치",esc(loc));
+ if(d.why)add("쓰러진 원인",esc(whyName(d.why)));
+ const combat=[d.monster,d.role?roleName(d.role):null,d.rounds!=null?`${num(d.rounds)}턴`:null,d.boss?"보스전":null].filter(Boolean).join(" · ");
+ if(combat)add("전투",esc(combat));
+ if(d.status)add("전투 상태",esc(resultName(d.status)));
+ if(d.xp!=null)add("획득 경험치",`+${num(d.xp)}`);
+ if(Array.isArray(d.loot)&&d.loot.length)add("획득 아이템",esc(tallyLog(d.loot)));
+ if(d.badTrait)add("획득한 부정 특성",esc(d.badTrait));
+ if(d.kind)add("탐사 종류",esc(kindName(d.kind)));
+ if(d.min!=null)add("계획 시간",`${num(d.min)}분`);
+ if(d.elapsed!=null)add("진행 시간",`${num(d.elapsed)}분`);
+ if(d.partial!=null)add("완료 여부",d.partial?"중도 귀환":"완료");
+ if(Array.isArray(d.found)){const t=tallyLog(d.found);add("획득 아이템",esc(t||"없음")+(d.lost?` · 가방 부족으로 ${num(d.lost)}개 놓침`:""))}
+ if(d.encounters!=null)add("몬스터 조우",`${num(d.encounters)}회`);
+ if(d.battles!=null)add("전투 횟수",`${num(d.battles)}회${d.wins!=null?` · 승리 ${num(d.wins)}회`:""}`);
+ if(d.box)add("던전 보상 상자","획득");
+ if(d.defeated)add("전투 결과","패배");
+ if(d.skillXp!=null)add("기능 경험치",`+${num(d.skillXp)}`);
+ if(d.expedition){const e=d.expedition;if(typeof e==="object")add("탐사",esc(kindName(e.kind)+(e.min?` ${e.min}분`:"")));else add("탐사",esc(e))}
+ const doing=[d.travel?"이동 중":null,d.rest?"휴식 중":null,d.expedition?"탐사 중":null].filter(Boolean).join(", ");
+ if(doing)add("진행 중이던 행동",esc(doing));
+ if(d.partyId)add("파티","참가 중");
+ if(d.will)add("유언",esc(d.will));
+ if(d.self!=null)add("소생 방식",d.self?"자가 소생":"타인에 의한 소생");
+ if(d.since)add("쓰러진 시각",esc(fmt(d.since)));
+ if(d.until)add("소생 기한",esc(fmt(d.until)));
+ if(d.source)add("탐사 종류",esc(sourceName(d.source)));
+ if(d.star)add("난이도",`★${esc(d.star)}`);
+ if(d.lv!=null)add("레벨",`Lv ${num(d.lv)}`);
+ if(d.gold!=null)add("소지금",`${num(d.gold)} G`);
+ if(Array.isArray(d.traits)&&d.traits.length)add("특성",esc(d.traits.join(", ")));
+ if(Array.isArray(d.expLogs)&&d.expLogs.length){
+  const logs=d.expLogs.slice(-8).map(l=>`<div class="dim sm" style="padding:2px 0">${esc(fmt(l.at))} · ${esc(l.text||"")}</div>`).join("");
+  rows.push(`<div class="ai-row" style="display:block"><span>최근 탐사 행동</span><div style="margin-top:4px">${logs}</div></div>`);
+ }
+ return rows.length?`<div class="ai-meta" style="margin-top:6px">${rows.join("")}</div>`:"";
+}
+
 // ---- Firebase 저장소 ----
 const S={live:true,
  getAcc:async uid=>{const s=await get(ref(realtimeDB,"accounts/"+uid));return s.exists()?s.val():null},
@@ -887,8 +952,8 @@ async function enter(){const errEl=$("err");if(errEl)errEl.textContent="";
   await S.setAcc(me.uid,acc);
   if(acc.character){
    if(resumeOn()){
-    await play();
-    if(game)return;
+    const r=await play();
+    if(game||r==="death")return;
     resumeSet(false);
    }
    go("lobby");
@@ -1117,7 +1182,7 @@ async function make(){const e=$("err");e.textContent="";
  try{const J=JOBS[draft.job],jt=JOB_TRAITS[draft.job]||{};
   const K=jobKitData(draft.job),cstats=traitStats(draft.stats,draft.job,draft.traits),vit=+cstats[4]||BASE,int=+cstats[2]||BASE,hpMax=J.hp+10*(vit-5)+(jt.hp||0)+traitSum(draft.traits,"hp"),mpMax=J.mp+10*(int-5)+(jt.mp||0)+traitSum(draft.traits,"mp"),hungerMax=J.hg+3*(vit-5)+traitSum(draft.traits,"hunger"),gold=K.gold+(jt.gold||0),skills={...DEFAULT_SKILLS,...jobSkillBonuses(draft.job)};
   
-  acc.character={name:draft.name,origin:draft.origin,job:draft.job,avatar:draft.avatar,avatarColor:draft.avatarColor||null,photo:draft.photo,trait:draft.traits[0],traits:draft.traits.slice(),traitApplied:true,stats:cstats,hp:[hpMax,hpMax],mp:[mpMax,mpMax],hunger:[hungerMax,hungerMax],gold,skills,lv:1,xp:0,skillXp:{...DEFAULT_SKILLS},statPts:0,skillPts:0,crafted:[],lastTraitDay:"",rest:null,...kit(draft.job),sub:null,day:1,cont:draft.origin,area:"cap",createdAt:Date.now(),potionGrant:true};
+  acc.character={name:draft.name,origin:draft.origin,job:draft.job,avatar:draft.avatar,avatarColor:draft.avatarColor||null,photo:draft.photo,trait:draft.traits[0],traits:draft.traits.slice(),traitApplied:true,stats:cstats,hp:[hpMax,hpMax],mp:[mpMax,mpMax],hunger:[hungerMax,hungerMax],gold,skills,lv:1,xp:0,skillXp:{...DEFAULT_SKILLS},statPts:0,skillPts:0,crafted:[],lastTraitDay:"",rest:null,...kit(draft.job),sub:null,day:1,cont:draft.origin,area:"cap",createdAt:Date.now(),potionGrant:true,potionGrant20:true};
   await S.setAcc(me.uid,acc);go("lobby")}
  catch(x){e.textContent="저장에 실패했어요. Firebase 데이터베이스 규칙을 확인해 주세요.";$("mk").disabled=false}}
 
@@ -1159,7 +1224,7 @@ async function admin(){
  const banMap=Object.fromEntries(bans.map(b=>[b.id,b]));let q="",open=null,arm=null;
  const nameOf=a=>a.loginId||(a.character&&a.character.name)||("UID "+String(a.id).slice(0,8));
  const draw=()=>{const list=accs.filter(a=>!q||(nameOf(a)+" "+(a.character?a.character.name:"")).toLowerCase().includes(q.toLowerCase()));
-  app(`<div class="card wide adm"><div class="top"><h2 style="margin:0">회원 관리 <span class="dim sm">관리자</span></h2><div class="row"><button class="btn alt sm" id="rf">새로고침</button><button class="btn alt sm" id="lg">로그아웃</button><button class="btn alt sm" id="bk">돌아가기</button></div></div>
+  app(`<div class="card wide adm"><div class="top"><h2 style="margin:0">회원 관리 <span class="dim sm">관리자</span></h2><div class="row"><button class="btn alt sm" id="grantPotions">회복 포션 20개 지급</button><button class="btn alt sm" id="rf">새로고침</button><button class="btn alt sm" id="lg">로그아웃</button><button class="btn alt sm" id="bk">돌아가기</button></div></div>
   <div class="chips"><span class="chip">전체 ${accs.length}명</span><span class="chip">캐릭터 보유 ${accs.filter(a=>a.character).length}명</span><span class="chip">정지 ${accs.filter(a=>banMap[a.id]).length}명</span></div>
   <input type="text" id="q" placeholder="계정 아이디 또는 캐릭터 이름 검색" value="${esc(q)}" style="margin-bottom:10px">
   <div class="tbl"><div class="mr hd"><span>계정</span><span>캐릭터</span><span>최근 접속</span><span>상태</span><span>관리</span></div>
@@ -1176,6 +1241,7 @@ async function admin(){
   $("bk").onclick=()=>go("login");
   $("lg").onclick=async()=>{resumeSet(false);if(game){try{game.stop()}catch(e){}game=null}$("gameRoot").hidden=true;$("authRoot").hidden=false;await signOut(auth);me={uid:null,name:"",admin:false};acc=null;go("login")};
   $("rf").onclick=admin;
+  $("grantPotions").onclick=grantPotions;
   $("q").oninput=e=>{q=e.target.value;draw();const i=$("q");i.focus();i.setSelectionRange(q.length,q.length)};
   document.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>act(b.dataset.a,b.dataset.i));
   document.querySelectorAll("[data-char]").forEach(el=>el.onclick=()=>showChar(el.dataset.char))};
@@ -1185,10 +1251,29 @@ async function admin(){
   let data=null,err=null;try{data=await S.getLogs(id)}catch(e){err=e}
   const rows=[];Object.entries(data||{}).forEach(([cid,slots])=>{if(!slots||typeof slots!=="object")return;Object.values(slots).forEach(v=>{if(v&&typeof v==="object"&&isFinite(+v.at))rows.push({...v,charId:cid})})});
   rows.sort((a,b)=>b.at-a.at);
-  const label={session:"접속",downed:"쓰러짐",death:"사망",revive:"소생",battle:"전투",dot:"지속피해",party:"파티",trap:"함정",will:"유언",event:"이벤트"};
-  const body=err?`<p style="color:var(--bad)">로그를 불러오지 못했습니다. Firebase 규칙의 logs 읽기 권한을 확인해 주세요.</p>`:rows.length?`<div style="max-height:55vh;overflow:auto">${rows.slice(0,300).map(r=>{const ty=label[r.type]||r.type||"이벤트",d=r.data&&typeof r.data==="object"?Object.entries(r.data).map(([k,v])=>`${k}: ${v&&typeof v==="object"?JSON.stringify(v):v}`).join(" · "):"";return `<div style="padding:8px 0;border-bottom:1px solid var(--line)"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b>${esc(ty)}</b><span class="dim sm">${fmt(r.at)}</span>${r.name?`<span class="dim sm">${esc(r.name)}</span>`:""}</div><div>${esc(r.text||"")}</div>${d?`<details style="margin-top:4px"><summary class="dim sm">상세</summary><div class="dim sm" style="word-break:break-all;white-space:pre-wrap">${esc(d)}</div></details>`:""}</div>`}).join("")}</div>`:`<p class="dim">기록된 로그가 없습니다.</p>`;
+  const label={session:"접속",downed:"쓰러짐",death:"사망",revive:"소생",battle:"전투",expedition:"탐사",dot:"지속피해",party:"파티",trap:"함정",will:"유언",event:"이벤트"};
+  const body=err?`<p style="color:var(--bad)">로그를 불러오지 못했습니다. Firebase 규칙의 logs 읽기 권한을 확인해 주세요.</p>`:rows.length?`<div style="max-height:55vh;overflow:auto">${rows.slice(0,300).map(r=>{const ty=label[r.type]||r.type||"이벤트",detail=adminLogDetail(r);return `<div style="padding:10px 0;border-bottom:1px solid var(--line)"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b>${esc(ty)}</b><span class="dim sm">${fmt(r.at)}</span>${r.name?`<span class="dim sm">${esc(r.name)}</span>`:""}</div><div style="margin-top:2px">${esc(r.text||"")}</div>${detail}</div>`}).join("")}</div>`:`<p class="dim">기록된 로그가 없습니다.</p>`;
   admPop("활동 로그",`<p class="dim" style="margin:0 0 8px">${esc(who)} · 최근 ${Math.min(rows.length,300)}건 / 전체 ${rows.length}건</p>${body}`,[{t:"새로고침",fn:()=>showLogs(id)},{t:"닫기"}],true);
  };
+ async function grantPotions(){
+  const targets=accs.filter(a=>a&&a.character&&!a.character.potionGrant20);
+  if(!targets.length)return toast("이미 모든 캐릭터가 지급받았습니다.");
+  admPop("일반 회복 포션 20개 지급",`<p>캐릭터 <b>${targets.length}명</b>에게 일반 회복 포션 20개를 지급합니다.</p><p class="dim">이미 지급받은 캐릭터는 제외됩니다. 접속 중인 캐릭터는 다음 저장 시 덮어써질 수 있습니다.</p>`,[{t:"취소"},{t:"지급",c:"",fn:async()=>{
+   let ok=0,fail=0;
+   for(const a of targets){
+    try{
+     const next=JSON.parse(JSON.stringify(a.character));
+     next.items=Array.isArray(next.items)?next.items:[];
+     for(let i=0;i<20;i++)next.items.push("일반 회복 포션");
+     next.potionGrant20=true;
+     await S.setAcc(a.id,stripId({...a,character:next}));
+     a.character=next;ok++;
+    }catch(e){console.warn("grantPotions",a.id,e);fail++}
+   }
+   toast(`일반 회복 포션 20개 지급 완료 · ${ok}명${fail?` · 실패 ${fail}명`:""}`);
+   draw();
+  }},{t:"닫기"}],true);
+ }
  const showChar=id=>{const t=accs.find(x=>x.id===id),c=t&&t.character;if(!c)return;
   const buttons=[
    {t:"HP 회복",c:"",fn:()=>adminHealChar(id)},
@@ -1288,7 +1373,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.skillPts=Math.max(0,Math.floor(+c.skillPts||0));
  o.crafted=Array.isArray(c.crafted)?c.crafted.filter(x=>typeof x==="string").slice(-600):[];
  o.speedPotionGrant=!!c.speedPotionGrant;
- o.potionGrant=!!c.potionGrant;
+ o.potionGrant=!!c.potionGrant;o.potionGrant20=!!c.potionGrant20;
  o.party=Array.isArray(c.party)?c.party.map(normAlly).filter(Boolean).slice(0,4):[];
  o.partyId=typeof c.partyId==="string"?c.partyId:null;
  o.partyLeader=typeof c.partyLeader==="string"?c.partyLeader:null;
@@ -1311,7 +1396,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.traits=Array.isArray(c.traits)?c.traits.filter(t=>typeof t==="string"&&TRAITS[t]):(c.trait&&TRAITS[c.trait]?[c.trait]:[]);
  o.lastTraitDay=typeof c.lastTraitDay==="string"?c.lastTraitDay:"";
  o.rest=c.rest&&typeof c.rest==="object"&&isFinite(+c.rest.end)?{start:Math.max(0,+c.rest.start||0),end:+c.rest.end,min:Math.max(0,+c.rest.min||0),hp:Math.max(0,+c.rest.hp||0),mp:Math.max(0,+c.rest.mp||0),lowHp:!!c.rest.lowHp,lowMp:!!c.rest.lowMp}:null;
- o.downed=c.downed&&typeof c.downed==="object"&&isFinite(+c.downed.until)?{since:Math.max(0,+c.downed.since||0),until:+c.downed.until,cont:String(c.downed.cont||""),area:String(c.downed.area||""),sub:String(c.downed.sub||""),place:String(c.downed.place||""),revive:c.downed.revive&&typeof c.downed.revive==="object"?{...c.downed.revive}:null,dead:!!c.downed.dead}:null;
+ o.downed=c.downed&&typeof c.downed==="object"&&isFinite(+c.downed.until)?{since:Math.max(0,+c.downed.since||0),until:+c.downed.until,startedAt:(c.downed.startedAt!=null&&isFinite(+c.downed.startedAt))?+c.downed.startedAt:null,cont:String(c.downed.cont||""),area:String(c.downed.area||""),sub:String(c.downed.sub||""),place:String(c.downed.place||""),revive:c.downed.revive&&typeof c.downed.revive==="object"?{...c.downed.revive}:null,dead:!!c.downed.dead}:null;
  const jt=JOB_TRAITS[c.job]||JOB_TRAITS[JOB_ALIAS[c.job]]||{};
  const th=o.traits.reduce((a,t)=>a+((TRAITS[t]&&TRAITS[t].hp)||0),0),tm=o.traits.reduce((a,t)=>a+((TRAITS[t]&&TRAITS[t].mp)||0),0),thg=o.traits.reduce((a,t)=>a+((TRAITS[t]&&TRAITS[t].hunger)||0),0);
  const st=o.stats||[],vit=Math.max(1,Math.round(+st[4]||BASE)),int=Math.max(1,Math.round(+st[2]||BASE));
@@ -1364,9 +1449,21 @@ function showDeathWill(c,d){
  btn.onclick=async()=>{
   const will=(document.getElementById("willIn").value||"").trim().slice(0,30);
   btn.disabled=true;
-  try{await finalizeDeath(me.uid,acc,{will,downed:d,name:c.name});go("create")}
+  try{logOfflineEvent(me.uid,c,"death",`사망 · ${d.place||""}`,{...d,will,hp:c.hp,mp:c.mp,hunger:c.hunger,fx:(c.fx||[]).map(f=>f&&(f.label||f.n))});await finalizeDeath(me.uid,acc,{will,downed:d,name:c.name});go("create")}
   catch(e){console.error(e);document.getElementById("err").textContent="사망 처리에 실패했습니다.";btn.disabled=false}
  };
+}
+function logOfflineEvent(uid,c,type,text,data){
+ try{
+  if(!uid||!c)return;
+  const cid=Math.max(0,Math.floor(+c.createdAt||0)),seqKey="everfall_logseq_"+uid+"_"+cid;
+  let seq=Math.max(0,+c.logSeq||0)+1;
+  try{const ls=+localStorage.getItem(seqKey);if(isFinite(ls)&&ls>seq)seq=ls}catch(e){}
+  try{localStorage.setItem(seqKey,String(seq))}catch(e){}
+  const entry={at:Date.now(),type:String(type||"event").slice(0,24),text:String(text||"").slice(0,240),name:String(c.name||"").slice(0,16)};
+  if(data&&typeof data==="object"&&Object.keys(data).length)entry.data=data;
+  S.setLog(uid,cid,seq%200,entry).catch(()=>{});
+ }catch(e){}
 }
 async function play(){const save=s=>{acc.character={...acc.character,...s};S.setAcc(me.uid,acc).catch(()=>{})};
  try{let c=norm(acc.character),d=null,dOk=false;
@@ -1375,16 +1472,28 @@ async function play(){const save=s=>{acc.character={...acc.character,...s};S.set
    c=norm(acc.character);
    c.hp=c.hp||[0,100];c.hp[0]=Math.min(c.hp[1],(+c.hp[0]||0)+30);
    c.hunger=c.hunger||[0,100];c.hunger[0]=Math.min(c.hunger[1],(+c.hunger[0]||0)+30);
+   c.downed=null;
    acc.character=c;await S.setAcc(me.uid,acc);await S.delDowned(me.uid).catch(()=>{});
    d=null;toast("누군가 당신을 소생시켰습니다.");
   }
   let cur=dOk?d:(c.downed||null);
   const revived=!!(cur&&cur.revive&&+cur.revive.at<=+cur.until);
-  if(cur&&!revived&&(+cur.until||0)<=Date.now()){
-   const now=Date.now();
-   cur={...cur,name:cur.name||c.name,cont:cur.cont||c.cont,area:cur.area||c.area,sub:cur.sub||"",place:cur.place||c.place||"",since:now,until:now+90*60000,revive:null,dead:false};
-   c.downed=cur;acc.character=c;
-   try{await S.setAcc(me.uid,acc);await S.setDowned(me.uid,cur)}catch(e){console.warn("offline downed reset",e)}
+  if(cur&&!revived){
+   const until=+cur.until||0,since=+cur.since||0;
+   // startedAt이 0/없음 = 미접속 중 쓰러짐 → 접속 시 90분 시작. startedAt이 있으면 이미 시작된 카운트.
+   const started=cur.startedAt!=null?+cur.startedAt>0:(since>0&&until>since);
+   if(cur.dead||(started&&until<=Date.now())){
+    c.downed=cur;
+    showDeathWill(c,cur);
+    resumeSet(false);
+    return "death";
+   }
+   if(!started){
+    const now=Date.now();
+    cur={...cur,name:cur.name||c.name,cont:cur.cont||c.cont,area:cur.area||c.area,sub:cur.sub||"",place:cur.place||c.place||"",since:now,until:now+90*60000,startedAt:now,revive:null,dead:false};
+    c.downed=cur;acc.character=c;
+    try{await S.setAcc(me.uid,acc);await S.setDowned(me.uid,cur)}catch(e){console.warn("offline downed start",e)}
+   }
   }
   const active=cur&&!revived&&+cur.until>Date.now()?cur:null;
   game=startGame(c,{admin:me.admin,uid:me.uid,save,downed:active,
@@ -1578,7 +1687,7 @@ const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||cha
  downed:opts.downed!==undefined?opts.downed:(char.downed&&typeof char.downed==="object"&&isFinite(+char.downed.until)?{...char.downed}:null),deadPending:false,
  expLogs:cp(Array.isArray(char.expLogs)?char.expLogs.slice(-200):[]),expMeta:char.expMeta&&typeof char.expMeta==="object"?{...char.expMeta}:null,
  expArchive:cp(Array.isArray(char.expArchive)?char.expArchive.slice(0,1):[]),
- walkDay:typeof char.walkDay==="string"?char.walkDay:"",walkMin:Math.max(0,+char.walkMin||0),walkRolls:Math.max(0,Math.floor(+char.walkRolls||0)),potionGrant:!!char.potionGrant};
+ walkDay:typeof char.walkDay==="string"?char.walkDay:"",walkMin:Math.max(0,+char.walkMin||0),walkRolls:Math.max(0,Math.floor(+char.walkRolls||0)),potionGrant:!!char.potionGrant,potionGrant20:!!char.potionGrant20};
 const uid=opts.uid||null;
 // ---- 관리자 전용 활동 로그 (캐릭터별 링 버퍼) ----
 const LOG_SLOTS=200,charId=Math.max(0,Math.floor(+char.createdAt||0));
@@ -1862,6 +1971,7 @@ function encounterCount(kind,min){
 }
 function resolveExp(partial=false){
  const e=me.expedition;if(!e)return;
+ const hpBefore=+me.hp[0]||0,hungerBefore=+me.hunger[0]||0,fxBefore=(me.fx||[]).map(f=>f&&(f.label||f.n));
  catchUpExp();
  const startedAt=e.end-e.min*60000,elapsed=Math.max(0,Math.min(e.min,(Date.now()-startedAt)/60000));
  me.expedition=null;
@@ -1899,7 +2009,7 @@ function resolveExp(partial=false){
    defeated=true;
    if(isBoss){me.hp[0]=1;party[0].hp=1;bossDefeat=true;logAct(`[보스] ${mon.name} · ${res.rounds}턴 패배 · HP 1 귀환`)}
    else{me.hp[0]=0;party[0].hp=0;logAct(`전투: ${tag}${mon.name} · ${res.rounds}턴 패배`)}
-   logChar("battle",`탐사 패배 · ${tag}${mon.name} (${res.rounds}턴)`,{monster:mon.name,role:mon.role,rounds:res.rounds,kind:e.kind,tier,hp:me.hp[0],maxHp:me.hp[1],boss:isBoss,fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
+   logChar("battle",`탐사 패배 · ${tag}${mon.name} (${res.rounds}턴)`,{monster:mon.name,role:mon.role,rounds:res.rounds,kind:e.kind,tier,before,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],mp:me.mp.slice(),hunger:me.hunger.slice(),boss:isBoss,status:"lose",fx:(me.fx||[]).map(f=>f&&(f.label||f.n)),expLogs:(me.expLogs||[]).slice(-10)});
   }
   return res;
  };
@@ -1950,6 +2060,8 @@ function resolveExp(partial=false){
  }
  spendHunger(Math.max(0,segs)*2);
  barsRender();renderStatus();bag();renderAll();
+ const fxNow=(me.fx||[]).map(f=>f&&(f.label||f.n)),fxAdded=fxNow.filter(x=>x&&!fxBefore.includes(x)),fxRemoved=fxBefore.filter(x=>x&&!fxNow.includes(x));
+ logChar("expedition",`${cfg.label} ${partial?"중도 귀환":"완료"} · 계획 ${e.min}분 · 아이템 ${found.length}개 · 조우 ${enc}회 · HP ${hpBefore} → ${me.hp[0]}/${me.hp[1]} · 허기 ${hungerBefore} → ${me.hunger[0]}/${me.hunger[1]}`,{kind:e.kind,min:e.min,elapsed:Math.floor(elapsed),partial,area:(areaObj&&areaObj.name)||e.area,found,lost,encounters:enc,battles:battleLogs.length,wins:battleLogs.filter(b=>b.win).length,dmg,box,defeated,before:hpBefore,after:me.hp[0],hp:me.hp.slice(),mp:me.mp.slice(),hungerBefore,hungerAfter:me.hunger[0],hunger:me.hunger.slice(),xp:gain,skillXp:skillGain,fx:fxNow,fxAdded,fxRemoved,expLogs:(me.expLogs||[]).slice(-10)});
  clearProposal();
  if(me.hp[0]<=0||me.hunger[0]<=0){triggerDowned();return}
  const lines=[];
@@ -2194,7 +2306,7 @@ function tickStatus(){
   }
  });
  if(removed.length){me.fx=me.fx.filter(f=>f&&(!f.exp||now<f.exp));changed=true;removed.forEach(n=>toast(`‘${n}’ 상태가 만료되었다.`))}
- if((+me.hp[0]||0)<hpBefore&&now-lastDotLog>=60000){lastDotLog=now;const dotFx=(me.fx||[]).filter(f=>{const d=f&&STATUS_DB[f.id],E=f&&f.ef||d&&d.ef||{};return ((E.hpDot10||0)*(+f.stacks||1))<0}).map(f=>`${f.label||f.n}${(+f.stacks||1)>1?`×${f.stacks}`:""}`);logChar("dot",`지속 피해 · HP ${hpBefore} → ${me.hp[0]}`,{before:hpBefore,after:me.hp[0],fx:dotFx})}
+ if((+me.hp[0]||0)<hpBefore&&now-lastDotLog>=60000){lastDotLog=now;const dotFx=(me.fx||[]).filter(f=>{const d=f&&STATUS_DB[f.id],E=f&&f.ef||d&&d.ef||{};return ((E.hpDot10||0)*(+f.stacks||1))<0}).map(f=>`${f.label||f.n}${(+f.stacks||1)>1?`×${f.stacks}`:""}`);logChar("dot",`지속 피해 · HP ${hpBefore} → ${me.hp[0]}`,{before:hpBefore,after:me.hp[0],maxHp:me.hp[1],hunger:me.hunger.slice(),mp:me.mp.slice(),fx:dotFx})}
  if(changed){checkVitals();try{syncVitals()}catch(e){}}
  checkVitals();
 }
@@ -3118,6 +3230,11 @@ function syncVitals(){applyDerivedVitals();barsRender();try{renderStatus()}catch
 // ---- 휴식 ----
 const REST_OPTIONS=[{m:30,hp:5,mp:2},{m:60,hp:10,mp:6},{m:180,hp:35,mp:20},{m:360,hp:70,mp:50}];
 function atHub(){return me.area!=="cap"&&!!(curSub()&&curSub().hub)}
+function merchantHere(){
+ if(me.cont==="마왕성"){const g=W().gate;return !!g&&me.area===g.id&&!!(curSub()&&curSub().hub)}
+ if(me.area==="cap")return true;
+ return !!(curSub()&&curSub().hub)
+}
 function restGain(hp,mp){
  const rest=Math.max(-.5,Math.min(.5,traitTotal("rest"))),st=calcStats(me),tools=toolMods();
  return {
@@ -3209,22 +3326,22 @@ function triggerDowned(){
  const expLog=me.expedition?{kind:me.expedition.kind,min:me.expedition.min,end:me.expedition.end}:null,travLog=!!me.travel,restLog=!!me.rest;
  if(me.travel||me.rest||me.expedition){me.travel=null;me.rest=null;me.expedition=null}
  const now=Date.now(),until=now+90*60000,place=locText().slice(0,80);
- me.downed={since:now,until,cont:me.cont,area:me.area,sub:me.sub||"",place,revive:null,dead:false};
+ me.downed={since:now,until,startedAt:now,cont:me.cont,area:me.area,sub:me.sub||"",place,revive:null,dead:false};
  me.deadPending=false;
  if(battle){battle=null;try{closePop()}catch(e){}}
  if(uid){
-  S.setDowned(uid,{name:me.name,cont:me.cont,area:me.area,sub:me.sub||"",place,since:now,until}).catch(e=>console.warn("downed",e));
+  S.setDowned(uid,{name:me.name,cont:me.cont,area:me.area,sub:me.sub||"",place,since:now,until,startedAt:now}).catch(e=>console.warn("downed",e));
   push(ref(realtimeDB,"chat/world"),{uid,name:"시스템",t:`${place}에 누군가 쓰러졌다. 아직 숨이 붙어있다.`,at:now,sys:"downed",place}).catch(e=>console.warn("downedChat",e));
  }
  try{opts.save(cp(snap()))}catch(e){}
  syncPresence(true);updateDownedBar();bag();renderAll();try{render()}catch(e){}subscribeOwnDowned();
- logChar("downed",`쓰러짐 · ${why==="hunger"?"허기 0":why==="hp"?"HP 0":"원인 불명"} · ${place}`,{why,hp:me.hp.slice(),hunger:me.hunger.slice(),place,area:me.area,sub:me.sub||"",fx:(me.fx||[]).map(f=>f&&(f.label||f.n)),expedition:expLog,travel:travLog,rest:restLog,expLogs:(me.expLogs||[]).slice(-10)});
+ logChar("downed",`쓰러짐 · ${why==="hunger"?"허기 0":why==="hp"?"HP 0":"원인 불명"} · ${place}`,{why,hp:me.hp.slice(),mp:me.mp.slice(),hunger:me.hunger.slice(),place,area:me.area,sub:me.sub||"",fx:(me.fx||[]).map(f=>f&&(f.label||f.n)),expedition:expLog,travel:travLog,rest:restLog,expLogs:(me.expLogs||[]).slice(-10)});
  toast("쓰러졌다… 90분 안에 소생이 필요하다.");
 }
 function applyRevive(rev){
  if(!me.downed)return;
  if(rev&&+rev.at>+me.downed.until)return;
- const self=!!(rev&&rev.self);
+ const self=!!(rev&&rev.self),hpBefore=+me.hp[0]||0,hungerBefore=+me.hunger[0]||0;
  me.downed=null;
  if(self){const target=Math.max(30,Math.round(me.hp[1]*0.3));me.hp[0]=Math.min(me.hp[1],Math.max(+me.hp[0]||0,target))}
  else me.hp[0]=Math.min(me.hp[1],(+me.hp[0]||0)+30);
@@ -3232,7 +3349,7 @@ function applyRevive(rev){
  if(uid)S.delDowned(uid).catch(()=>{});
  try{opts.save(cp(snap()))}catch(e){}
  syncVitals();syncPresence(true);updateDownedBar();renderAll();try{render()}catch(e){}
- logChar("revive",self?"자가 소생":`소생됨${rev&&rev.fromName?" · "+rev.fromName:""}`,{self,hp:me.hp.slice(),hunger:me.hunger.slice()});
+ logChar("revive",self?"자가 소생":`소생됨${rev&&rev.fromName?" · "+rev.fromName:""}`,{self,before:hpBefore,after:me.hp[0],hp:me.hp.slice(),mp:me.mp.slice(),hungerBefore,hungerAfter:me.hunger[0],hunger:me.hunger.slice(),fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
  modal(self?"자가 소생":"소생",self?"소생약으로 스스로 일어났습니다. HP 30% · 허기 +30":`누군가 당신을 소생시켰습니다. HP +30 · 허기 +30`);
 }
 function selfRevive(){
@@ -3244,7 +3361,7 @@ function selfRevive(){
  applyRevive({at:Date.now(),self:true});
 }
 function showWillPop(msg){
- pop("유언",`<p>당신은 쓰러진 채 숨을 거두었습니다.</p><p class="dim">마지막으로 남길 말을 입력하세요. (최대 30자)</p><input type="text" id="willIn" maxlength="30" placeholder="유언을 남겨 주세요">${msg?`<p style="color:var(--bad);margin-top:8px">${esc(msg)}</p>`:""}`,[{t:"유언 남기기",c:"bad",fn:async()=>{const will=($("willIn")&&$("willIn").value||"").trim().slice(0,30);logChar("will",`유언 · ${will||"(없음)"}`,{will,place:me.deathState&&me.deathState.place});try{await opts.die({will,downed:me.deathState,name:me.name,items:cp(me.inv),equipped:cp(me.equipped)})}catch(e){console.error(e);toast("사망 처리에 실패했습니다. 다시 시도해 주세요.");showWillPop("사망 처리에 실패했습니다. 다시 시도해 주세요.")}}},true]);
+ pop("유언",`<p>당신은 쓰러진 채 숨을 거두었습니다.</p><p class="dim">마지막으로 남길 말을 입력하세요. (최대 30자)</p><input type="text" id="willIn" maxlength="30" placeholder="유언을 남겨 주세요">${msg?`<p style="color:var(--bad);margin-top:8px">${esc(msg)}</p>`:""}`,[{t:"유언 남기기",c:"bad",fn:async()=>{const will=($("willIn")&&$("willIn").value||"").trim().slice(0,30);logChar("will",`유언 · ${will||"(없음)"}`,{will,place:me.deathState&&me.deathState.place,hp:me.hp.slice(),mp:me.mp.slice(),hunger:me.hunger.slice()});try{await opts.die({will,downed:me.deathState,name:me.name,items:cp(me.inv),equipped:cp(me.equipped)})}catch(e){console.error(e);toast("사망 처리에 실패했습니다. 다시 시도해 주세요.");showWillPop("사망 처리에 실패했습니다. 다시 시도해 주세요.")}}},true]);
 }
 async function beginDeath(){
  if(!me.downed||me.deadPending)return;
@@ -3257,7 +3374,7 @@ async function beginDeath(){
  }
  if(!me.downed){me.deadPending=false;return}
  me.deathState={...me.downed};me.downed=null;
- logChar("death",`사망 · ${me.deathState.place||""}`,{...me.deathState,hp:me.hp.slice(),hunger:me.hunger.slice(),fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
+ logChar("death",`사망 · ${me.deathState.place||""}`,{...me.deathState,hp:me.hp.slice(),mp:me.mp.slice(),hunger:me.hunger.slice(),fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
  if(uid)S.setDowned(uid,{...me.deathState,name:me.name,dead:true}).catch(()=>{});
  try{if(presenceRef)remove(presenceRef).catch(()=>{})}catch(e){}
  updateDownedBar();renderAll();
@@ -3298,7 +3415,7 @@ async function attemptRevive(targetUid,targetName,d){
 $("selfRevive").onclick=selfRevive;
 T(checkDowned,1000);
 applyDerivedVitals();barsRender();
-logChar("session",`접속 · HP ${me.hp[0]}/${me.hp[1]} · 허기 ${me.hunger[0]}/${me.hunger[1]}`,{hp:me.hp.slice(),hunger:me.hunger.slice(),area:locText(),fx:(me.fx||[]).map(f=>f&&(f.label||f.n)),expedition:me.expedition?{kind:me.expedition.kind,min:me.expedition.min}:null,travel:!!me.travel,rest:!!me.rest,downed:!!me.downed,partyId:me.partyId||null});
+logChar("session",`접속 · HP ${me.hp[0]}/${me.hp[1]} · 정신력 ${me.mp[0]}/${me.mp[1]} · 허기 ${me.hunger[0]}/${me.hunger[1]}`,{hp:me.hp.slice(),mp:me.mp.slice(),hunger:me.hunger.slice(),area:locText(),fx:(me.fx||[]).map(f=>f&&(f.label||f.n)),expedition:me.expedition?{kind:me.expedition.kind,min:me.expedition.min}:null,travel:!!me.travel,rest:!!me.rest,downed:!!me.downed,partyId:me.partyId||null,lv:me.lv,gold:me.gold,traits:me.traits.slice(),expLogs:(me.expLogs||[]).slice(-10)});
 if(me.downed){subscribeOwnDowned();updateDownedBar();if(me.downed.revive)setTimeout(()=>applyRevive(me.downed.revive),100)}
 
 // 팝업
@@ -3741,8 +3858,8 @@ function desc(){const w=W(),d=!!view.area,a=d?AR(view.area):AR(view.sel||me.area
  document.querySelectorAll("#longdurs .mode,#dundurs .mode").forEach(b=>b.disabled=busy);
  const expState=me.expedition?"탐사 중":me.travel?"이동 중":me.rest?"휴식 중":"시작";
  $("longgo").textContent=expState;$("dungo").textContent=expState;
- const lockNow=!!me.rest||!!me.expedition;["trade","atrade","etrade","strade","srepair","cure","traitCure","buyHorse","buyFeed"].forEach(id=>{const b=$(id);if(b)b.disabled=lockNow});
- const cp=me.area==="cap";$("market").hidden=!(cp&&me.cont==="카르도르");$("amarket").hidden=!(cp&&me.cont==="아르케인");$("emarket").hidden=$("smithy").hidden=!(cp&&me.cont==="엘리시아");$("clinic").hidden=!(cp&&me.cont==="솔레니아");
+ const lockNow=!!me.rest||!!me.expedition;["trade","atrade","etrade","strade","srepair","merchantTrade","cure","traitCure","buyHorse","buyFeed"].forEach(id=>{const b=$(id);if(b)b.disabled=lockNow});
+ const cp=me.area==="cap";$("market").hidden=!(cp&&me.cont==="카르도르");$("amarket").hidden=!(cp&&me.cont==="아르케인");$("emarket").hidden=$("smithy").hidden=!(cp&&me.cont==="엘리시아");$("clinic").hidden=!(cp&&me.cont==="솔레니아");$("secretMerchant").hidden=!merchantHere();
  $("fishing").hidden=!(me.area==="dock"||me.area==="beach");$("mining").hidden=me.area!=="mine";$("rest").hidden=!atHub();
  const s=curSub(),g=w.gate;$("stable").hidden=!(g&&me.area===g.id&&s&&s.hub&&me.cont!=="마왕성"&&!busy);$("cont").hidden=!(g&&me.area===g.id&&s&&s.hub&&!busy);
  if($("csel").dataset.c!==me.cont){$("csel").dataset.c=me.cont;$("csel").innerHTML=Object.keys(WORLD).filter(k=>k!==me.cont&&WORLD[k].gate).map(k=>`<option>${k}</option>`).join("")}
@@ -3957,7 +4074,7 @@ function renderPartyBattle(snap){
  if(snap.id&&battle&&battle.id===snap.id)return;
  const synced=!!snap.proposalId;
  const mine=synced?null:(snap.players||[]).find(p=>p.uid===uid);
- if(mine){const before=+me.hp[0]||0;me.hp[0]=Math.max(me.downed?0:1,+mine.hp||0);me.hp[1]=Math.max(1,+mine.maxHp||100);if(me.hp[0]<before&&Date.now()-lastPartyLog>=30000){lastPartyLog=Date.now();logChar("party",`파티 전투 동기화 · HP ${before} → ${me.hp[0]}`,{before,after:me.hp[0],battleId:snap.id||null,monster:snap.monster&&snap.monster.name,status:snap.status})}barsRender()}
+ if(mine){const before=+me.hp[0]||0;me.hp[0]=Math.max(me.downed?0:1,+mine.hp||0);me.hp[1]=Math.max(1,+mine.maxHp||100);if(me.hp[0]<before&&Date.now()-lastPartyLog>=30000){lastPartyLog=Date.now();logChar("party",`파티 전투 피해 · HP ${before} → ${me.hp[0]}`,{before,after:me.hp[0],maxHp:me.hp[1],mp:me.mp.slice(),hunger:me.hunger.slice(),battleId:snap.id||null,monster:snap.monster&&snap.monster.name,status:snap.status})}barsRender()}
  if(!synced&&(snap.status==="win"||snap.status==="lose")&&snap.result&&partyAppliedBattle!==snap.id){
   const r=snap.result;
   if(snap.status==="win"){
@@ -3991,7 +4108,7 @@ function encounterMonster(mon,opts={}){
 function startBattle(mon,opts={}){
  try{$("modal").hidden=true}catch(e){}
  const st=calcStats(me),star=Math.max(1,Math.floor(+opts.star||battleStars())),scaled=scaleMonster(mon,star,{mode:"short",partySize:1}),hp=scaled.hp,atk=scaled.atk,def=scaled.def;
- battle={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),mon:{...scaled,maxHp:hp,hp,atk,def},star,source:opts.source||"fieldNormal",areaObj:opts.areaObj||null,difficulty:"normal",boss:false,bossRole:false,partySize:1,allies:[],log:[],miss:0,evaded:0,done:false,skill:"melee",win:false,result:null,sync:false,potionCd:0};
+ battle={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),mon:{...scaled,maxHp:hp,hp,atk,def},star,source:opts.source||"fieldNormal",areaObj:opts.areaObj||null,difficulty:"normal",boss:false,bossRole:false,partySize:1,allies:[],log:[],miss:0,evaded:0,done:false,skill:"melee",win:false,result:null,sync:false,potionCd:0,startHp:me.hp[0],startFx:(me.fx||[]).map(f=>f&&(f.label||f.n))};
  const tag=mon.role==="정예"?"[정예] ":mon.role==="보스"?"[보스] ":"";
  battleLog(`${tag}${mon.name}이(가) 나타났다.`);
  if(mon.speed>st.speed){battleLog("몬스터가 먼저 움직인다.");monsterStrike()}
@@ -4105,6 +4222,8 @@ function finishBattle(win){
  if(me.downed){battle=null;bag();renderAll();return}
  const m=battle.mon;battle.done=true;
  const hpRatio=me.hp[1]>0?me.hp[0]/me.hp[1]:0;let newBad="";
+ const hpBefore=+me.hp[0]||0;
+ const fxNow=(me.fx||[]).map(f=>f&&(f.label||f.n)),fxAdded=fxNow.filter(x=>x&&!(battle.startFx||[]).includes(x)),fxRemoved=(battle.startFx||[]).filter(x=>x&&!fxNow.includes(x));
  if(!win)me.hp[0]=1;
  if(win){
   if(hpRatio<=.2)tryGoodTrait("튼튼함");
@@ -4125,11 +4244,12 @@ function finishBattle(win){
   const loot=capBattleLoot(rollLoot(battle.star,battle.source,m.grade,battle.areaObj),battle.star),got=[];
   for(const n of loot){registerItem(n);const item=lootObj(n);if(canAdd(item)){addItem(item);got.push(n)}}
   if(got.some(n=>ITEM_GRADES.indexOf((info(n).grade||""))>=ITEM_GRADES.indexOf("희귀")))tryGoodTrait("행운아");
+  logChar("battle",`전투 승리 · ${m.name}`,{monster:m.name,role:m.role,source:battle.source||null,star:battle.star||null,before:battle.startHp??hpBefore,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],mp:me.mp.slice(),hunger:me.hunger.slice(),status:"win",loot:got,xp,badTrait:newBad||null,fx:fxNow,fxAdded,fxRemoved});
   bag();renderStatus();barsRender();
   pop("승리",`<p><b>${esc(m.name)}</b>을(를) 쓰러뜨렸다.</p><p>경험치 +${xp}</p>${got.length?`<p><b>획득</b> ${esc(tally(got))}</p>`:'<p class="dim">획득한 아이템은 없다.</p>'}${badLine}`,[{t:"확인",fn:()=>{battle=null;bag();renderAll()}}],true);
  }else{
   battle.win=false;me.hp[0]=1;barsRender();
-  logChar("battle",`전투 패배 · ${m.name}`,{monster:m.name,source:battle.source||null,star:battle.star||null,hp:me.hp[0],maxHp:me.hp[1],fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
+  logChar("battle",`전투 패배 · ${m.name}`,{monster:m.name,role:m.role,source:battle.source||null,star:battle.star||null,before:battle.startHp??hpBefore,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],mp:me.mp.slice(),hunger:me.hunger.slice(),status:"lose",badTrait:newBad||null,fx:fxNow,fxAdded,fxRemoved});
   pop("패배",`<p>${esc(m.name)}에게 쓰러졌다.</p><p class="dim">간신히 목숨만 건졌다. HP 1로 귀환한다.</p>${badLine}`,[{t:"확인",fn:()=>{battle=null;bag();renderAll()}}],true);
  }
 }
@@ -4145,10 +4265,12 @@ $("explore").onclick=()=>{if(actionLock("휴식 중에는 탐사할 수 없습�
  const tm=toolMods(),trapChance=.05*Math.max(.15,1-Math.min(.85,(tm.trapFindPct||0)/100));
  if(Math.random()<trapChance){
   const dmg=Math.max(1,Math.round(me.hp[1]*.05*Math.max(.2,1-Math.min(.8,(tm.trapDamageRed||0)/100))));
+  const hpBefore=+me.hp[0]||0;
   me.hp[0]=Math.max(1,me.hp[0]-dmg);barsRender();
-  logChar("trap",`함정 피해 -${dmg} · HP ${me.hp[0]}/${me.hp[1]}`,{dmg,hp:me.hp[0],maxHp:me.hp[1],area:me.area,sub:me.sub||""});
+  let statusAdded=null;
   let msg=`함정에 걸렸다. HP -${dmg}`;
-  if(Math.random()<.15){applyStatus("wound",{silent:true});msg+=" · 상처 상태이상"}
+  if(Math.random()<.15){applyStatus("wound",{silent:true});statusAdded="상처";msg+=" · 상처 상태이상"}
+  logChar("trap",`함정 피해 -${dmg} · HP ${hpBefore} → ${me.hp[0]}${statusAdded?` · ${statusAdded}`:""}`,{dmg,before:hpBefore,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],mp:me.mp.slice(),hunger:me.hunger.slice(),statusAdded,area:me.area,sub:me.sub||"",fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
   modal("함정",msg);bag();return
  }
  if(r<.6){
@@ -4936,6 +5058,7 @@ function clock(){const n=new Date();
  $("trade").disabled=tv||!mOpen();$("mstat").textContent=mOpen()?" · 영업 중":" · 영업 종료";
  $("atrade").disabled=tv||!ark;$("amstat").textContent=ark?" · 오늘 열림":" · 오늘은 열리지 않음";
  ["etrade","strade","srepair"].forEach(i=>$(i).disabled=tv||!eli);["emstat","smstat"].forEach(i=>$(i).textContent=es);
+ if($("merchantTrade"))$("merchantTrade").disabled=tv||!!me.expedition||!!me.rest;
  ["cure","traitCure"].forEach(i=>$(i).disabled=tv||!sole);$("clstat").textContent=sole?" · 오늘 열림":" · 오늘은 쉬는 날";
   const sOpen=stableOpen();["buyHorse","buyFeed"].forEach(i=>$(i).disabled=tv||!sOpen);
   $("ststat").textContent=sOpen?" · 영업 중":" · 영업 종료";
@@ -4947,13 +5070,13 @@ function clock(){const n=new Date();
  if($("reststat"))$("reststat").textContent=me.rest?` · 휴식 중 ${Math.ceil(rl/60000)}분 남음`:!rh?" · 거점에서만 가능":""}
 T(clock,1000);
 const SMITH=[["철검",60],["단궁",45],["가죽 갑옷",50],["철제 방패",55]],isEq=n=>SMITH.some(x=>x[0]===n);
-const GOODS=[["통조림",12],["생수",8],["붕대",15],["부목",20],["해독제",20],["정화 향",25],["소생약",35],["약초",8],["건전지",10],["고철",5],["마력 전지",30],["먹이",6],["마력석",40],["각설탕",18],["마법 개조석",75]];
+const GOODS=[["통조림",12],["생수",3],["붕대",15],["부목",20],["해독제",20],["정화 향",25],["소생약",35],["약초",3],["건전지",10],["고철",5],["마력 전지",30],["먹이",6],["마력석",40],["각설탕",18],["마법 개조석",75]];
 const today=()=>new Intl.DateTimeFormat("sv",{timeZone:"Asia/Seoul"}).format(new Date());
 const price=(n,b)=>{let h=0;for(const c of today()+n)h=(h*31+c.charCodeAt(0))>>>0;return Math.max(1,Math.round(b*(0.8+(h%41)/100)))};
 const MARKET_CATS=["재료","소모품","도구","장비"];
 const MARKET_GRADE_BASE={"일반":15,"고급":60,"희귀":180,"영웅":750};
 const MARKET_CAT_MULT={재료:.8,소모품:1,도구:1.5,장비:2.2};
-const marketBasePrice=d=>Math.max(1,Math.round((MARKET_GRADE_BASE[d.grade]||15)*(MARKET_CAT_MULT[d.category]||1)));
+const marketBasePrice=d=>{if(d&&(d.name==="약초"||d.name==="생수"))return 3;return Math.max(1,Math.round((MARKET_GRADE_BASE[d.grade]||15)*(MARKET_CAT_MULT[d.category]||1)))};
 function marketRng(seed){let a=seed>>>0;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296}}
 function marketSeed(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return h>>>0}
 function marketGoods(which){
@@ -4973,6 +5096,19 @@ function marketGoods(which){
  }
  return out;
 }
+function merchantGoods(){
+ // 일반 회복 포션 고정 12G: 약초 3G×2 + 생수 3G = 9G보다 비싸게. 랜덤 3종은 일반 97%, 고급 2.5%, 희귀 0.5%.
+ const rng=marketRng(marketSeed(today()+"|merchant|"+me.cont+"|"+me.area+"|"+(me.sub||"cap")));
+ const out=[["일반 회복 포션",12,1]],seen=new Set(["일반 회복 포션"]);
+ for(let i=0;i<3;i++){
+  const r=rng(),g=r<.97?"일반":r<.995?"고급":"희귀";
+  let pool=ITEM_DATA.filter(x=>x.grade===g&&MARKET_CATS.includes(x.category)&&(x.field!=="없음"||x.dungeon!=="없음")&&!seen.has(x.name));
+  if(!pool.length)pool=ITEM_DATA.filter(x=>x.grade==="일반"&&MARKET_CATS.includes(x.category)&&(x.field!=="없음"||x.dungeon!=="없음")&&!seen.has(x.name));
+  if(!pool.length)break;
+  const d=pool[Math.floor(rng()*pool.length)];seen.add(d.name);out.push([d.name,marketBasePrice(d)]);
+ }
+ return out;
+}
 let curGoods=GOODS,tradeOpen=null;
 const tmsg=t=>$("tmsg").textContent=t;
 // 판매가는 구매가의 약 35% 수준. 상인 계열 보정은 이 위에 적용된다.
@@ -4980,13 +5116,14 @@ const SELL_RATE=.35;
 const buyP=p=>Math.max(1,Math.round(p*(JT().buy||1)*traitProduct("buy"))),sellP=p=>Math.max(1,Math.round(p*SELL_RATE*(JT().sell||1)*traitProduct("sell")*(1+(toolMods().sellPct||0)/100)));
 function tradeRender(){
  $("tg").textContent=me.gold+" G";
- $("tl").innerHTML=curGoods.map(([n,b])=>{const p=price(n,b),own=count(n),bu=buyP(p),se=sellP(p),op=tradeOpen===n;
+ $("tl").innerHTML=curGoods.map(g=>{const [n,b,fixed]=g,p=fixed?b:price(n,b),own=count(n),bu=buyP(p),se=sellP(p),op=tradeOpen===n;
   return `<div class="tr"><button type="button" class="tname" data-name="${n}" aria-expanded="${op}">${n}<span class="tcaret">▾</span><small>보유 ${own} · 판매 ${se} G</small></button><b>${bu} G</b><button class="btn" data-a="buy" data-n="${n}" data-p="${p}">산다</button><button class="btn alt" data-a="sell" data-n="${n}" data-p="${p}" ${own?"":"disabled"}>판다</button>${op?`<div class="teff">${effText(n)}</div>`:""}</div>`}).join("")}
-function openTrade(t,g){if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");if(actionLock("휴식 중에는 거래할 수 없습니다."))return;curGoods=g;tradeOpen=null;$("ttitle").textContent=t;tradeRender();tmsg("");$("tmodal").hidden=false}
+function openTrade(t,g){if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");if(me.travel)return toast("이동 중에는 거래할 수 없습니다.");if(actionLock("휴식 중에는 거래할 수 없습니다."))return;curGoods=g;tradeOpen=null;$("ttitle").textContent=t;tradeRender();tmsg("");$("tmodal").hidden=false}
 $("trade").onclick=()=>openTrade("시장 거래",marketGoods("kardor"));
 $("etrade").onclick=()=>openTrade("시장 거래",marketGoods("elis"));
 $("atrade").onclick=()=>openTrade("만민의 광장 시장",marketGoods("ark"));
 $("strade").onclick=()=>openTrade("대장간 거래",SMITH);
+$("merchantTrade").onclick=()=>{if(!merchantHere())return toast("이곳에는 상인이 없습니다.");openTrade("상인 거래",merchantGoods())};
 $("buyHorse").onclick=()=>{
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");
  if(me.travel)return toast("이동 중에는 마굿간을 이용할 수 없습니다.");
@@ -5329,7 +5466,7 @@ const pubProfile=()=>({name:me.name,job:me.job,origin:me.origin,day:me.day,color
 let lastProfile=JSON.stringify(pubProfile()),profileAt=0;
 if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(uid,p).catch(()=>{})}
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20});
 // 기존 캐릭터 1회 지급: 이동속도 증가 포션 20개
 const SPEED_POTION_GRANT_CUTOFF=Date.parse("2026-11-07T23:59:59+09:00");
 if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
@@ -5346,6 +5483,14 @@ if(!me.potionGrant&&(+char.createdAt||0)<POTION_GRANT_CUTOFF){
  me.potionGrant=true;
  try{bag()}catch(e){}
  try{toast("일반 회복 포션 5개가 지급되었습니다.")}catch(e){}
+ try{opts.save(cp(snap()))}catch(e){}
+}
+// 기존 캐릭터 1회 지급: 일반 회복 포션 20개 (신규 캐릭터는 make에서 true)
+if(!me.potionGrant20){
+ for(let i=0;i<20;i++)me.inv.push("일반 회복 포션");
+ me.potionGrant20=true;
+ try{bag()}catch(e){}
+ try{toast("일반 회복 포션 20개가 지급되었습니다.")}catch(e){}
  try{opts.save(cp(snap()))}catch(e){}
 }
 let last=JSON.stringify(snap());
