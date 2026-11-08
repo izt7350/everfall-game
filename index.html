@@ -2070,7 +2070,7 @@ function resolveExp(partial=false){
    const xp=partyXp(mon.xp||40,party.length);gain+=xp;gainPlayerXP(xp);
    const self=res.party[0],sx=Math.max(1,(mon.killSkillXp||Math.ceil((mon.xp||40)/5))+(mon.finisherXp||20));
    gainSkillXP(self.skill||"melee",sx);skillGain+=sx;
-   addLoot(capBattleLoot(rollLoot(tier,source,mon.grade,areaObj),tier));
+   addLoot(capBattleLoot(rollLoot(tier,source,mon.grade,areaObj,e.min),tier));
    logAct(`전투: ${tag}${mon.name} · ${res.rounds}턴 승리`);
   }else{
    defeated=true;
@@ -2729,7 +2729,7 @@ function pickItem(category,grade,tag,source){
  }
  return null;
 }
-function rollLoot(star,source,monsterGrade=null,areaObj=null){
+function rollLoot(star,source,monsterGrade=null,areaObj=null,minutes=null){
  star=Math.max(1,Math.min(12,+star||1));
  const tag=areaDropTag(areaObj),base=monsterGrade||rollRegionGrade(star),out=[];
  const find=Math.max(0,Math.min(50,(calcStats(me).itemFind||0)));
@@ -2742,9 +2742,26 @@ function rollLoot(star,source,monsterGrade=null,areaObj=null){
   return out;
  }
  if(source==="dungeonBoss"){
-  add("장비");add("재료");
-  if(Math.random()<.50)add(pickWeighted(CATEGORY_WEIGHTS.dungeonBossExtra),"dungeonBoss");
-   if(find>0&&Math.random()<find/100){wearTool("탐사 책");add(pickWeighted(CATEGORY_WEIGHTS.dungeonBossExtra),"dungeonBoss")}
+  const mins=+minutes||120,extra=()=>add(pickWeighted(CATEGORY_WEIGHTS.dungeonBossExtra),"dungeonBoss"),extraNoGear=()=>add(pickWeighted(CATEGORY_WEIGHTS.dungeonBossExtra.filter(([c])=>c!=="장비")),"dungeonBoss");
+  if(mins<=30){
+   add("재료");
+   if(Math.random()<.50)extraNoGear();
+   if(find>0&&Math.random()<find/100){wearTool("탐사 책");extraNoGear()}
+  }else if(mins<=60){
+   add("재료");
+   if(Math.random()<.50)add("장비");
+   if(Math.random()<.50)extra();
+   if(find>0&&Math.random()<find/100){wearTool("탐사 책");extra()}
+  }else if(mins<=120){
+   add("장비");add("재료");
+   if(Math.random()<.50)extra();
+   if(find>0&&Math.random()<find/100){wearTool("탐사 책");extra()}
+  }else{
+   add("장비");add("재료");
+   if(Math.random()<.30)add("장비");
+   for(let i=0;i<2;i++)if(Math.random()<.50)extra();
+   if(find>0&&Math.random()<find/100){wearTool("탐사 책");extra()}
+  }
   return out;
  }
  if(source==="dungeonChest"){
