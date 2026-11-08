@@ -504,6 +504,12 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 .ai-row span{color:var(--dim);white-space:nowrap}
 .ai-row b{font-weight:500;color:var(--text);text-align:right;min-width:0}
 .ai-row b.mono{font-family:monospace;font-size:11px;word-break:break-all;max-width:220px}
+.ai-detail{margin-top:16px;border-top:1px solid var(--line);padding-top:12px}
+.ai-detail>summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--accent-text,var(--accent));list-style:none}
+.ai-detail>summary::-webkit-details-marker{display:none}
+.ai-detail>summary::before{content:"▸ "}
+.ai-detail[open]>summary::before{content:"▾ "}
+.ai-detail .ai-sec:first-of-type{margin-top:12px}
 @media (max-width:560px){.ai-cols{grid-template-columns:1fr}.ai-radar{order:-1}}
 .adm-pop{position:fixed;inset:0;z-index:200;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.45)}
 .adm-pop[hidden]{display:none}
@@ -1028,7 +1034,73 @@ function charInfoHtml(c,meta){
     <div class="ai-row"><span>레벨</span><b>Lv ${c.lv??1}</b></div>
     <div class="ai-row"><span>동행</span><b>${pet+veh}명</b></div>
     <div class="ai-row"><span>최근 접속</span><b>${meta.lastLogin?fmt(meta.lastLogin):"-"}</b></div>
-    ${accountRow}${uidRow}${createdRow}</div></div></div>`}
+    ${accountRow}${uidRow}${createdRow}</div></div>${admin?charDetailHtml(c):""}</div>`}
+
+function charDetailHtml(c){
+ let st=null;
+ try{st=calcStats({...c,inv:Array.isArray(c.inv)?c.inv:(Array.isArray(c.items)?c.items:[])});}catch(e){console.warn("charDetailHtml",e)}
+ const r=(l,v)=>`<div class="ai-row"><span>${esc(l)}</span><b>${v}</b></div>`;
+ if(!st)return `<details class="ai-detail" open><summary>상세 스펙</summary><p class="dim">상세 스펙을 계산할 수 없습니다.</p></details>`;
+ const need=(+c.lv||1)>=PLAYER_MAX?0:(PLAYER_XP_TABLE[+c.lv||1]||0);
+ const bare=k=>st[k+"WeaponSlot"]?"":" <span class=\"dim\">(맨손)</span>";
+ const eq=SLOTS.map(([k,l])=>{const x=c.equipped&&c.equipped[k];return r(l,x?`${esc(nm(x))}${typeof x==="object"&&x.dur!=null?` <span class="dim">${fmt1(x.dur)}/${x.max}</span>`:""}`:"<span class=\"dim\">비어 있음</span>")}).join("");
+ const skills=SKILL_KEYS.map(k=>r(SKILL_NAMES[k],Math.max(0,Math.floor(+(c.skills&&c.skills[k])||0)))).join("");
+ const traitList=[];
+ const jt=JOB_TRAITS[c.job]||JOB_TRAITS[JOB_ALIAS[c.job]];
+ if(jt)traitList.push({n:jt.name,d:jt.desc||""});
+ (Array.isArray(c.traits)?c.traits:(c.trait?[c.trait]:[])).forEach(t=>{const d=TRAITS[t];if(d)traitList.push({n:t,d:d.desc||""})});
+ const traits=traitList.length?traitList.map(t=>`<div class="ai-row"><span>${esc(t.n)}</span><b style="white-space:normal;text-align:right">${esc(t.d)}</b></div>`).join(""):`<span class="dim">특성 없음</span>`;
+ const flags=st.statusFlags||{},flagText=[flags.act?"행동 불가":null,flags.magic?"마법 사용 불가":null,flags.flee?"도주 불가":null].filter(Boolean).join(" · ");
+ return `<details class="ai-detail" open><summary>상세 스펙</summary>
+  <div class="ai-cols" style="grid-template-columns:1fr 1fr">
+   <div>
+    ${r("레벨",`Lv ${c.lv??1}${(+c.lv||1)>=PLAYER_MAX?" MAX":""}`)}
+    ${r("경험치",`${c.xp??0}${need?` / ${need}`:""}`)}
+    ${r("능력치 포인트",c.statPts??0)}
+    ${r("기능 포인트",c.skillPts??0)}
+    ${r("최대 HP",st.hpMax)}
+    ${r("최대 정신력",st.mpMax)}
+    ${r("최대 허기",st.hungerMax)}
+    ${r("장비 무게",`${fmt1(st.weight)} / ${st.capacity}`)}
+    ${r("무게 패널티",`-${st.weightPenalty}`)}
+    ${r("정신력 회복",`${fmt1(st.mpRegenPct||0)}%`)}
+   </div>
+   <div>
+    ${r("근접 공격력",fmtRange(st.meleeAtkMin,st.meleeAtkMax)+bare("melee"))}
+    ${r("원거리 공격력",fmtRange(st.rangedAtkMin,st.rangedAtkMax)+bare("ranged"))}
+    ${r("마법 공격력",fmtRange(st.magicAtkMin,st.magicAtkMax)+bare("magic"))}
+    ${r("방어력",fmt1(st.def))}
+    ${r("속도",fmt1(st.speed))}
+    ${r("회피율",`${fmt1(st.evasion)}%`)}
+    ${r("도주율",`${fmt1(st.flee)}%`)}
+    ${r("근접 치명타",`${fmt1(st.meleeCritChance)}% / ${fmt1(st.meleeCritDamage)}%`)}
+    ${r("원거리 치명타",`${fmt1(st.rangedCritChance)}% / ${fmt1(st.rangedCritDamage)}%`)}
+    ${r("마법 치명타",`${fmt1(st.magicCritChance)}% / ${fmt1(st.magicCritDamage)}%`)}
+   </div>
+  </div>
+  <div class="ai-sec">전투 보정</div>
+  <div class="ai-cols" style="grid-template-columns:1fr 1fr">
+   <div>
+    ${r("상태 이상 저항",`${fmt1(st.resistPct||0)}%`)}
+    ${r("받는 피해 감소",`${fmt1((st.dmgRed||0)*100)}%`)}
+    ${r("함정 피해 감소",`${fmt1(st.trapDamageRed||0)}%`)}
+    ${r("아이템 발견",`${fmt1(st.itemFind||0)}%`)}
+    ${r("이동 속도",`${fmt1(st.moveSpeed||0)}%`)}
+   </div>
+   <div>
+    ${r("받는 피해 증가",`${fmt1(st.dmgTakenPct||0)}%`)}
+    ${r("HP 회복 효율",`${fmt1(st.healPct||0)}%`)}
+    ${r("낮은 HP 피해 감소",`${fmt1((st.lowHpRed||0)*100)}%`)}
+    ${r("원정 피해 감소",`${fmt1((st.expDmgRed||0)*100)}%`)}
+    ${r("조우 감소",`${fmt1((st.encounterRed||0)*100)}%`)}
+    ${flagText?r("행동 제한",esc(flagText)):""}
+   </div>
+  </div>
+  <div class="ai-sec">기능</div><div class="ai-meta">${skills}</div>
+  <div class="ai-sec">특성</div><div class="ai-meta">${traits}</div>
+  <div class="ai-sec">장착 장비</div><div class="ai-meta">${eq}</div>
+ </details>`;
+}
 
 function adminLogDetail(r){
  const d=r&&r.data&&typeof r.data==="object"?r.data:null;
