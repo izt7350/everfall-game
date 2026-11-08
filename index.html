@@ -598,6 +598,23 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .g-sec{margin-bottom:14px}
 #gameRoot .g-sech{display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;font-size:12px;color:var(--text);font-weight:600;margin-bottom:6px}
 #gameRoot .g-sech .dim{font-weight:400;font-size:11px}
+#gameRoot .g-sub{font-size:11px;line-height:16px;color:var(--dim);font-weight:600;margin:10px 0 4px}
+#gameRoot .g-vault{padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
+#gameRoot .g-vault-bal{font-size:12px;line-height:18px;color:var(--dim)}
+#gameRoot .g-vault-bal b{font-size:15px;line-height:20px;color:var(--text);margin-left:4px}
+#gameRoot .g-vault-row{display:flex;align-items:center;gap:6px;margin-top:8px;flex-wrap:wrap}
+#gameRoot .g-vault-row input{width:110px;box-sizing:border-box;background:var(--panel);border:1px solid var(--line);color:var(--text);padding:7px 8px;border-radius:6px;font:inherit;font-size:13px}
+#gameRoot .g-vault-row .unit{font-size:12px;color:var(--dim)}
+#gameRoot .g-role{height:30px;max-width:120px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--text);font-size:11px;padding:0 4px}
+#gameRoot .g-settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}
+#gameRoot .g-settings-grid label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--dim)}
+#gameRoot .g-settings-grid input{width:100%;box-sizing:border-box;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:7px 8px;border-radius:6px;font:inherit;font-size:12px}
+#gameRoot .g-perm{display:flex;flex-direction:column;gap:4px}
+#gameRoot .g-perm-row{display:flex;align-items:center;gap:6px;font-size:12px;line-height:18px;flex-wrap:wrap}
+#gameRoot .g-perm-row>span:first-child{flex:1 1 90px;color:var(--text)}
+#gameRoot .g-perm-row select{height:30px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--text);font-size:11px;padding:0 4px}
+#gameRoot .g-perm-row .dim{font-size:10px;white-space:nowrap}
+@media (max-width:560px){#gameRoot .g-settings-grid{grid-template-columns:1fr}}
 #gameRoot .g-write{display:flex;gap:6px;margin-bottom:8px}
 #gameRoot .g-write input{flex:1;min-width:0;box-sizing:border-box;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:8px;font:inherit;font-size:13px}
 #gameRoot .g-notice{padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);font-size:13px;line-height:19px}
@@ -2637,7 +2654,7 @@ $("file").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileRe
 // ---- 아이템 / 소지품 / 탈것 / 애완동물 ----
 const DB={
 "고철":{t:"m",d:"쓸 만한 금속 조각."},"철사":{t:"m",d:"가늘고 질긴 철사."},"낡은 천":{t:"m",d:"찢어진 천 조각."},"나무 막대":{t:"m",d:"곧게 자란 나무 막대."},"가죽 조각":{t:"m",d:"질긴 가죽 조각."},"건전지":{t:"m",d:"아직 전기가 남은 건전지."},"마력 전지":{t:"m",d:"마력을 저장한 전지."},"붕대":{t:"m",d:"상처를 감는 데 쓴다."},"마력석":{t:"m",d:"비행선의 연료가 되는 돌."},"각설탕":{t:"m",d:"말 훈련에 쓰는 단단한 설탕."},"마법 개조석":{t:"m",d:"비행선 개조에 쓰는 마력이 깃든 돌."},"먹이":{t:"p",d:"말과 애완동물에게 주는 먹이."},
-"통조림":{t:"f",fx:{hunger:3,mind:2},d:"오래 보관된 통조림."},"마른 빵":{t:"f",fx:{hunger:2},d:"딱딱하게 마른 빵."},"생수":{t:"f",fx:{hunger:1,mind:1},d:"깨끗한 물."},
+"통조림":{t:"f",sub:"요리",fx:{hunger:3,mind:2},d:"오래 보관된 통조림."},"마른 빵":{t:"f",sub:"요리",fx:{hunger:2},d:"딱딱하게 마른 빵."},"생수":{t:"f",fx:{hunger:1,mind:1},d:"깨끗한 물."},
 "약초":{t:"g",fx:{hp:3,mind:1},d:"쓴맛이 나는 약초."},"고기 조각":{t:"g",fx:{hunger:2},d:"손질한 고기 조각."},
 "생존자의 수첩":{t:"b",bound:1,txt:"…(내용은 나중에 추가)",d:"누군가의 생존 기록."},"낡은 지도서":{t:"b",txt:"…(내용은 나중에 추가)",d:"빛바랜 지도서."},
 "녹슨 단검":{t:"w",s:"main",eff:"공격 +1",atk:1,d:"날이 녹슨 단검."},"철검":{t:"w",s:"main",eff:"공격 +4",atk:4,d:"튼튼한 철제 검."},"단궁":{t:"w",s:"main",eff:"공격 +3 (원거리)",atk:3,d:"가벼운 나무 활."},"철제 방패":{t:"w",s:"sub",eff:"방어 +3",def:3,d:"두꺼운 철제 방패."},
@@ -2723,7 +2740,7 @@ function registerItem(name,force=false){
   const hungerText=num(/허기 소모 감소 \+(\d+(?:\.\d+)?)%/);if(hungerText)o.hungerRed=hungerText;
   const trapRedText=num(/함정 피해 -(\d+(?:\.\d+)?)%/);if(trapRedText)o.trapDamageRed=trapRedText;
  }else if(d.category==="소모품"){
-  o.t="f";o.fx=parseFx(d.effect);
+  o.t="f";o.sub=d.sub;o.fx=parseFx(d.effect);
  }else if(d.category==="재료"){
   o.t=/사용/.test(d.use)?"g":"m";if(o.t==="g")o.fx=parseFx(d.effect);
  }else if(d.category==="도구"){
@@ -3483,9 +3500,10 @@ const closePop=()=>{guildView.open=false;if(guildView.unsub){try{guildView.unsub
 $("pbtn").onclick=e=>{const b=e.target.closest("[data-k]");if(!b)return;const f=popF[+b.dataset.k];closePop();if(f.fn)f.fn()};
 
 function bag(){$("bag").textContent=`${usedSlots()}/${cap()}`;$("gold").textContent=me.gold+" G";invRender();rideRender()}
+const eatLabel=it=>it.sub==="요리"||it.t==="g"||(it.fx&&+it.fx.hunger>0)?"먹기":"사용";
 function btns(x,i){const n=nm(x),it=info(n),dis=(me.travel||me.rest||me.expedition||me.read||me.downed||me.deadPending)?" disabled":"",locked=isItemLocked(n),block=dis||(locked?" disabled":""),B=(a,t)=>`<button class="sm2" data-a="${a}" data-i="${i}"${dis}>${t}</button>`,D=(a,t)=>`<button class="sm2" data-a="${a}" data-i="${i}"${block}>${t}</button>`;let h="";
  if(["w","a","c","k"].includes(it.t))h+=B("equip","착용하기");
- if(["f","g"].includes(it.t))h+=B("eat",it.sub==="요리"||it.t==="g"?"먹기":"사용");
+ if(["f","g"].includes(it.t))h+=B("eat",eatLabel(it));
  if(it.t==="b")h+=B("read","읽기");
  if(it.t==="box")h+=B("open","열기");
  if(isIngredient(n))h+=B("make","만들기");
@@ -3494,8 +3512,9 @@ function btns(x,i){const n=nm(x),it=info(n),dis=(me.travel||me.rest||me.expediti
  h+=`<button class="sm2${locked?" lock-on":""}" data-a="itemlock" data-i="${i}"${dis}>${locked?"잠금 해제":"잠금"}</button>`;
  return h}
 let invQuery="",invTab="전체";
-const INV_CATS=["장비","소모품","재료","도구","특수","귀중품"];
-function invCat(n){const d=ITEM_BY_NAME[n];return d&&d.category?d.category:"기타"}
+const INV_CATS=["장비","소모품","음식","재료","도구","특수","귀중품"];
+function isFoodItem(n){const it=info(n),d=ITEM_BY_NAME[n]||{};return !it.petOnly&&(it.sub==="요리"||d.sub==="요리"||+((it.fx||{}).hunger)>0)}
+function invCat(n){if(isFoodItem(n))return "음식";const d=ITEM_BY_NAME[n];return d&&d.category?d.category:"기타"}
 function invGroupedRows(){
  const rows=[],seen={};me.inv.forEach((x,i)=>{if(typeof x==="string"){const key=nm(x);if(seen[key]!=null)rows[seen[key]].q++;else{seen[key]=rows.length;rows.push({x,q:1,i})}}else rows.push({x,q:1,i})});
  return rows;
@@ -3512,7 +3531,7 @@ function invListHtml(){
  const all=invGroupedRows(),rows=invTab==="전체"?all:all.filter(r=>invCat(nm(r.x))===invTab),words=invQuery.trim().toLowerCase().split(/\s+/).filter(Boolean);
  const matched=words.length?rows.filter(r=>{
   const n=nm(r.x),it=info(n),meta=ITEM_BY_NAME[n]||{};
-  const hay=[n,meta.category,meta.sub,meta.grade,meta.effect,meta.desc,it.d,it.eff].filter(Boolean).join(" ").toLowerCase();
+  const hay=[n,meta.category,meta.sub,invCat(n),meta.grade,meta.effect,meta.desc,it.d,it.eff].filter(Boolean).join(" ").toLowerCase();
   return words.every(w=>hay.includes(w));
  }):rows;
  if(!all.length)return `<p class="dim">소지품이 없다.</p>`;
@@ -3640,7 +3659,7 @@ function invAct(a,i){
  }
  if(me.travel)return toast("이동 중에는 소지품을 사용할 수 없습니다.");if(actionLock("휴식 중에는 소지품을 사용할 수 없습니다."))return;const x=me.inv[i];if(x==null)return;const n=nm(x),it=info(n);
  if(a==="eat"&&n==="모닥불 키트"){campfireUsePrompt(x);return}
- if(a==="eat"){const act=it.sub==="요리"||it.t==="g"?"먹기":"사용";pop(act,`<p><b>${esc(n)}</b></p><p>효과 : ${effText(n)}</p>`,[{t:act,c:"",fn:()=>{if(!starvationActionCost())return;if(n==="소생약"&&me.downed){closePop();selfRevive();return}if(n==="해독제"&&!me.fx.some(s=>["poison","foodPoison","herbPoison","paralysis"].includes(s.id)))return toast("해독할 상태이상이 없습니다.");const f=it.fx||{},mult=1+Math.max(0,traitTotal("foodBonus")),hpBefore=me.hp[0],ap=(a,v)=>{a[0]=Math.min(a[1],a[0]+healVal((v||0)*mult))};ap(me.hunger,f.hunger);ap(me.mp,f.mind);ap(me.hp,f.hp);if(me.hp[0]>hpBefore)wearTool("생존 책");me.inv.splice(me.inv.indexOf(x),1);applyItemStatus(n,it);barsRender();try{checkVitals()}catch(e){};bag();sfx("ok");if((f.hunger||0)>0)tryGoodTrait("대식가")}},{t:"취소"}]);}
+ if(a==="eat"){const act=eatLabel(it);pop(act,`<p><b>${esc(n)}</b></p><p>효과 : ${effText(n)}</p>`,[{t:act,c:"",fn:()=>{if(!starvationActionCost())return;if(n==="소생약"&&me.downed){closePop();selfRevive();return}if(n==="해독제"&&!me.fx.some(s=>["poison","foodPoison","herbPoison","paralysis"].includes(s.id)))return toast("해독할 상태이상이 없습니다.");const f=it.fx||{},mult=1+Math.max(0,traitTotal("foodBonus")),hpBefore=me.hp[0],ap=(a,v)=>{a[0]=Math.min(a[1],a[0]+healVal((v||0)*mult))};ap(me.hunger,f.hunger);ap(me.mp,f.mind);ap(me.hp,f.hp);if(me.hp[0]>hpBefore)wearTool("생존 책");me.inv.splice(me.inv.indexOf(x),1);applyItemStatus(n,it);barsRender();try{checkVitals()}catch(e){};bag();sfx("ok");if((f.hunger||0)>0)tryGoodTrait("대식가")}},{t:"취소"}]);}
  else if(a==="read"){
   if(it.book&&it.skill&&it.skillXp){
    const pct=readTimePct(),hours=Math.max(.05,(it.readHours||READ_HOURS[it.tier]||1)*pct/100);
@@ -3779,13 +3798,22 @@ function openSettings(){const dark=isDark();
 $("setBtn").onclick=openSettings;
 // ---- 길드 ----
 const GUILD_JOIN_LABEL={auto:"자동 가입",approve:"신청 후 승인",closed:"가입 불가"};
+const GUILD_ROLE_RANK={leader:5,vice:4,elite:3,member:2,rookie:1};
+const GUILD_ROLE_KEYS=["vice","elite","member","rookie"];
+const GUILD_RANK_DEFAULTS={leader:"길드장",vice:"부길드장",elite:"우수 길드원",member:"일반 길드원",rookie:"신입 길드원"};
+const GUILD_PERM_DEFAULTS={memberManage:"vice",vaultDeposit:"rookie",vaultWithdraw:"member",warehouseDeposit:"rookie",warehouseWithdraw:"member"};
+const GUILD_PERM_LABELS={memberManage:"멤버 관리",vaultDeposit:"금고 입금",vaultWithdraw:"금고 출금",warehouseDeposit:"창고 물건 넣기",warehouseWithdraw:"창고 물건 빼기"};
+function guildRankName(g,role){const n=g&&g.rankNames&&typeof g.rankNames==="object"?g.rankNames:{};return String(n[role]||GUILD_RANK_DEFAULTS[role]||"길드원")}
+function guildRoleOf(g,id=uid){const m=g&&g.members&&g.members[id];return m?String(m.role||"member"):""}
+function guildRankValue(role){return GUILD_ROLE_RANK[role]||0}
+function guildPerm(g,key,id=uid){const role=guildRoleOf(g,id);if(role==="leader")return true;const p=g&&g.permissions&&typeof g.permissions==="object"?g.permissions:{};const min=p[key]||GUILD_PERM_DEFAULTS[key]||"rookie";return guildRankValue(role)>=guildRankValue(min)}
 const guildJoinState={data:{},q:"",applyFor:""};
-const guildDraft={notice:"",noticeTitle:"",post:"",postTitle:"",msg:""};
+const guildDraft={notice:"",noticeTitle:"",post:"",postTitle:"",msg:"",vault:""};
 const guildRef=gid=>ref(realtimeDB,"guilds/"+gid);
 const clearGuildMembership=(id,gid)=>runTransaction(ref(realtimeDB,"guildMembership/"+id),v=>v===gid?null:undefined).catch(()=>{});
 const gArr=v=>Array.isArray(v)?v.slice():(v&&typeof v==="object"?Object.values(v):[]);
 const guildMembers=g=>Object.entries(g&&g.members&&typeof g.members==="object"?g.members:{});
-const guildRole=g=>{const m=g&&g.members&&g.members[uid];return m?String(m.role||"member"):""};
+const guildRole=g=>guildRoleOf(g,uid);
 const guildIsLeader=g=>guildRole(g)==="leader";
 const guildBusy=()=>!!me.travel||!!me.expedition||!!me.rest||!!me.read||!!me.downed||!!me.deadPending;
 function guildSaveSelf(){try{opts.save(cp(snap()))}catch(e){};try{updateProfileCard()}catch(e){};try{renderGuildBox()}catch(e){}}
@@ -3848,7 +3876,7 @@ async function guildJoinAuto(gid){
   const s=await get(guildRef(gid));const g=s.val();
   if(!g)return toast("길드를 찾을 수 없습니다.");
   if((g.joinMode||"approve")!=="auto")return toast("가입 신청이 필요한 길드입니다.");
-  await update(ref(realtimeDB,"guilds/"+gid+"/members/"+uid),{name:me.name,role:"member",at:Date.now()});
+  await update(ref(realtimeDB,"guilds/"+gid+"/members/"+uid),{name:me.name,role:"rookie",at:Date.now()});
   await set(ref(realtimeDB,"guildMembership/"+uid),gid).catch(()=>{});
   me.guildId=gid;me.guild=String(g.name||"");guildSaveSelf();
   toast(`‘${me.guild}’ 길드에 가입했습니다.`);
@@ -3892,7 +3920,7 @@ async function submitGuildCreate(){
   const s=await get(ref(realtimeDB,"guilds"));const all=s.val()||{};
   if(Object.values(all).some(g=>g&&String(g.name||"").toLowerCase()===name.toLowerCase())){err("이미 같은 이름의 길드가 있습니다.");if(btn)btn.disabled=false;return}
   const gid=push(ref(realtimeDB,"guilds")).key;
-  await set(ref(realtimeDB,"guilds/"+gid),{name,open,joinMode,leader:uid,leaderName:me.name,createdAt:Date.now(),members:{[uid]:{name:me.name,role:"leader",at:Date.now()}},warehouse:{level:0,items:[]}});
+  await set(ref(realtimeDB,"guilds/"+gid),{name,open,joinMode,leader:uid,leaderName:me.name,createdAt:Date.now(),members:{[uid]:{name:me.name,role:"leader",at:Date.now()}},rankNames:{...GUILD_RANK_DEFAULTS},permissions:{...GUILD_PERM_DEFAULTS},warehouse:{level:0,items:[],gold:0}});
   await set(ref(realtimeDB,"guildMembership/"+uid),gid).catch(()=>{});
   me.guildId=gid;me.guild=name;guildSaveSelf();
   toast(`‘${name}’ 길드를 만들었습니다.`);
@@ -3919,7 +3947,7 @@ function openGuildBoard(){
 }
 function guildRender(){
  const g=guildView.data;if(!g||!$("pb"))return;
- const role=guildRole(g),leader=role==="leader";
+ const role=guildRole(g),leader=role==="leader",canManage=guildPerm(g,"memberManage");
  const members=guildMembers(g);
  const openLabel=g.open===false?"미공개":"공개";
  const mode=GUILD_JOIN_LABEL[g.joinMode]||"신청 후 승인";
@@ -3929,22 +3957,24 @@ function guildRender(){
   <span class="g-chip">접속 <b class="g-online" id="gOnline">${esc(guildView.online||"…")}</b></span>
   <span class="g-chip">${openLabel}</span>
   <span class="g-chip">${mode}</span>
-  ${leader?"<span class=\"g-chip\">길드장</span>":""}
-  ${leader&&Object.keys(g.apps||{}).length?`<span class="g-chip">가입 신청 <b>${Object.keys(g.apps).length}</b></span>`:""}
+  ${leader?`<span class="g-chip">${esc(guildRankName(g,"leader"))}</span>`:""}
+  ${canManage&&Object.keys(g.apps||{}).length?`<span class="g-chip">가입 신청 <b>${Object.keys(g.apps).length}</b></span>`:""}
  </div>`;
+ if(guildView.tab==="manage"&&!canManage)guildView.tab="board";
  const tab=guildView.tab;
  const tabs=`<div class="g-tabs" role="tablist">
   <button class="g-tab" role="tab" aria-selected="${tab==="board"}" data-gtab="board">길드 게시판</button>
   <button class="g-tab" role="tab" aria-selected="${tab==="warehouse"}" data-gtab="warehouse">길드 창고</button>
-  ${leader?`<button class="g-tab" role="tab" aria-selected="${tab==="manage"}" data-gtab="manage">길드 관리</button>`:""}
+  ${canManage?`<button class="g-tab" role="tab" aria-selected="${tab==="manage"}" data-gtab="manage">길드 관리</button>`:""}
  </div>`;
  let body="";
  if(guildView.tab==="warehouse")body=guildWarehouseHtml(g);
- else if(guildView.tab==="manage"&&leader)body=guildManageHtml(g);
+ else if(guildView.tab==="manage"&&canManage)body=guildManageHtml(g);
  else body=guildBoardHtml(g);
  $("pb").innerHTML=chips+tabs+body;
  $("pb").onclick=guildClick;
- $("pb").oninput=e=>{const id=e.target.id;if(id==="gNoticeIn")guildDraft.notice=e.target.value;else if(id==="gNoticeTitle")guildDraft.noticeTitle=e.target.value;else if(id==="gPostIn")guildDraft.post=e.target.value;else if(id==="gPostTitle")guildDraft.postTitle=e.target.value};
+ $("pb").oninput=e=>{const id=e.target.id;if(id==="gNoticeIn")guildDraft.notice=e.target.value;else if(id==="gNoticeTitle")guildDraft.noticeTitle=e.target.value;else if(id==="gPostIn")guildDraft.post=e.target.value;else if(id==="gPostTitle")guildDraft.postTitle=e.target.value;else if(id==="gVaultAmt")guildDraft.vault=e.target.value};
+ $("pb").onchange=e=>{const s=e.target.closest("[data-grole]");if(s)guildSetRole(s.dataset.grole,s.value)};
  refreshGuildOnline(members);
 }
 function guildBoardHtml(g){
@@ -3955,7 +3985,7 @@ function guildBoardHtml(g){
  guildView.noticeIndex=notices.length?Math.max(0,Math.min(guildView.noticeIndex,notices.length-1)):0;
  guildView.postIndex=posts.length?Math.max(0,Math.min(guildView.postIndex,posts.length-1)):0;
  return `<div class="g-sec">
-  <div class="g-sech">길드 공지 게시판 <span class="dim">(길드장 작성 가능)</span></div>
+  <div class="g-sech">길드 공지 게시판 <span class="dim">(${esc(guildRankName(g,"leader"))} 작성 가능)</span></div>
   ${guildNoticeSectionHtml(notices,leader)}
  </div>
  <div class="g-sec">
@@ -3964,7 +3994,7 @@ function guildBoardHtml(g){
  </div>
  <div class="g-sec">
   <div class="g-sech">길드 명부 <span class="dim">${members.length}명 · 접속 ${esc(guildView.online||"…")}</span></div>
-  <div class="g-members">${members.sort((a,b)=>(a[1].role==="leader"?-1:0)-(b[1].role==="leader"?-1:0)).map(([id,m])=>`<div class="g-item"><span class="g-dot ${guildView.onlineSet.has(id)?"on":"off"}" data-gdot="${esc(id)}"></span><span class="g-nm">${esc(m.name||"")}${id===uid?" (나)":""}</span><span class="g-chip">${m.role==="leader"?"길드장":"길드원"}</span></div>`).join("")}</div>
+  <div class="g-members">${members.sort((a,b)=>guildRankValue(b[1].role)-guildRankValue(a[1].role)||String(a[1].name||"").localeCompare(String(b[1].name||""),"ko")).map(([id,m])=>`<div class="g-item"><span class="g-dot ${guildView.onlineSet.has(id)?"on":"off"}" data-gdot="${esc(id)}"></span><span class="g-nm">${esc(m.name||"")}${id===uid?" (나)":""}</span><span class="g-chip">${esc(guildRankName(g,m.role||"member"))}</span></div>`).join("")}</div>
  </div>
  ${leader?"":`<div class="g-sec" style="text-align:right"><button class="sm2" data-gleave>길드 탈퇴</button></div>`}`;
 }
@@ -3982,7 +4012,7 @@ function guildNoticeSectionHtml(notices,leader){
   <div class="g-foot"><div class="g-pager"><button class="sm2" data-gnpage="prev" ${guildView.noticePage<=0?"disabled":""}>이전</button><span>${guildView.noticePage+1} / ${pages}</span><button class="sm2" data-gnpage="next" ${guildView.noticePage>=pages-1?"disabled":""}>다음</button></div><div class="g-actions">${leader?`<button class="sm2" data-gnmode="write">글쓰기</button>`:""}</div></div>`;
  }
  const n=notices[guildView.noticeIndex];
- return `<div class="g-card">${n?`<div class="g-card-title">${esc(n.title||"(제목 없음)")}</div><div class="g-card-body">${esc(n.text||"")}</div><div class="g-meta">${esc(n.by||"")} · ${esc(fmt(n.at))}</div>`:`<div class="g-empty">등록된 공지가 없습니다.</div>`}</div>
+ return `<div class="g-card" id="gNoticeView">${n?`<div class="g-card-title">${esc(n.title||"(제목 없음)")}</div><div class="g-card-body">${esc(n.text||"")}</div><div class="g-meta">${esc(n.by||"")} · ${esc(fmt(n.at))}</div>`:`<div class="g-empty">등록된 공지가 없습니다.</div>`}</div>
  <div class="g-foot"><div class="g-pager"><button class="sm2" data-gnprev ${guildView.noticeIndex>=notices.length-1?"disabled":""}>이전</button><span>${notices.length?`${guildView.noticeIndex+1} / ${notices.length}`:"0 / 0"}</span><button class="sm2" data-gnnext ${guildView.noticeIndex<=0?"disabled":""}>다음</button></div><div class="g-actions">${leader?`<button class="sm2" data-gnmode="write">글쓰기</button>`:""}<button class="sm2" data-gnmode="list">글목록</button></div></div>`;
 }
 function guildPostSectionHtml(posts){
@@ -3996,7 +4026,7 @@ function guildPostSectionHtml(posts){
  if(guildView.postMode==="view"&&posts.length){
   const idx=Math.max(0,Math.min(guildView.postIndex,posts.length-1));guildView.postIndex=idx;
   const p=posts[idx];
-  return `<div class="g-card"><div class="g-card-title">${esc(p.title||"(제목 없음)")}</div><div class="g-card-body">${esc(p.text||"")}</div><div class="g-meta">${esc(p.by||"")} · ${esc(fmt(p.at))}</div></div>
+  return `<div class="g-card" id="gPostView"><div class="g-card-title">${esc(p.title||"(제목 없음)")}</div><div class="g-card-body">${esc(p.text||"")}</div><div class="g-meta">${esc(p.by||"")} · ${esc(fmt(p.at))}</div></div>
   <div class="g-foot"><div class="g-pager"><button class="sm2" data-gpprev ${idx>=posts.length-1?"disabled":""}>이전</button><span>${idx+1} / ${posts.length}</span><button class="sm2" data-gpnext ${idx<=0?"disabled":""}>다음</button></div><div class="g-actions"><button class="sm2" data-gpmode="write">글쓰기</button><button class="sm2" data-gpmode="list">글목록</button></div></div>`;
  }
  const rows=posts.slice(guildView.postPage*pageSize,guildView.postPage*pageSize+pageSize);
@@ -4014,31 +4044,69 @@ function guildWarehouseHtml(g){
  const ig=[],im=new Map(),objs=[];
  me.inv.forEach((it,idx)=>{if(typeof it==="string"){const n=nm(it);if(im.has(n))im.get(n).q++;else{const o={n,q:1};im.set(n,o);ig.push(o)}}else objs.push({it,idx})});
  const canExpand=count("단단한 나무")>=2&&count("고철")>=3&&count("노끈")>=2;
+ const canIn=guildPerm(g,"vaultDeposit"),canOut=guildPerm(g,"vaultWithdraw"),canPut=guildPerm(g,"warehouseDeposit"),canTake=guildPerm(g,"warehouseWithdraw");
+ const perms=g.permissions&&typeof g.permissions==="object"?g.permissions:{};
+ const minIn=perms.vaultDeposit||GUILD_PERM_DEFAULTS.vaultDeposit,minOut=perms.vaultWithdraw||GUILD_PERM_DEFAULTS.vaultWithdraw,minPut=perms.warehouseDeposit||GUILD_PERM_DEFAULTS.warehouseDeposit,minTake=perms.warehouseWithdraw||GUILD_PERM_DEFAULTS.warehouseWithdraw;
+ const gold=Math.max(0,Math.floor(+wh.gold||0));
  return `<div class="g-sec">
-  <div class="g-sech">길드 창고 <span class="dim">${items.length} / ${cap}칸</span></div>
+  <div class="g-sech">길드 금고</div>
+  <div class="g-vault">
+   <div class="g-vault-bal">길드 자금 <b>${gold} G</b></div>
+   <div class="g-vault-row"><input id="gVaultAmt" type="text" inputmode="numeric" pattern="[0-9]*" value="${esc(guildDraft.vault)}" placeholder="0"><span class="unit">G</span><button class="sm2" data-gvaultin ${canIn?"":"disabled"}>입금</button><button class="sm2" data-gvaultout ${canOut?"":"disabled"}>출금</button></div>
+   <div class="g-cost">보유금 ${me.gold||0} G · 입금 ${esc(guildRankName(g,minIn))} 이상 · 출금 ${esc(guildRankName(g,minOut))} 이상</div>
+  </div>
+ </div>
+ <div class="g-sec">
+  <div class="g-sech">길드 창고 <span class="dim">${items.length} / ${cap}칸 · 빼기 ${esc(guildRankName(g,minTake))} 이상</span></div>
   <div class="g-wtabs">${Array.from({length:pages},(_,i)=>`<button class="g-wtab" data-gwh="${i}" aria-selected="${i===page}">창고${i+1}</button>`).join("")}</div>
-  <div>${groups.length?groups.map(x=>`<div class="g-item"><span class="g-nm">${esc(x.n)}${x.q>1?` ×${x.q}`:""}</span><button class="sm2" data-gwit="${esc(encodeURIComponent(x.n))}">꺼내기</button></div>`).join(""):`<div class="g-empty">창고가 비어 있습니다.</div>`}</div>
+  <div>${groups.length?groups.map(x=>`<div class="g-item"><span class="g-nm">${esc(x.n)}${x.q>1?` ×${x.q}`:""}</span><button class="sm2" data-gwit="${esc(encodeURIComponent(x.n))}" ${canTake?"":"disabled"}>꺼내기</button></div>`).join(""):`<div class="g-empty">창고가 비어 있습니다.</div>`}</div>
   <div class="g-nav"><span class="g-cost">창고 증설 · 단단한 나무 2 · 고철 3 · 노끈 2</span><button class="sm2" data-gwexpand ${canExpand?"":"disabled"}>창고 증설</button></div>
  </div>
  <div class="g-sec">
-  <div class="g-sech">내 소지품 <span class="dim">(넣을 아이템 1개 선택)</span></div>
-  <div>${ig.length||objs.length?ig.map(x=>`<div class="g-item"><span class="g-nm">${esc(x.n)}${x.q>1?` ×${x.q}`:""}</span><button class="sm2" data-gdep="${esc(encodeURIComponent(x.n))}">넣기</button></div>`).join("")+objs.map(x=>`<div class="g-item"><span class="g-nm">${esc(nm(x.it))}${dura(x.it)}</span><button class="sm2" data-gdepi="${x.idx}">넣기</button></div>`).join(""):`<div class="g-empty">넣을 아이템이 없습니다.</div>`}</div>
+  <div class="g-sech">내 소지품 <span class="dim">넣기 ${esc(guildRankName(g,minPut))} 이상</span></div>
+  <div>${ig.length||objs.length?ig.map(x=>`<div class="g-item"><span class="g-nm">${esc(x.n)}${x.q>1?` ×${x.q}`:""}</span><button class="sm2" data-gdep="${esc(encodeURIComponent(x.n))}" ${canPut?"":"disabled"}>넣기</button></div>`).join("")+objs.map(x=>`<div class="g-item"><span class="g-nm">${esc(nm(x.it))}${dura(x.it)}</span><button class="sm2" data-gdepi="${x.idx}" ${canPut?"":"disabled"}>넣기</button></div>`).join(""):`<div class="g-empty">넣을 아이템이 없습니다.</div>`}</div>
  </div>`;
 }
+function guildPermRow(g,key,options=GUILD_ROLE_KEYS){
+ const p=g.permissions&&typeof g.permissions==="object"?g.permissions:{};
+ const cur=p[key]||GUILD_PERM_DEFAULTS[key]||"rookie";
+ const note=key==="vaultWithdraw"?" (출금은 입금 이상)":key==="warehouseWithdraw"?" (빼기는 넣기 이상)":"";
+ const id="gPerm"+key[0].toUpperCase()+key.slice(1);
+ return `<div class="g-perm-row"><span>${GUILD_PERM_LABELS[key]}</span><select id="${id}" data-gperm="${key}">${options.map(r=>`<option value="${r}" ${cur===r?"selected":""}>${esc(guildRankName(g,r))}</option>`).join("")}</select><span class="dim">이상 가능${note}</span></div>`;
+}
 function guildManageHtml(g){
+ const leader=guildIsLeader(g),canManage=guildPerm(g,"memberManage");
  const apps=Object.entries(g.apps||{});
- const members=guildMembers(g).sort((a,b)=>(a[1].role==="leader"?-1:0)-(b[1].role==="leader"?-1:0));
+ const members=guildMembers(g).sort((a,b)=>guildRankValue(b[1].role)-guildRankValue(a[1].role)||String(a[1].name||"").localeCompare(String(b[1].name||""),"ko"));
+ const roleOpt=(cur,list=GUILD_ROLE_KEYS)=>list.map(r=>`<option value="${r}" ${cur===r?"selected":""}>${esc(guildRankName(g,r))}</option>`).join("");
  const opt=(v,cur)=>`<option value="${v}" ${cur===v?"selected":""}>${GUILD_JOIN_LABEL[v]}</option>`;
- return `<div class="g-sec"><div class="g-sech">가입 신청 <span class="dim">${apps.length}건</span></div>
-  ${apps.length?apps.map(([id,a])=>`<div class="g-item"><div style="flex:1;min-width:0"><b style="font-size:13px">${esc(a.name||"")}</b><div class="g-meta">“${esc(a.msg||"")}”</div></div><button class="sm2" data-gaccept="${esc(id)}">수락</button><button class="sm2" data-greject="${esc(id)}">거절</button></div>`).join(""):`<div class="g-empty">대기 중인 가입 신청이 없습니다.</div>`}</div>
- <div class="g-sec"><div class="g-sech">길드 명부 <span class="dim">${members.length}명</span></div>
-  <div class="g-members">${members.map(([id,m])=>`<div class="g-item"><span class="g-dot ${guildView.onlineSet.has(id)?"on":"off"}" data-gdot="${esc(id)}"></span><span class="g-nm">${esc(m.name||"")}${id===uid?" (나)":""}</span><span class="g-chip">${m.role==="leader"?"길드장":"길드원"}</span>${id!==uid?`<button class="sm2" data-gkick="${esc(id)}">내보내기</button>`:""}</div>`).join("")}</div></div>
- <div class="g-sec"><div class="g-sech">길드 설정</div><div class="g-set">
+ const memberList=`<div class="g-sec"><div class="g-sech">길드원 명단 <span class="dim">${members.length}명</span></div>
+  <div class="g-members">${members.map(([id,m])=>{
+   const role=m.role||"member";
+   return `<div class="g-item"><span class="g-dot ${guildView.onlineSet.has(id)?"on":"off"}" data-gdot="${esc(id)}"></span><span class="g-nm">${esc(m.name||"")}${id===uid?" (나)":""}</span>${role==="leader"||id===uid?`<span class="g-chip">${esc(guildRankName(g,role))}</span>`:`<select class="g-role" data-grole="${esc(id)}" aria-label="길드원 등급">${roleOpt(role)}</select>`}${canManage&&role!=="leader"&&id!==uid?`<button class="sm2" data-gkick="${esc(id)}">내보내기</button>`:""}</div>`;
+  }).join("")}</div></div>`;
+ const detail=leader?`<div class="g-sec"><div class="g-sech">상세 설정 <span class="dim">(${esc(guildRankName(g,"leader"))}만 변경 가능)</span></div>
+  <div class="g-sub">등급 명칭</div>
+  <div class="g-settings-grid">
+   <label>길드장<input id="gRankLeader" maxlength="10" value="${esc(guildRankName(g,"leader"))}"></label>
+   <label>부길드장<input id="gRankVice" maxlength="10" value="${esc(guildRankName(g,"vice"))}"></label>
+   <label>우수 길드원<input id="gRankElite" maxlength="10" value="${esc(guildRankName(g,"elite"))}"></label>
+   <label>신입 길드원<input id="gRankRookie" maxlength="10" value="${esc(guildRankName(g,"rookie"))}"></label>
+  </div>
+  <div class="g-sub">권한 설정 <span class="dim">(선택한 등급 이상 가능)</span></div>
+  <div class="g-perm">${guildPermRow(g,"memberManage",["vice","elite","member"])}${guildPermRow(g,"vaultDeposit")}${guildPermRow(g,"vaultWithdraw")}${guildPermRow(g,"warehouseDeposit")}${guildPermRow(g,"warehouseWithdraw")}</div>
+  <div class="g-cost" style="margin-top:6px">출금 권한은 입금 권한 이상, 창고 빼기는 넣기 권한 이상으로 자동 조정됩니다.</div>
+  <div style="text-align:right;margin-top:10px"><button class="sm2" data-gdetails>상세 설정 저장</button></div>
+ </div>`:"";
+ const appHtml=canManage?`<div class="g-sec"><div class="g-sech">가입 신청 <span class="dim">${apps.length}건</span></div>
+  ${apps.length?apps.map(([id,a])=>`<div class="g-item"><div style="flex:1;min-width:0"><b style="font-size:13px">${esc(a.name||"")}</b><div class="g-meta">“${esc(a.msg||"")}”</div></div><button class="sm2" data-gaccept="${esc(id)}">수락</button><button class="sm2" data-greject="${esc(id)}">거절</button></div>`).join(""):`<div class="g-empty">대기 중인 가입 신청이 없습니다.</div>`}</div>`:"";
+ const settings=leader?`<div class="g-sec"><div class="g-sech">길드 설정</div><div class="g-set">
   <label>공개 여부</label><select id="gSetOpen"><option value="1" ${g.open!==false?"selected":""}>공개</option><option value="0" ${g.open===false?"selected":""}>미공개</option></select>
   <label>가입 방법</label><select id="gSetJoin">${opt("auto",g.joinMode)}${opt("approve",g.joinMode||"approve")}${opt("closed",g.joinMode)}</select>
   <div style="text-align:right;margin-top:10px"><button class="sm2" data-gsettings>설정 저장</button></div>
  </div></div>
- <div class="g-sec" style="text-align:right"><button class="sm2" data-gdisband>길드 해산</button></div>`;
+ <div class="g-sec" style="text-align:right"><button class="sm2" data-gdisband>길드 해산</button></div>`:"";
+ return memberList+detail+appHtml+settings;
 }
 async function refreshGuildOnline(members){
  const ids=members.map(([id])=>id),set=new Set();let online=0;
@@ -4050,7 +4118,7 @@ async function refreshGuildOnline(members){
  if($("pb"))$("pb").querySelectorAll("[data-gdot]").forEach(d=>{const on=set.has(d.dataset.gdot);d.classList.toggle("on",on);d.classList.toggle("off",!on)});
 }
 function guildClick(e){
- const b=e.target.closest("[data-gtab],[data-gnmode],[data-gnpage],[data-gnprev],[data-gnnext],[data-gnview],[data-gncancel],[data-gnotice],[data-gpmode],[data-gppage],[data-gpprev],[data-gpnext],[data-gpview],[data-gpcancel],[data-gpost],[data-gwh],[data-gdep],[data-gdepi],[data-gwit],[data-gwexpand],[data-gaccept],[data-greject],[data-gkick],[data-gsettings],[data-gleave],[data-gdisband]");
+ const b=e.target.closest("[data-gtab],[data-gnmode],[data-gnpage],[data-gnprev],[data-gnnext],[data-gnview],[data-gncancel],[data-gnotice],[data-gpmode],[data-gppage],[data-gpprev],[data-gpnext],[data-gpview],[data-gpcancel],[data-gpost],[data-gvaultin],[data-gvaultout],[data-gwh],[data-gdep],[data-gdepi],[data-gwit],[data-gwexpand],[data-gaccept],[data-greject],[data-gkick],[data-gdetails],[data-gsettings],[data-gleave],[data-gdisband]");
  if(!b)return;const g=guildView.data;if(!g)return;
  if(b.dataset.gtab){guildView.tab=b.dataset.gtab;guildView.page=0;guildView.noticeMode="view";guildView.noticeIndex=0;guildView.noticePage=0;guildView.postMode="list";guildView.postIndex=0;guildView.postPage=0;guildRender();return}
  if(b.dataset.gnmode){guildView.noticeMode=b.dataset.gnmode;if(guildView.noticeMode==="view")guildView.noticeIndex=0;guildRender();return}
@@ -4067,6 +4135,8 @@ function guildClick(e){
  if(b.dataset.gpview){const ps=Object.entries(guildView.data.posts||{}).sort((a,b)=>(+b[1].at||0)-(+a[1].at||0)),i=ps.findIndex(([k])=>k===b.dataset.gpview);if(i>=0){guildView.postIndex=i;guildView.postMode="view"}guildRender();return}
  if(b.hasAttribute("data-gpcancel")){guildDraft.post="";guildDraft.postTitle="";guildView.postMode="list";guildRender();return}
  if(b.hasAttribute("data-gpost")){guildWritePost();return}
+ if(b.hasAttribute("data-gvaultin")){guildVaultIn();return}
+ if(b.hasAttribute("data-gvaultout")){guildVaultOut();return}
  if(b.dataset.gwh!=null){guildView.page=Math.max(0,+b.dataset.gwh||0);guildRender();return}
  if(b.dataset.gdep!=null){guildDeposit(decodeURIComponent(b.dataset.gdep));return}
  if(b.dataset.gdepi!=null){guildDepositIndex(+b.dataset.gdepi);return}
@@ -4075,6 +4145,7 @@ function guildClick(e){
  if(b.dataset.gaccept){guildAccept(b.dataset.gaccept);return}
  if(b.dataset.greject){guildReject(b.dataset.greject);return}
  if(b.dataset.gkick){guildKick(b.dataset.gkick);return}
+ if(b.hasAttribute("data-gdetails")){guildSaveDetails();return}
  if(b.hasAttribute("data-gsettings")){guildSaveSettings();return}
  if(b.hasAttribute("data-gleave")){guildLeave();return}
  if(b.hasAttribute("data-gdisband")){guildDisband();return}
@@ -4085,14 +4156,14 @@ async function guildWriteNotice(){
  const txt=(($("gNoticeIn")&&$("gNoticeIn").value)||guildDraft.notice||"").trim().slice(0,300);
  if(!title)return toast("공지 제목을 입력해 주세요.");
  if(!txt)return toast("공지 내용을 입력해 주세요.");
- try{const r=push(ref(realtimeDB,"guilds/"+guildView.gid+"/notices"));await set(r,{title,text:txt,by:me.name,at:Date.now()});guildDraft.notice="";guildDraft.noticeTitle="";guildView.noticeMode="view";guildView.noticeIndex=0;guildView.noticePage=0;toast("공지를 등록했습니다.")}catch(e){toast("공지 등록에 실패했습니다.")}
+ try{const item={title,text:txt,by:me.name,at:Date.now()},r=push(ref(realtimeDB,"guilds/"+guildView.gid+"/notices"));await set(r,item);if(guildView.data)guildView.data.notices={...(guildView.data.notices||{}),[r.key]:item};guildDraft.notice="";guildDraft.noticeTitle="";guildView.noticeMode="view";guildView.noticeIndex=0;guildView.noticePage=0;guildRender();try{$("gNoticeView")&&$("gNoticeView").scrollIntoView({block:"nearest"})}catch(e){}toast("공지를 등록했습니다.")}catch(e){toast("공지 등록에 실패했습니다.")}
 }
 async function guildWritePost(){
  const title=(($("gPostTitle")&&$("gPostTitle").value)||guildDraft.postTitle||"").trim().slice(0,40);
  const txt=(($("gPostIn")&&$("gPostIn").value)||guildDraft.post||"").trim().slice(0,200);
  if(!title)return toast("게시글 제목을 입력해 주세요.");
  if(!txt)return toast("게시글 내용을 입력해 주세요.");
- try{const r=push(ref(realtimeDB,"guilds/"+guildView.gid+"/posts"));await set(r,{title,text:txt,by:me.name,at:Date.now()});guildDraft.post="";guildDraft.postTitle="";guildView.postMode="view";guildView.postIndex=0;guildView.postPage=0;toast("게시글을 등록했습니다.")}catch(e){toast("게시글 등록에 실패했습니다.")}
+ try{const item={title,text:txt,by:me.name,at:Date.now()},r=push(ref(realtimeDB,"guilds/"+guildView.gid+"/posts"));await set(r,item);if(guildView.data)guildView.data.posts={...(guildView.data.posts||{}),[r.key]:item};guildDraft.post="";guildDraft.postTitle="";guildView.postMode="view";guildView.postIndex=0;guildView.postPage=0;guildRender();try{$("gPostView")&&$("gPostView").scrollIntoView({block:"nearest"})}catch(e){}toast("게시글을 등록했습니다.")}catch(e){toast("게시글 등록에 실패했습니다.")}
 }
 async function guildDeposit(name){
  if(!name||!guildView.data)return;
@@ -4106,6 +4177,7 @@ async function guildDepositIndex(idx){
 }
 async function depositGuildItem(idx){
  if(!guildView.data)return;
+ if(!guildPerm(guildView.data,"warehouseDeposit"))return toast("창고에 물건을 넣을 권한이 없습니다.");
  const cur=me.inv[idx];if(cur==null)return toast("아이템이 없습니다.");
  const name=nm(cur),item=cp(cur),wh=guildView.data.warehouse||{},cap=30*(Math.max(0,Math.floor(+wh.level||0))+1);
  let ok=false;
@@ -4118,6 +4190,7 @@ async function depositGuildItem(idx){
 }
 async function guildWithdraw(name){
  if(!name||!guildView.data)return;
+ if(!guildPerm(guildView.data,"warehouseWithdraw"))return toast("창고에서 물건을 꺼낼 권한이 없습니다.");
  const gid=guildView.gid;let out=null;
  try{const r=await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse/items"),arr=>{const list=gArr(arr),i=list.findIndex(x=>nm(x)===name);if(i<0)return;out=list[i];list.splice(i,1);return list});if(!r.committed)out=null}catch(e){out=null}
  if(!out)return toast("아이템을 꺼내지 못했습니다.");
@@ -4127,6 +4200,35 @@ async function guildWithdraw(name){
  }
  addItem(out);bag();try{opts.save(cp(snap()))}catch(e){}
  toast(`${name}을(를) 꺼냈습니다.`);
+}
+async function guildVaultIn(){
+ const g=guildView.data;if(!g)return;
+ if(!guildPerm(g,"vaultDeposit"))return toast("금고에 입금할 권한이 없습니다.");
+ const amt=parseGuildAmount();if(!amt)return;
+ if(me.gold<amt)return toast("소지금이 부족합니다.");
+ let ok=false;
+ try{const r=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/gold"),v=>Math.max(0,Math.floor(+v||0))+amt);ok=!!r.committed}catch(e){ok=false}
+ if(!ok)return toast("입금에 실패했습니다.");
+ me.gold-=amt;guildDraft.vault="";const el=$("gVaultAmt");if(el)el.value="";bag();try{opts.save(cp(snap()))}catch(e){}
+ toast(`${amt} G를 길드 금고에 입금했습니다.`);
+}
+async function guildVaultOut(){
+ const g=guildView.data;if(!g)return;
+ if(!guildPerm(g,"vaultWithdraw"))return toast("금고에서 출금할 권한이 없습니다.");
+ const amt=parseGuildAmount();if(!amt)return;
+ let ok=false;
+ try{const r=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/gold"),v=>{const cur=Math.max(0,Math.floor(+v||0));return cur>=amt?cur-amt:undefined});ok=!!r.committed}catch(e){ok=false}
+ if(!ok)return toast("길드 자금이 부족합니다.");
+ me.gold+=amt;guildDraft.vault="";const el=$("gVaultAmt");if(el)el.value="";bag();try{opts.save(cp(snap()))}catch(e){}
+ toast(`${amt} G를 길드 금고에서 출금했습니다.`);
+}
+function parseGuildAmount(){
+ const raw=($("gVaultAmt")&&$("gVaultAmt").value)||guildDraft.vault||"";
+ const cleaned=String(raw).replace(/,/g,"").trim();
+ if(!/^\d+$/.test(cleaned)){toast("금액을 숫자로 입력해 주세요.");return 0}
+ const n=Math.floor(Number(cleaned));
+ if(!isFinite(n)||n<=0){toast("금액을 입력해 주세요.");return 0}
+ return n;
 }
 async function guildExpand(){
  if(!guildView.data)return;
@@ -4140,18 +4242,22 @@ async function guildExpand(){
 }
 async function guildAccept(appUid){
  const g=guildView.data;if(!g)return;
+ if(!guildPerm(g,"memberManage"))return toast("멤버 관리 권한이 없습니다.");
  const app=(g.apps||{})[appUid];if(!app)return;
  try{
-  await update(ref(realtimeDB,"guilds/"+guildView.gid+"/members/"+appUid),{name:String(app.name||""),role:"member",at:Date.now()});
+  await update(ref(realtimeDB,"guilds/"+guildView.gid+"/members/"+appUid),{name:String(app.name||""),role:"rookie",at:Date.now()});
   await remove(ref(realtimeDB,"guilds/"+guildView.gid+"/apps/"+appUid));
   await set(ref(realtimeDB,"guildMembership/"+appUid),guildView.gid).catch(()=>{});
   toast(`${app.name}님의 가입을 수락했습니다.`);
  }catch(e){toast("가입 수락에 실패했습니다.")}
 }
 async function guildReject(appUid){
+ if(!guildPerm(guildView.data,"memberManage"))return toast("멤버 관리 권한이 없습니다.");
  try{await remove(ref(realtimeDB,"guilds/"+guildView.gid+"/apps/"+appUid));toast("가입 신청을 거절했습니다.")}catch(e){toast("가입 신청 처리에 실패했습니다.")}
 }
 function guildKick(memberUid){
+ if(!guildPerm(guildView.data,"memberManage"))return toast("멤버 관리 권한이 없습니다.");
+ if(guildView.data&&memberUid===guildView.data.leader)return toast("길드장은 내보낼 수 없습니다.");
  const m=(guildView.data&&guildView.data.members||{})[memberUid];if(!m)return;
  pop("길드원 내보내기",`<p><b>${esc(m.name||"")}</b>님을 길드에서 내보낼까요?</p><p class="dim">내보낸 길드원은 길드 게시판에 접근할 수 없습니다.</p>`,[
   {t:"내보내기",c:"bad",fn:async()=>{try{await remove(ref(realtimeDB,"guilds/"+guildView.gid+"/members/"+memberUid));await remove(ref(realtimeDB,"guilds/"+guildView.gid+"/apps/"+memberUid)).catch(()=>{});clearGuildMembership(memberUid,guildView.gid);toast("길드원을 내보냈습니다.")}catch(e){toast("내보내기에 실패했습니다.")};openGuildBoard()}},
@@ -4165,6 +4271,7 @@ function guildLeave(){
  ]);
 }
 function guildDisband(){
+ if(!guildIsLeader(guildView.data))return toast("길드 해산은 길드장만 할 수 있습니다.");
  pop("길드 해산",`<p>‘${esc(me.guild||"길드")}’ 길드를 해산할까요?</p><p class="dim">길드 게시판과 길드 창고가 모두 삭제되며 되돌릴 수 없습니다.</p>`,[
   {t:"해산",c:"bad",fn:async()=>{try{
     const gid=me.guildId,members=Object.keys(guildView.data&&guildView.data.members||{});
@@ -4175,7 +4282,38 @@ function guildDisband(){
   {t:"취소",fn:()=>openGuildBoard()}
  ]);
 }
+async function guildSetRole(memberUid,role){
+ const g=guildView.data;if(!g)return;
+ if(!guildPerm(g,"memberManage"))return toast("멤버 관리 권한이 없습니다.");
+ if(memberUid===g.leader)return toast("길드장의 등급은 변경할 수 없습니다.");
+ if(memberUid===uid)return toast("자신의 등급은 변경할 수 없습니다.");
+ if(!GUILD_ROLE_KEYS.includes(role))return;
+ try{await update(ref(realtimeDB,"guilds/"+guildView.gid+"/members/"+memberUid),{role});toast(`등급을 ${guildRankName(g,role)}(으)로 변경했습니다.`)}catch(e){toast("등급 변경에 실패했습니다.");guildRender()}
+}
+async function guildSaveDetails(){
+ const g=guildView.data;if(!g)return;
+ if(!guildIsLeader(g))return toast("상세 설정은 길드장만 변경할 수 있습니다.");
+ const rankNames={...(g.rankNames||{})};
+ for(const k of ["leader","vice","elite","rookie"]){
+  const el=$("gRank"+k[0].toUpperCase()+k.slice(1));
+  const v=(el&&el.value||"").trim().slice(0,10);
+  if(!v)return toast("등급 명칭을 입력해 주세요.");
+  rankNames[k]=v;
+ }
+ if(!rankNames.member)rankNames.member=GUILD_RANK_DEFAULTS.member;
+ const keys=["memberManage","vaultDeposit","vaultWithdraw","warehouseDeposit","warehouseWithdraw"];
+ const permissions={};
+ for(const k of keys){const el=$("gPerm"+k[0].toUpperCase()+k.slice(1));permissions[k]=el?el.value:GUILD_PERM_DEFAULTS[k]}
+ if(!["vice","elite","member"].includes(permissions.memberManage))permissions.memberManage=GUILD_PERM_DEFAULTS.memberManage;
+ for(const k of keys)if(!GUILD_ROLE_KEYS.includes(permissions[k]))permissions[k]=GUILD_PERM_DEFAULTS[k];
+ let adjusted=false;
+ if(guildRankValue(permissions.vaultWithdraw)<guildRankValue(permissions.vaultDeposit)){permissions.vaultWithdraw=permissions.vaultDeposit;adjusted=true}
+ if(guildRankValue(permissions.warehouseWithdraw)<guildRankValue(permissions.warehouseDeposit)){permissions.warehouseWithdraw=permissions.warehouseDeposit;adjusted=true}
+ try{await update(guildRef(guildView.gid),{rankNames,permissions});toast(adjusted?"상세 설정을 저장했습니다. (출금·빼기 권한을 입금·넣기 이상으로 조정했습니다.)":"상세 설정을 저장했습니다.")}catch(e){toast("상세 설정 저장에 실패했습니다.")}
+}
 async function guildSaveSettings(){
+ const g=guildView.data;if(!g)return;
+ if(!guildIsLeader(g))return toast("길드 설정은 길드장만 변경할 수 있습니다.");
  const open=!($("gSetOpen")&&$("gSetOpen").value==="0");
  const joinMode=$("gSetJoin")&&$("gSetJoin").value;
  if(!["auto","approve","closed"].includes(joinMode))return;
@@ -4239,7 +4377,8 @@ function openGrave(gid){
  else if(eff)graveVisit.effect=eff;
  const rows=items.length?items.map((x,i)=>{const got=!!taken[i];return `<div class="row" style="justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(nm(x))}${dura(x)}</span><button class="btn alt sm" data-gtake="${i}" ${got?"disabled":""}>${got?"가져감":"가져가기"}</button></div>`}).join(""):`<p class="dim">남은 유품이 없다.</p>`;
  const will=gr.will?`<div class="ai-intro" style="margin:8px 0">${esc(gr.will)}</div>`:`<p class="dim">남긴 말이 없다.</p>`;
- pop(`[${name}]의 묘비`,`<p class="dim">이곳에 잠들다.</p>${will}<div class="ai-sec">유품</div>${rows}<div class="row" style="justify-content:flex-end;gap:6px;margin-top:10px"><button type="button" class="btn alt sm" data-gflower ${eff?"disabled":""}>헌화하기</button><button type="button" class="btn alt sm" data-gmourn ${eff?"disabled":""}>애도하기</button></div>${eff?`<p class="dim" style="margin-top:10px">이미 이 묘비에서 추모했습니다.</p>`:""}`,[{t:"닫기"}]);
+ const busy=!!me.travel||!!me.expedition||!!me.rest||!!me.read||!!me.downed||!!me.deadPending;
+ pop(`[${name}]의 묘비`,`<p class="dim">이곳에 잠들다.</p>${will}<div class="ai-sec">유품</div>${rows}<div class="row" style="justify-content:flex-end;gap:6px;margin-top:10px"><button type="button" class="btn alt sm" data-gflower ${eff||busy?"disabled":""}>헌화하기</button><button type="button" class="btn alt sm" data-gmourn ${eff||busy?"disabled":""}>애도하기</button></div>${eff?`<p class="dim" style="margin-top:10px">이미 이 묘비에서 추모했습니다.</p>`:""}${!eff&&busy?`<p class="dim" style="margin-top:10px">이동·탐사 중에는 헌화·애도할 수 없습니다.</p>`:""}`,[{t:"닫기"}]);
  $("pb").onclick=e=>{const take=e.target.closest("[data-gtake]");if(take){graveTake(gid,+take.dataset.gtake);return}
   if(e.target.closest("[data-gflower]")){graveMourn(gid,"flower");return}
   if(e.target.closest("[data-gmourn]")){graveMourn(gid,"mourn")}};
@@ -4262,6 +4401,7 @@ async function graveTake(gid,i){
  openGrave(gid);
 }
 async function graveMourn(gid,kind){
+ if(me.travel)return toast("이동 중에는 추모할 수 없습니다.");
  if(actionLock("휴식 중에는 추모할 수 없습니다."))return;
  const gr=graveData[gid];if(!gr)return;
  if((gr.effects&&gr.effects[uid])||(graveVisit&&graveVisit.gid===gid&&graveVisit.effect))return toast("이미 이 묘비에서 추모했습니다.");
