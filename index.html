@@ -2097,7 +2097,7 @@ function resolveExp(partial=false){
    enc++;
    const res=runBattle(bossMon,"dungeonBoss",true);
    if(res.win){
-    const boxTier=(areaObj&&areaObj.diff==="7~8")?"78":"45",chest={n:"던전 보상 상자",tier:boxTier,area:e.area};
+    const boxTier=(areaObj&&areaObj.diff==="7~8")?"78":"45",chest={n:"던전 보상 상자",tier:boxTier,area:e.area,min:e.min};
     if(canAdd(chest)){addItem(chest);box=true}else lost++;
     chestData={tier:boxTier,area:e.area};
    }
@@ -2648,14 +2648,15 @@ function rollRegionGrade(star){
  for(const[g,w]of Object.entries(table)){acc+=w;if(r<acc)return g}
  return Object.keys(table)[0];
 }
-function adjustGrade(grade,category,source){
+function adjustGrade(grade,category,source,minutes){
  let g=grade;
  if(category==="재료"&&Math.random()<.30)g=shiftGrade(g,-1);
  else if(category==="소모품"&&Math.random()<.20)g=shiftGrade(g,-1);
  if(category==="장비"){
   const boss=source==="fieldNamed"||source==="dungeonBoss"||source==="dungeonChest";
-  if(boss&&Math.random()<.10)g=shiftGrade(g,1);
-  else if(String(source).startsWith("dungeon")&&Math.random()<.05)g=shiftGrade(g,1);
+  const mins=+minutes||0,bonus=mins>=180?.15:mins>=120?.10:mins>=60?.05:0;
+  if(boss){if(Math.random()<(.10+bonus))g=shiftGrade(g,1)}
+  else if(String(source).startsWith("dungeon")){if(Math.random()<(.05+bonus))g=shiftGrade(g,1)}
  }
  const rare=Math.min(.5,traitTotal("rareFind"));
  if(rare>0&&Math.random()<rare)g=shiftGrade(g,1);
@@ -2733,7 +2734,7 @@ function rollLoot(star,source,monsterGrade=null,areaObj=null,minutes=null){
  star=Math.max(1,Math.min(12,+star||1));
  const tag=areaDropTag(areaObj),base=monsterGrade||rollRegionGrade(star),out=[];
  const find=Math.max(0,Math.min(50,(calcStats(me).itemFind||0)));
- const add=(category,src=source)=>{const g=adjustGrade(base,category,src),n=pickItem(category,g,tag,src);if(n)out.push(n)};
+ const add=(category,src=source)=>{const g=adjustGrade(base,category,src,minutes),n=pickItem(category,g,tag,src);if(n)out.push(n)};
  if(source==="fieldNamed"){
   add("재료");
   if(Math.random()<.30)add("장비");
@@ -3364,7 +3365,7 @@ function unequip(k){if(me.travel)return toast("이동 중에는 장비를 해제
 function openBox(x){
  const tier=x.tier==="78"?"78":"45",star=tier==="78"?8:5;
  const areaObj=(()=>{try{return AR(x.area||me.area)}catch(_){return null}})();
- const names=rollLoot(star,"dungeonChest",null,areaObj);
+ const names=rollLoot(star,"dungeonChest",null,areaObj,x.min);
  me.inv.splice(me.inv.indexOf(x),1);
  const got=[];
  for(const n of names){registerItem(n);const item=lootObj(n);if(canAdd(item)){addItem(item);got.push(n)}}
