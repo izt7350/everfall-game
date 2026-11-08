@@ -602,13 +602,28 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .g-write input{flex:1;min-width:0;box-sizing:border-box;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:8px 10px;border-radius:8px;font:inherit;font-size:13px}
 #gameRoot .g-notice{padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);font-size:13px;line-height:19px}
 #gameRoot .g-notice-t{white-space:pre-wrap;word-break:break-word}
+#gameRoot .g-card{padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
+#gameRoot .g-card-title{font-size:14px;line-height:20px;font-weight:600;color:var(--text)}
+#gameRoot .g-card-body{margin-top:6px;font-size:13px;line-height:19px;color:var(--text);white-space:pre-wrap;word-break:break-word}
 #gameRoot .g-meta{font-size:11px;line-height:16px;color:var(--dim);margin-top:4px}
 #gameRoot .g-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:6px;font-size:12px}
+#gameRoot .g-listrow{display:flex;align-items:baseline;justify-content:space-between;gap:10px;width:100%;text-align:left;padding:8px 2px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);cursor:pointer}
+#gameRoot .g-listrow:last-child{border-bottom:0}
+#gameRoot .g-rowtitle{flex:1;min-width:0;font-size:13px;line-height:19px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#gameRoot .g-rowmeta{flex:0 0 auto;font-size:11px;line-height:16px;color:var(--dim);white-space:nowrap}
+#gameRoot .g-foot{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:8px}
+#gameRoot .g-pager{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--dim)}
+#gameRoot .g-actions{display:flex;align-items:center;gap:6px;margin-left:auto}
+#gameRoot .g-writeform{display:flex;flex-direction:column;gap:8px}
+#gameRoot .g-writeform input,#gameRoot .g-writeform textarea{width:100%;box-sizing:border-box;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:9px 10px;border-radius:8px;font:inherit;font-size:13px}
+#gameRoot .g-writeform textarea{min-height:72px;resize:vertical;line-height:19px}
+#gameRoot .g-formbtns{display:flex;justify-content:flex-end;gap:6px}
 #gameRoot .g-postlink{display:block;width:100%;text-align:left;padding:8px 2px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);cursor:pointer}
 #gameRoot .g-postlink:last-child{border-bottom:0}
 #gameRoot .g-postxt{display:block;font-size:13px;line-height:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #gameRoot .g-empty{padding:14px 0;text-align:center;font-size:12px;color:var(--dim)}
 #gameRoot .g-list{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+#gameRoot .g-boardlist{gap:0;margin-top:0}
 #gameRoot .g-cell{display:flex;flex-direction:column;gap:6px}
 #gameRoot .g-row{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2)}
 #gameRoot .g-rowmain{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
@@ -3462,7 +3477,7 @@ if(me.downed){subscribeOwnDowned();updateDownedBar();if(me.downed.revive)setTime
 
 // 팝업
 let popF=[];
-const guildView={gid:"",data:null,tab:"board",page:0,notice:0,post:null,online:"",onlineSet:new Set(),open:false,unsub:null};
+const guildView={gid:"",data:null,tab:"board",page:0,noticeMode:"view",noticeIndex:0,noticePage:0,postMode:"list",postIndex:0,postPage:0,online:"",onlineSet:new Set(),open:false,unsub:null};
 function pop(t,h,b,lock,sheet){guildView.open=false;$("pt").textContent=t;$("pb").innerHTML=h;$("pb").onclick=null;$("pb").oninput=null;popF=b;$("pbtn").innerHTML=b.map((x,k)=>`<button class="btn ${x.c===undefined?"alt":x.c}" data-k="${k}"${x.disabled?" disabled":""}>${x.t}</button>`).join("");$("pop").dataset.lock=lock?"1":"";$("pop").classList.toggle("sheet",!!sheet);$("pop").classList.remove("guild");$("pop").hidden=false}
 const closePop=()=>{guildView.open=false;if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}$("pop").hidden=true;expRecordView=false};
 $("pbtn").onclick=e=>{const b=e.target.closest("[data-k]");if(!b)return;const f=popF[+b.dataset.k];closePop();if(f.fn)f.fn()};
@@ -3765,7 +3780,7 @@ $("setBtn").onclick=openSettings;
 // ---- 길드 ----
 const GUILD_JOIN_LABEL={auto:"자동 가입",approve:"신청 후 승인",closed:"가입 불가"};
 const guildJoinState={data:{},q:"",applyFor:""};
-const guildDraft={notice:"",noticeTitle:"",post:"",msg:""};
+const guildDraft={notice:"",noticeTitle:"",post:"",postTitle:"",msg:""};
 const guildRef=gid=>ref(realtimeDB,"guilds/"+gid);
 const clearGuildMembership=(id,gid)=>runTransaction(ref(realtimeDB,"guildMembership/"+id),v=>v===gid?null:undefined).catch(()=>{});
 const gArr=v=>Array.isArray(v)?v.slice():(v&&typeof v==="object"?Object.values(v):[]);
@@ -3886,8 +3901,10 @@ async function submitGuildCreate(){
 }
 function openGuildBoard(){
  if(!me.guildId){renderGuildBox();return}
- guildView.gid=me.guildId;guildView.tab="board";guildView.page=0;guildView.notice=0;guildView.post=null;
- guildDraft.notice="";guildDraft.noticeTitle="";guildDraft.post="";
+ guildView.gid=me.guildId;guildView.tab="board";guildView.page=0;
+ guildView.noticeMode="view";guildView.noticeIndex=0;guildView.noticePage=0;
+ guildView.postMode="list";guildView.postIndex=0;guildView.postPage=0;
+ guildDraft.notice="";guildDraft.noticeTitle="";guildDraft.post="";guildDraft.postTitle="";
  pop("길드",`<div class="g-empty">불러오는 중…</div>`,[{t:"닫기"}],false,true);
  guildView.open=true;
  $("pop").classList.add("guild");
@@ -3915,39 +3932,35 @@ function guildRender(){
   ${leader?"<span class=\"g-chip\">길드장</span>":""}
   ${leader&&Object.keys(g.apps||{}).length?`<span class="g-chip">가입 신청 <b>${Object.keys(g.apps).length}</b></span>`:""}
  </div>`;
- const tab=guildView.post?"board":guildView.tab;
+ const tab=guildView.tab;
  const tabs=`<div class="g-tabs" role="tablist">
   <button class="g-tab" role="tab" aria-selected="${tab==="board"}" data-gtab="board">길드 게시판</button>
   <button class="g-tab" role="tab" aria-selected="${tab==="warehouse"}" data-gtab="warehouse">길드 창고</button>
   ${leader?`<button class="g-tab" role="tab" aria-selected="${tab==="manage"}" data-gtab="manage">길드 관리</button>`:""}
  </div>`;
  let body="";
- if(guildView.post)body=guildPostHtml(g,guildView.post);
- else if(guildView.tab==="warehouse")body=guildWarehouseHtml(g);
+ if(guildView.tab==="warehouse")body=guildWarehouseHtml(g);
  else if(guildView.tab==="manage"&&leader)body=guildManageHtml(g);
  else body=guildBoardHtml(g);
  $("pb").innerHTML=chips+tabs+body;
  $("pb").onclick=guildClick;
- $("pb").oninput=e=>{const id=e.target.id;if(id==="gNoticeIn")guildDraft.notice=e.target.value;else if(id==="gNoticeTitle")guildDraft.noticeTitle=e.target.value;else if(id==="gPostIn")guildDraft.post=e.target.value};
+ $("pb").oninput=e=>{const id=e.target.id;if(id==="gNoticeIn")guildDraft.notice=e.target.value;else if(id==="gNoticeTitle")guildDraft.noticeTitle=e.target.value;else if(id==="gPostIn")guildDraft.post=e.target.value;else if(id==="gPostTitle")guildDraft.postTitle=e.target.value};
  refreshGuildOnline(members);
 }
 function guildBoardHtml(g){
  const leader=guildIsLeader(g);
  const members=guildMembers(g);
- const notices=Object.entries(g.notices||{}).map(([k,v])=>({k,...(v||{})})).sort((a,b)=>(+a.at||0)-(+b.at||0));
- guildView.notice=notices.length?Math.max(0,Math.min(guildView.notice,notices.length-1)):0;
- const n=notices[guildView.notice];
- const posts=Object.entries(g.posts||{}).map(([k,v])=>({k,...(v||{})})).sort((a,b)=>(+b.at||0)-(+a.at||0)).slice(0,40);
+ const notices=Object.entries(g.notices||{}).map(([k,v])=>({k,...(v||{})})).sort((a,b)=>(+b.at||0)-(+a.at||0));
+ const posts=Object.entries(g.posts||{}).map(([k,v])=>({k,...(v||{})})).sort((a,b)=>(+b.at||0)-(+a.at||0));
+ guildView.noticeIndex=notices.length?Math.max(0,Math.min(guildView.noticeIndex,notices.length-1)):0;
+ guildView.postIndex=posts.length?Math.max(0,Math.min(guildView.postIndex,posts.length-1)):0;
  return `<div class="g-sec">
   <div class="g-sech">길드 공지 게시판 <span class="dim">(길드장 작성 가능)</span></div>
-  ${leader?`<div class="g-write"><input id="gNoticeTitle" maxlength="30" value="${esc(guildDraft.noticeTitle)}" placeholder="공지 제목"></div><div class="g-write"><input id="gNoticeIn" maxlength="300" value="${esc(guildDraft.notice)}" placeholder="공지 내용"><button class="sm2" data-gnotice>등록</button></div>`:""}
-  <div class="g-notice">${n?`${n.title?`<div class="g-notice-t" style="font-weight:600">${esc(n.title)}</div>`:""}<div class="g-notice-t">${esc(n.text||"")}</div><div class="g-meta">${esc(n.by||"")} · ${esc(fmt(n.at))}</div>`:`<div class="g-empty">등록된 공지가 없습니다.</div>`}</div>
-  <div class="g-nav"><button class="sm2" data-gprev ${guildView.notice<=0?"disabled":""}>이전</button><span class="dim">${notices.length?`${guildView.notice+1} / ${notices.length}`:"0 / 0"}</span><button class="sm2" data-gnext ${guildView.notice>=notices.length-1?"disabled":""}>다음</button></div>
+  ${guildNoticeSectionHtml(notices,leader)}
  </div>
  <div class="g-sec">
   <div class="g-sech">길드 게시판 <span class="dim">(누구나 작성 가능)</span></div>
-  <div class="g-write"><input id="gPostIn" maxlength="200" value="${esc(guildDraft.post)}" placeholder="게시글을 입력하세요"><button class="sm2" data-gpost>등록</button></div>
-  <div>${posts.length?posts.map(p=>`<button type="button" class="g-postlink" data-gpostview="${esc(p.k)}"><span class="g-postxt">${esc(p.text||"")}</span><span class="g-meta">${esc(p.by||"")} · ${esc(fmt(p.at))}</span></button>`).join(""):`<div class="g-empty">게시글이 없습니다.</div>`}</div>
+  ${guildPostSectionHtml(posts)}
  </div>
  <div class="g-sec">
   <div class="g-sech">길드 명부 <span class="dim">${members.length}명 · 접속 ${esc(guildView.online||"…")}</span></div>
@@ -3955,9 +3968,40 @@ function guildBoardHtml(g){
  </div>
  ${leader?"":`<div class="g-sec" style="text-align:right"><button class="sm2" data-gleave>길드 탈퇴</button></div>`}`;
 }
-function guildPostHtml(g,k){
- const p=(g.posts||{})[k];
- return `<button class="sm2" data-gback>← 목록</button>`+(p?`<div class="g-notice" style="margin-top:10px"><div class="g-notice-t">${esc(p.text||"")}</div><div class="g-meta">${esc(p.by||"")} · ${esc(fmt(p.at))}</div></div>`:`<div class="g-empty">게시글을 찾을 수 없습니다.</div>`);
+function guildNoticeSectionHtml(notices,leader){
+ if(guildView.noticeMode==="write"&&leader)return `<div class="g-writeform">
+  <input id="gNoticeTitle" maxlength="30" value="${esc(guildDraft.noticeTitle)}" placeholder="공지 제목">
+  <textarea id="gNoticeIn" maxlength="300" placeholder="공지 내용">${esc(guildDraft.notice)}</textarea>
+  <div class="g-formbtns"><button class="sm2" data-gncancel>취소</button><button class="sm2" data-gnotice>등록</button></div>
+ </div>`;
+ const pageSize=5,pages=Math.max(1,Math.ceil(notices.length/pageSize));
+ guildView.noticePage=Math.max(0,Math.min(guildView.noticePage,pages-1));
+ if(guildView.noticeMode==="list"){
+  const rows=notices.slice(guildView.noticePage*pageSize,guildView.noticePage*pageSize+pageSize);
+  return `<div class="g-list g-boardlist">${rows.length?rows.map(n=>`<button type="button" class="g-listrow" data-gnview="${esc(n.k)}"><span class="g-rowtitle">${esc(n.title||n.text||"(제목 없음)")}</span><span class="g-rowmeta">${esc(n.by||"")} · ${esc(fmt(n.at))}</span></button>`).join(""):`<div class="g-empty">등록된 공지가 없습니다.</div>`}</div>
+  <div class="g-foot"><div class="g-pager"><button class="sm2" data-gnpage="prev" ${guildView.noticePage<=0?"disabled":""}>이전</button><span>${guildView.noticePage+1} / ${pages}</span><button class="sm2" data-gnpage="next" ${guildView.noticePage>=pages-1?"disabled":""}>다음</button></div><div class="g-actions">${leader?`<button class="sm2" data-gnmode="write">글쓰기</button>`:""}</div></div>`;
+ }
+ const n=notices[guildView.noticeIndex];
+ return `<div class="g-card">${n?`<div class="g-card-title">${esc(n.title||"(제목 없음)")}</div><div class="g-card-body">${esc(n.text||"")}</div><div class="g-meta">${esc(n.by||"")} · ${esc(fmt(n.at))}</div>`:`<div class="g-empty">등록된 공지가 없습니다.</div>`}</div>
+ <div class="g-foot"><div class="g-pager"><button class="sm2" data-gnprev ${guildView.noticeIndex>=notices.length-1?"disabled":""}>이전</button><span>${notices.length?`${guildView.noticeIndex+1} / ${notices.length}`:"0 / 0"}</span><button class="sm2" data-gnnext ${guildView.noticeIndex<=0?"disabled":""}>다음</button></div><div class="g-actions">${leader?`<button class="sm2" data-gnmode="write">글쓰기</button>`:""}<button class="sm2" data-gnmode="list">글목록</button></div></div>`;
+}
+function guildPostSectionHtml(posts){
+ if(guildView.postMode==="write")return `<div class="g-writeform">
+  <input id="gPostTitle" maxlength="40" value="${esc(guildDraft.postTitle)}" placeholder="게시글 제목">
+  <textarea id="gPostIn" maxlength="200" placeholder="게시글 내용">${esc(guildDraft.post)}</textarea>
+  <div class="g-formbtns"><button class="sm2" data-gpcancel>취소</button><button class="sm2" data-gpost>등록</button></div>
+ </div>`;
+ const pageSize=5,pages=Math.max(1,Math.ceil(posts.length/pageSize));
+ guildView.postPage=Math.max(0,Math.min(guildView.postPage,pages-1));
+ if(guildView.postMode==="view"&&posts.length){
+  const idx=Math.max(0,Math.min(guildView.postIndex,posts.length-1));guildView.postIndex=idx;
+  const p=posts[idx];
+  return `<div class="g-card"><div class="g-card-title">${esc(p.title||"(제목 없음)")}</div><div class="g-card-body">${esc(p.text||"")}</div><div class="g-meta">${esc(p.by||"")} · ${esc(fmt(p.at))}</div></div>
+  <div class="g-foot"><div class="g-pager"><button class="sm2" data-gpprev ${idx>=posts.length-1?"disabled":""}>이전</button><span>${idx+1} / ${posts.length}</span><button class="sm2" data-gpnext ${idx<=0?"disabled":""}>다음</button></div><div class="g-actions"><button class="sm2" data-gpmode="write">글쓰기</button><button class="sm2" data-gpmode="list">글목록</button></div></div>`;
+ }
+ const rows=posts.slice(guildView.postPage*pageSize,guildView.postPage*pageSize+pageSize);
+ return `<div class="g-list g-boardlist">${rows.length?rows.map(p=>`<button type="button" class="g-listrow" data-gpview="${esc(p.k)}"><span class="g-rowtitle">${esc(p.title||p.text||"(제목 없음)")}</span><span class="g-rowmeta">${esc(p.by||"")} · ${esc(fmt(p.at))}</span></button>`).join(""):`<div class="g-empty">게시글이 없습니다.</div>`}</div>
+ <div class="g-foot"><div class="g-pager"><button class="sm2" data-gppage="prev" ${guildView.postPage<=0?"disabled":""}>이전</button><span>${guildView.postPage+1} / ${pages}</span><button class="sm2" data-gppage="next" ${guildView.postPage>=pages-1?"disabled":""}>다음</button></div><div class="g-actions"><button class="sm2" data-gpmode="write">글쓰기</button></div></div>`;
 }
 function guildWarehouseHtml(g){
  const wh=g.warehouse&&typeof g.warehouse==="object"?g.warehouse:{};
@@ -4006,15 +4050,23 @@ async function refreshGuildOnline(members){
  if($("pb"))$("pb").querySelectorAll("[data-gdot]").forEach(d=>{const on=set.has(d.dataset.gdot);d.classList.toggle("on",on);d.classList.toggle("off",!on)});
 }
 function guildClick(e){
- const b=e.target.closest("[data-gtab],[data-gprev],[data-gnext],[data-gnotice],[data-gpost],[data-gpostview],[data-gback],[data-gwh],[data-gdep],[data-gdepi],[data-gwit],[data-gwexpand],[data-gaccept],[data-greject],[data-gkick],[data-gsettings],[data-gleave],[data-gdisband]");
+ const b=e.target.closest("[data-gtab],[data-gnmode],[data-gnpage],[data-gnprev],[data-gnnext],[data-gnview],[data-gncancel],[data-gnotice],[data-gpmode],[data-gppage],[data-gpprev],[data-gpnext],[data-gpview],[data-gpcancel],[data-gpost],[data-gwh],[data-gdep],[data-gdepi],[data-gwit],[data-gwexpand],[data-gaccept],[data-greject],[data-gkick],[data-gsettings],[data-gleave],[data-gdisband]");
  if(!b)return;const g=guildView.data;if(!g)return;
- if(b.dataset.gtab){guildView.tab=b.dataset.gtab;guildView.post=null;guildView.page=0;guildRender();return}
- if(b.hasAttribute("data-gprev")){guildView.notice=Math.max(0,guildView.notice-1);guildRender();return}
- if(b.hasAttribute("data-gnext")){guildView.notice++;guildRender();return}
+ if(b.dataset.gtab){guildView.tab=b.dataset.gtab;guildView.page=0;guildView.noticeMode="view";guildView.noticeIndex=0;guildView.noticePage=0;guildView.postMode="list";guildView.postIndex=0;guildView.postPage=0;guildRender();return}
+ if(b.dataset.gnmode){guildView.noticeMode=b.dataset.gnmode;if(guildView.noticeMode==="view")guildView.noticeIndex=0;guildRender();return}
+ if(b.dataset.gnpage){guildView.noticePage+=b.dataset.gnpage==="next"?1:-1;guildRender();return}
+ if(b.hasAttribute("data-gnprev")){guildView.noticeIndex++;guildRender();return}
+ if(b.hasAttribute("data-gnnext")){guildView.noticeIndex=Math.max(0,guildView.noticeIndex-1);guildRender();return}
+ if(b.dataset.gnview){const ns=Object.entries(guildView.data.notices||{}).sort((a,b)=>(+b[1].at||0)-(+a[1].at||0)),i=ns.findIndex(([k])=>k===b.dataset.gnview);if(i>=0){guildView.noticeIndex=i;guildView.noticeMode="view"}guildRender();return}
+ if(b.hasAttribute("data-gncancel")){guildDraft.notice="";guildDraft.noticeTitle="";guildView.noticeMode="list";guildRender();return}
  if(b.hasAttribute("data-gnotice")){guildWriteNotice();return}
+ if(b.dataset.gpmode){guildView.postMode=b.dataset.gpmode;if(guildView.postMode==="view")guildView.postIndex=0;guildRender();return}
+ if(b.dataset.gppage){guildView.postPage+=b.dataset.gppage==="next"?1:-1;guildRender();return}
+ if(b.hasAttribute("data-gpprev")){guildView.postIndex++;guildRender();return}
+ if(b.hasAttribute("data-gpnext")){guildView.postIndex=Math.max(0,guildView.postIndex-1);guildRender();return}
+ if(b.dataset.gpview){const ps=Object.entries(guildView.data.posts||{}).sort((a,b)=>(+b[1].at||0)-(+a[1].at||0)),i=ps.findIndex(([k])=>k===b.dataset.gpview);if(i>=0){guildView.postIndex=i;guildView.postMode="view"}guildRender();return}
+ if(b.hasAttribute("data-gpcancel")){guildDraft.post="";guildDraft.postTitle="";guildView.postMode="list";guildRender();return}
  if(b.hasAttribute("data-gpost")){guildWritePost();return}
- if(b.dataset.gpostview){guildView.post=b.dataset.gpostview;guildRender();return}
- if(b.hasAttribute("data-gback")){guildView.post=null;guildRender();return}
  if(b.dataset.gwh!=null){guildView.page=Math.max(0,+b.dataset.gwh||0);guildRender();return}
  if(b.dataset.gdep!=null){guildDeposit(decodeURIComponent(b.dataset.gdep));return}
  if(b.dataset.gdepi!=null){guildDepositIndex(+b.dataset.gdepi);return}
@@ -4031,13 +4083,16 @@ async function guildWriteNotice(){
  if(!guildIsLeader(guildView.data))return toast("길드장만 공지를 작성할 수 있습니다.");
  const title=(($("gNoticeTitle")&&$("gNoticeTitle").value)||guildDraft.noticeTitle||"").trim().slice(0,30);
  const txt=(($("gNoticeIn")&&$("gNoticeIn").value)||guildDraft.notice||"").trim().slice(0,300);
+ if(!title)return toast("공지 제목을 입력해 주세요.");
  if(!txt)return toast("공지 내용을 입력해 주세요.");
- try{await push(ref(realtimeDB,"guilds/"+guildView.gid+"/notices"),{title,text:txt,by:me.name,at:Date.now()});guildDraft.notice="";guildDraft.noticeTitle="";guildView.notice=999;const t=$("gNoticeTitle"),el=$("gNoticeIn");if(t)t.value="";if(el)el.value="";toast("공지를 등록했습니다.")}catch(e){toast("공지 등록에 실패했습니다.")}
+ try{const r=push(ref(realtimeDB,"guilds/"+guildView.gid+"/notices"));await set(r,{title,text:txt,by:me.name,at:Date.now()});guildDraft.notice="";guildDraft.noticeTitle="";guildView.noticeMode="view";guildView.noticeIndex=0;guildView.noticePage=0;toast("공지를 등록했습니다.")}catch(e){toast("공지 등록에 실패했습니다.")}
 }
 async function guildWritePost(){
+ const title=(($("gPostTitle")&&$("gPostTitle").value)||guildDraft.postTitle||"").trim().slice(0,40);
  const txt=(($("gPostIn")&&$("gPostIn").value)||guildDraft.post||"").trim().slice(0,200);
+ if(!title)return toast("게시글 제목을 입력해 주세요.");
  if(!txt)return toast("게시글 내용을 입력해 주세요.");
- try{await push(ref(realtimeDB,"guilds/"+guildView.gid+"/posts"),{text:txt,by:me.name,at:Date.now()});guildDraft.post="";const el=$("gPostIn");if(el)el.value="";toast("게시글을 등록했습니다.")}catch(e){toast("게시글 등록에 실패했습니다.")}
+ try{const r=push(ref(realtimeDB,"guilds/"+guildView.gid+"/posts"));await set(r,{title,text:txt,by:me.name,at:Date.now()});guildDraft.post="";guildDraft.postTitle="";guildView.postMode="view";guildView.postIndex=0;guildView.postPage=0;toast("게시글을 등록했습니다.")}catch(e){toast("게시글 등록에 실패했습니다.")}
 }
 async function guildDeposit(name){
  if(!name||!guildView.data)return;
