@@ -4982,7 +4982,7 @@ function desc(){const w=W(),d=!!view.area,a=d?AR(view.area):AR(view.sel||me.area
  const expState=me.expedition?"탐사 중":me.travel?"이동 중":me.rest?"휴식 중":me.read?"독서 중":"시작";
  $("longgo").textContent=expState;$("dungo").textContent=expState;
  const noAct=!!me.downed||!!me.deadPending;
- const lockNow=!!me.rest||!!me.expedition||!!me.read||noAct;["trade","atrade","etrade","soletrade","strade","srepair","merchantTrade","cure","traitCure","buyHorse","buyFeed","cgo"].forEach(id=>{const b=$(id);if(b)b.disabled=lockNow});
+ const lockNow=!!me.travel||!!me.rest||!!me.expedition||!!me.read||noAct;["trade","atrade","etrade","soletrade","strade","srepair","merchantTrade","cure","traitCure","buyHorse","buyFeed","cgo"].forEach(id=>{const b=$(id);if(b)b.disabled=lockNow});
  ["partyAdd","partyClear"].forEach(id=>{const b=$(id);if(b)b.disabled=noAct});
  const cp=me.area==="cap";$("market").hidden=!(cp&&me.cont==="카르도르");$("amarket").hidden=!(cp&&me.cont==="아르케인");$("solemarket").hidden=!(cp&&me.cont==="솔레니아");$("emarket").hidden=!(cp&&me.cont==="엘리시아");$("smithy").hidden=!(cp&&(me.cont==="엘리시아"||me.cont==="카르도르"||me.cont==="아르케인"||me.cont==="솔레니아"));$("clinic").hidden=!(cp&&me.cont==="솔레니아");$("secretMerchant").hidden=!merchantHere();
  $("guild").hidden=!cp;renderGuildBox();const guildLock=guildBusy();$("guild").querySelectorAll("[data-gact]").forEach(b=>b.disabled=guildLock);
