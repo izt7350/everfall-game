@@ -435,6 +435,9 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
  #gameRoot .modal.sheet .mbox{box-sizing:border-box;width:100% !important;max-width:100% !important;max-height:85vh !important;max-height:85dvh !important;overflow:auto;overscroll-behavior:contain;border-radius:16px 16px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px)) !important;box-shadow:0 -10px 30px rgba(0,0,0,.35);animation:sheetUp .22s cubic-bezier(.2,.8,.2,1)}
  #gameRoot .modal.sheet .mbox::before{content:"";display:block;width:36px;height:4px;margin:-6px auto 12px;border-radius:2px;background:var(--line);pointer-events:none}
 }
+#gameRoot #tmodal .mbox{display:flex;flex-direction:column;overflow:hidden !important}
+#gameRoot #tmodal #tl{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-right:2px}
+#gameRoot #tmodal #tmsg{flex:0 0 auto}
 #gameRoot .sh{margin:16px 0 8px;font-size:12px;line-height:18px;color:var(--dim);font-weight:500}
 #gameRoot .swatches{display:flex;gap:8px;flex-wrap:wrap}
 #gameRoot .swatch{width:28px;height:28px;padding:0;border:0;border-radius:50%;background:var(--c);box-shadow:inset 0 0 0 1px rgba(0,0,0,.14)}
@@ -709,7 +712,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 <body>
 <div class="wrap" id="authRoot"><button class="themebtn">다크 모드</button><div id="app" style="width:100%;display:flex;justify-content:center"><div class="card center"><div class="dim">불러오는 중…</div></div></div></div>
 <div id="gameRoot" hidden>
-<div class="topbar"><button class="back" id="exitGame">← 로비로</button><div class="tbr"><span id="cd"></span><div class="theme-toggle" role="group" aria-label="화면 모드"><button type="button" data-thbtn="light" aria-pressed="false" title="라이트 모드"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button><button type="button" data-thbtn="dark" aria-pressed="false" title="다크 모드"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg></button></div><span id="ck"></span><button class="gear" id="setBtn" title="설정" aria-label="설정"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div></div>
+<div class="topbar"><button class="back" id="exitGame">← 로비로</button><div class="tbr"><span id="cd"></span><div class="theme-toggle" role="group" aria-label="화면 모드"><button type="button" data-thbtn="light" aria-pressed="false" title="라이트 모드"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button><button type="button" data-thbtn="dark" aria-pressed="false" title="다크 모드"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg></button></div><span id="ck"></span><button class="back" id="tutBtn" title="튜토리얼">튜토리얼</button><button class="gear" id="setBtn" title="설정" aria-label="설정"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div></div>
 <div class="downed-bar" id="downedBar" hidden><b>쓰러졌다…</b><span id="downedTime"></span><button class="btn bad" id="selfRevive" hidden>소생약으로 소생</button></div>
 <div class="game">
 <div class="col">
@@ -795,7 +798,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 </div>
 
 <div class="col">
-  <div class="box"><h2>파티 <span class="cnt" id="pcnt"></span></h2><div class="roster" id="partyList"></div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn alt sm2" id="partyAdd" style="flex:1">동료 영입</button><button class="btn alt sm2" id="partyClear">해산</button></div></div>
+  <div class="box" id="partyBox"><h2>파티 <span class="cnt" id="pcnt"></span></h2><div class="roster" id="partyList"></div><div style="display:flex;gap:6px;margin-top:8px"><button class="btn alt sm2" id="partyAdd" style="flex:1">동료 영입</button><button class="btn alt sm2" id="partyClear">해산</button></div></div>
   <div class="box" id="peopleBox"><h2>이 장소의 사람들 <span class="cnt" id="rcnt"></span></h2><div class="roster" id="roster"></div></div>
  <div class="box chat">
   <div class="ctabs" role="tablist" id="ctabs">
@@ -813,7 +816,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 <div class="modal" id="mvmodal" hidden><div class="mbox" style="width:340px;max-width:90vw"><h3 id="mvt" style="line-height:1.4"></h3><div class="modes" id="mvm"></div><p id="mvi" style="text-align:left;font-size:14px"></p><div style="display:flex;gap:8px;justify-content:center"><button class="btn alt" id="mvno">취소</button><button class="btn" id="mvgo">이동</button></div></div></div>
 <div class="modal" id="rmodal" hidden><div class="mbox" style="text-align:left;width:440px"><h3>아래의 장비·도구를 수리할까? <span style="float:right;font-size:13px;font-weight:400"><b id="rg"></b></span></h3><div id="rl"></div><p id="rmsg" style="font-size:13px;color:var(--dim);min-height:1.5em;margin:8px 0"></p><div style="text-align:right"><button class="btn" id="rclose">닫기</button></div></div></div>
 <div class="modal" id="cmodal" hidden><div class="mbox" style="width:340px"><h3 id="ctitle">치료할 상태이상을 선택하세요</h3><p class="dim" id="cwho" style="margin:0 0 8px"></p><div id="cl" class="cl"></div><div style="margin-top:10px"><button class="btn alt" id="cclose">취소</button></div></div></div>
-<div class="modal sheet" id="tmodal" hidden><div class="mbox" style="text-align:left;width:440px;max-height:85vh;overflow:auto"><h3><span id="ttitle">시장 거래</span> <span style="float:right;font-size:13px;font-weight:400">보유금 <b id="tg"></b></span></h3><div id="ttabs"><button type="button" class="ttab" data-ttab="buy" aria-selected="true">구매</button><button type="button" class="ttab" data-ttab="sell" aria-selected="false">판매</button></div><div id="tl"></div><p id="tmsg" style="font-size:13px;color:var(--dim);min-height:1.5em;margin:8px 0"></p><div style="text-align:right"><button class="btn" id="tclose">닫기</button></div></div></div>
+<div class="modal sheet" id="tmodal" hidden><div class="mbox" style="text-align:left;width:440px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column"><h3><span id="ttitle">시장 거래</span> <span style="float:right;font-size:13px;font-weight:400">보유금 <b id="tg"></b></span></h3><div id="ttabs"><button type="button" class="ttab" data-ttab="buy" aria-selected="true">구매</button><button type="button" class="ttab" data-ttab="sell" aria-selected="false">판매</button></div><div id="tl"></div><p id="tmsg" style="font-size:13px;color:var(--dim);min-height:1.5em;margin:8px 0"></p><div style="text-align:right"><button class="btn" id="tclose">닫기</button></div></div></div>
 <div class="modal" id="modal" hidden><div class="mbox"><h3 id="mt"></h3><p id="mb"></p><button class="btn" id="mok">확인</button></div></div>
 <div class="tut" id="tut" hidden>
  <svg class="tut-shade" id="tutShade" aria-hidden="true">
@@ -7041,21 +7044,30 @@ render();bag();renderAll();clock();
  const TUT_KEY="everfall_tutorial_v1_"+(uid||"local")+"_"+charId;
  let tutIndex=-1,tutActive=false,tutPrevFocus=null,tutTries=0;
  const TUT_STEPS=[
-  {key:"map-tabs",title:"화면 전환",target:"#tabs",tab:"map",scroll:"center",pad:8,
-   body:`<p><b>지도 · 소지품 · 상태</b> 탭을 눌러 화면을 전환할 수 있습니다.</p><p>지금은 <b>지도</b> 탭입니다.</p>`},
-  {key:"map",title:"지도",target:"#v-map",tab:"map",scroll:"start",pad:10,
-   body:`<p>현재 지역과 이동할 수 있는 장소를 확인할 수 있습니다.</p><p>장소를 선택하면 이동하거나 탐사할 수 있습니다.</p>`},
-  {key:"inv-main",title:"장비와 소지품",target:"#tutInvMain",tab:"inv",scroll:"start",pad:10,
+  {key:"profile",title:"캐릭터 정보",target:"#profileBox",scroll:"center",pad:10,
+   body:`<p>이름, 직업, 소지금, 길드, 현재 위치가 표시됩니다. 프로필 사진도 여기서 바꿀 수 있습니다.</p>`},
+  {key:"survival",title:"생존 수치",target:"#survivalBox",scroll:"center",pad:10,
+   body:`<p>HP·정신력·허기를 관리하세요.</p><p>소지품의 포션, 음식 등의 소지품을 적극 활용하세요.</p><p>HP나 허기가 0이 되면 캐릭터는 쓰러지게 됩니다.</p>`},
+  {key:"map-tabs",title:"지도 · 소지품 · 상태",target:"#tabs",tab:"map",scroll:"center",pad:8,
+   body:`<p>탭을 전환해 소지품을 사용하거나 상태를 확인할 수 있습니다. 소지품 탭에서 레시피도 열 수 있습니다.</p>`},
+  {key:"map",title:"지도와 이동",target:"#v-map",tab:"map",scroll:"start",pad:10,
+   body:`<p>지도를 클릭해 이동합니다. 이동에는 시간이 소모됩니다.</p><p>시간은 리얼타임으로 적용됩니다.</p><p>★은 지역의 조사 난도입니다. ★이 높을수록 몬스터가 강해집니다.</p>`},
+  {key:"area-actions",title:"지역 행동",target:"#areaActions",tab:"map",scroll:"center",pad:10,
+   body:`<p>각 지역에서는 그 지역에서 할 수 있는 행동이 표시됩니다.</p><p>수도에서는 시장을 열거나 NPC와 상호작용을 할 수 있고, 거점에서는 휴식을 할 수 있습니다.</p><p>관문에서는 대륙 간 이동이 가능합니다.</p><p>각 소지역에서는 단기 탐사, 장기 탐사, 던전 탐사를 통해 아이템을 얻을 수 있습니다.</p>`},
+  {key:"inv-main",title:"소지품",target:"#v-inv",tab:"inv",scroll:"start",pad:10,
    before:()=>{try{bag()}catch(e){}},
-   body:`<p>장비와 소지품은 <b>소지품</b> 탭에서 확인할 수 있습니다.</p><p>장비는 원할 때 착용하거나 해제할 수 있습니다.</p><p>소지품을 클릭하면 설명을 확인할 수 있습니다.</p><p>소지품은 아래의 버튼을 눌러 사용합니다.</p>`},
-  {key:"inv-recipe",title:"레시피",target:"#tutInvRecipe",tab:"inv",scroll:"center",pad:8,
-   before:()=>{try{bag()}catch(e){}},
-   body:`<p><b>레시피 확인하기</b> 버튼으로 레시피를 확인할 수 있습니다.</p><p>재료가 있다면 다양한 장비를 만들 수 있습니다.</p>`},
+   body:`<p>장비와 소지품은 소지품 탭에서 확인할 수 있습니다.</p><p>장비는 원할 때 착용하거나 해제할 수 있습니다.</p><p>소지품을 클릭하면 설명을 확인할 수 있습니다.</p><p>소지품은 아래 버튼을 눌러 사용합니다.</p>`},
   {key:"status",title:"상태",target:"#v-stat",tab:"stat",scroll:"start",pad:10,
    before:()=>{try{renderStatus()}catch(e){}},
-   body:`<p>내가 가진 특성과 스펙을 확인할 수 있습니다.</p><p>레벨을 올리면 능력치와 기능치를 올릴 수 있는 포인트를 받을 수 있습니다.</p><p class="dim">Lv·경험치부터 기본 능력치, 전투·생존 능력치, 기능, 특성까지 이 화면에서 확인합니다.</p>`},
-  {key:"people-chat",title:"사람들과 채팅",target:()=>{const p=$("peopleBox");return p?p.closest(".col"):null},tab:"stat",scroll:"center",pad:10,
-   body:`<p>이제 오른쪽에서 <b>사람들</b>과 <b>채팅</b>으로 이어집니다.</p><p>이 장소의 사람들과 대화하고, 파티를 맺거나 정보를 교환해 보세요.</p>`}
+   body:`<p>내가 가진 특성과 스펙을 확인할 수 있습니다.</p><p>레벨을 올리면 능력치와 기능치를 올릴 수 있는 포인트를 받을 수 있습니다.</p>`},
+  {key:"party",title:"파티",target:"#partyBox",scroll:"center",pad:10,
+   body:`<p>최대 5명까지 파티를 꾸릴 수 있습니다.</p><p>플레이어 파티 뿐만이 아니라, 용병으로도 파티를 꾸릴 수 있습니다.</p><p>파티 인원이 많아질수록 탐사 난도가 낮아집니다.</p>`},
+  {key:"people-chat",title:"채팅과 사람들",target:()=>{const p=$("peopleBox");return p?p.closest(".col"):null},scroll:"center",pad:10,
+   body:`<p>'이 장소의 사람들'에는 같은 대지역에 있는 사람들의 목록이 표시됩니다.</p><p>현장 채팅은 같은 대륙에 있는 사람들간의 대화가 보입니다.</p><p>세계 채팅은 서버 전체의 사람들간의 대화가 보입니다.</p><p>공지 채팅방으로 업데이트 공지가 올라옵니다.</p><p>귓속말이 올 경우 공지의 오른쪽에 탭이 생성됩니다.</p>`},
+  {key:"settings",title:"설정",target:"#setBtn",scroll:"center",pad:10,
+   body:`<p>화면 모드, 이름 색, 소개말, 효과음을 설정할 수 있습니다. 튜토리얼은 오른쪽 위 튜토리얼 버튼으로 다시 볼 수 있습니다.</p>`},
+  {key:"done",title:"준비 완료",target:null,scroll:"center",pad:10,
+   body:`<p>게임 안의 시간은 한국시간 기준의 리얼타임으로 흐릅니다.</p><p>이제 모험을 시작하세요.</p>`}
  ];
  function tutSeen(){try{return localStorage.getItem(TUT_KEY)==="1"}catch(e){return false}}
  function tutMarkDone(){try{localStorage.setItem(TUT_KEY,"1")}catch(e){}}
@@ -7163,6 +7175,7 @@ render();bag();renderAll();clock();
  $("tutNext").onclick=tutNext;
  $("tutPrev").onclick=tutPrev;
  $("tutSkip").onclick=tutSkip;
+ $("tutBtn").onclick=()=>tutStart(true);
  function tutKick(){
   if(tutActive||tutSeen())return;
   if(me.downed||me.deadPending){if(++tutTries<8)_ids.push(setTimeout(tutKick,1500));return}
