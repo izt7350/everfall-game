@@ -779,10 +779,10 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
    </div>
    <button type="button" class="btn outline sm" id="explogBtn" hidden>탐사 기록</button>
    <div class="explore" id="market" hidden><div><b>시장</b><span>거래가 가능하다. 물품은 매일 바뀐다. (오후 12시~오전 12시)<em id="mstat"></em></span></div><button class="btn" id="trade">거래하기</button></div>
-   <div class="explore" id="amarket" hidden><div><b>시장</b><span>가끔 열린다. 물품은 매일 바뀐다. (오전 9시~오후 9시)<em id="amstat"></em></span></div><button class="btn" id="atrade">거래하기</button></div>
+   <div class="explore" id="amarket" hidden><div><b>시장</b><span>자주 열린다. 물품은 매일 바뀐다. (오전 9시~오후 9시)<em id="amstat"></em></span></div><button class="btn" id="atrade">거래하기</button></div>
    <div class="explore" id="solemarket" hidden><div><b>시장</b><span>진료소가 열리는 날, 오전 9시부터 오후 9시까지 열린다. 물품은 매일 바뀐다.<em id="solestat"></em></span></div><button class="btn" id="soletrade">거래하기</button></div>
    <div class="explore" id="emarket" hidden><div><b>시장</b><span>이틀에 한 번, 오전 9시부터 오후 9시까지 열린다. 물품은 매일 바뀐다.<em id="emstat"></em></span></div><button class="btn" id="etrade">거래하기</button></div>
-   <div class="explore" id="smithy" hidden><div><b>대장간</b><span>장비·도구 수리와 거래가 가능하다. (카르도르: 정오~자정 / 엘리시아: 격일 오전 9시~오후 9시)<em id="smstat"></em></span></div><div style="display:flex;gap:6px"><button class="btn" id="strade">거래</button><button class="btn" id="srepair">수리</button></div></div>
+   <div class="explore" id="smithy" hidden><div><b>대장간</b><span>장비·도구 수리와 거래가 가능하다. (카르도르: 정오~자정 / 아르케인·솔레니아·엘리시아: 시장 영업일 오전 9시~오후 9시)<em id="smstat"></em></span></div><div style="display:flex;gap:6px"><button class="btn" id="strade">거래</button><button class="btn" id="srepair">수리</button></div></div>
    <div class="explore" id="guild" hidden><div><b>길드</b><span>길드를 만들거나 가입하고, 길드 게시판을 확인한다.<em id="guildstat"></em></span></div><div style="display:flex;gap:6px;flex-wrap:wrap" id="guildBtns"></div></div>
    <div class="explore" id="secretMerchant" hidden><div><b>상인</b><span>은밀하게 만나는 상인. 24시간 거래할 수 있다. 일반 회복 포션을 상시 판매하며, 랜덤 물품 3종은 매일 바뀐다.</span></div><button class="btn" id="merchantTrade">거래하기</button></div>
    <div class="explore" id="clinic" hidden><div><b>진료소</b><span>상태이상 치료와 부정 특성 제거가 가능하다. (특성 제거: 성기사의 휘장 1개 + 2000G)<em id="clstat"></em></span></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="cure">치료하기</button><button class="btn alt" id="traitCure">부정 특성 치료</button></div></div>
@@ -2263,7 +2263,7 @@ S|기사들의 병영(거점)|0|성을 수비하던 기사들이 생활하던 �
 S|봉인된 보물고|7|영주의 재산과 가보를 보관하던 금고.
 S|검은 연회장|7|영주와 귀족들이 연회를 열던 대형 홀. 식탁과 샹들리에가 그대로 방치되어 있다.
 #아르케인
-C|만민의 광장|아르케인의 수도이자 여러 대륙의 사람들이 모여들던 거대한 교역·정치의 중심지. 광장을 둘러싸고 평의회 의사당과 상업 지구, 각국의 대사관과 시민 시설이 자리하고 있었다. 몬스터 침략 당시 평의회의 대응이 늦어지면서 도시는 순식간에 무너졌고, 이후 아르케인은 여러 정치 세력으로 분열되었다. 지금은 폐허가 된 광장과 건물들만이 과거 번영의 흔적을 간직하고 있다. 이곳은 가끔 시장이 선다. 오전 9시부터 오후 9시까지.
+C|만민의 광장|아르케인의 수도이자 여러 대륙의 사람들이 모여들던 거대한 교역·정치의 중심지. 광장을 둘러싸고 평의회 의사당과 상업 지구, 각국의 대사관과 시민 시설이 자리하고 있었다. 몬스터 침략 당시 평의회의 대응이 늦어지면서 도시는 순식간에 무너졌고, 이후 아르케인은 여러 정치 세력으로 분열되었다. 지금은 폐허가 된 광장과 건물들만이 과거 번영의 흔적을 간직하고 있다. 이곳은 자주 시장이 선다. 오전 9시부터 오후 9시까지.
 P|cap:55,28;cross:43,34;dock:33,40;parl:62,19;glass:69,11.5;beach:68,33.5
 E|cap-cross;cross-dock;cap-parl;parl-glass;cap-beach
 L|dock,cross,cap,parl,glass;cap,beach
@@ -4984,7 +4984,7 @@ function desc(){const w=W(),d=!!view.area,a=d?AR(view.area):AR(view.sel||me.area
  const noAct=!!me.downed||!!me.deadPending;
  const lockNow=!!me.rest||!!me.expedition||!!me.read||noAct;["trade","atrade","etrade","soletrade","strade","srepair","merchantTrade","cure","traitCure","buyHorse","buyFeed","cgo"].forEach(id=>{const b=$(id);if(b)b.disabled=lockNow});
  ["partyAdd","partyClear"].forEach(id=>{const b=$(id);if(b)b.disabled=noAct});
- const cp=me.area==="cap";$("market").hidden=!(cp&&me.cont==="카르도르");$("amarket").hidden=!(cp&&me.cont==="아르케인");$("solemarket").hidden=!(cp&&me.cont==="솔레니아");$("emarket").hidden=!(cp&&me.cont==="엘리시아");$("smithy").hidden=!(cp&&(me.cont==="엘리시아"||me.cont==="카르도르"));$("clinic").hidden=!(cp&&me.cont==="솔레니아");$("secretMerchant").hidden=!merchantHere();
+ const cp=me.area==="cap";$("market").hidden=!(cp&&me.cont==="카르도르");$("amarket").hidden=!(cp&&me.cont==="아르케인");$("solemarket").hidden=!(cp&&me.cont==="솔레니아");$("emarket").hidden=!(cp&&me.cont==="엘리시아");$("smithy").hidden=!(cp&&(me.cont==="엘리시아"||me.cont==="카르도르"||me.cont==="아르케인"||me.cont==="솔레니아"));$("clinic").hidden=!(cp&&me.cont==="솔레니아");$("secretMerchant").hidden=!merchantHere();
  $("guild").hidden=!cp;renderGuildBox();const guildLock=guildBusy();$("guild").querySelectorAll("[data-gact]").forEach(b=>b.disabled=guildLock);
  $("fishing").hidden=!(me.area==="dock"||me.area==="beach");$("mining").hidden=me.area!=="mine";$("rest").hidden=!isRestZone();
  const s=curSub(),g=w.gate;$("stable").hidden=!(g&&me.area===g.id&&s&&s.hub&&me.cont!=="마왕성"&&!busy);$("cont").hidden=!(g&&me.area===g.id&&s&&s.hub&&!busy);
@@ -6277,7 +6277,7 @@ const stableOpen=()=>me.cont!=="마왕성"&&(me.cont==="카르도르"?mOpen():is
 const dayOdd=()=>Math.floor((Date.now()+9*36e5)/864e5)%2===1;
 const eliOpen=()=>isOpen()&&dayOdd();
 const soleOpen=()=>isOpen()&&!dayOdd();
-const arkOpen=()=>{if(!isOpen())return false;const s=traitDayKey()+"ark";let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0)%100<35};
+const arkOpen=()=>{if(!isOpen())return false;const s=traitDayKey()+"ark";let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0)%100<80};
 function clock(){const n=new Date();
  $("ck").textContent=KST({hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true}).format(n);
  $("cd").textContent=KST({month:"long",day:"numeric",weekday:"short"}).format(n);
@@ -6288,9 +6288,9 @@ function clock(){const n=new Date();
  $("atrade").disabled=tv||!ark;$("amstat").textContent=ark?" · 오늘 열림":" · 오늘은 열리지 않음";
   $("soletrade").disabled=tv||!sole;$("solestat").textContent=sole?" · 오늘 열림":" · 오늘은 쉬는 날";
  ["etrade"].forEach(i=>$(i).disabled=tv||!eli);$("emstat").textContent=es;
-  const smithyOpen=me.cont==="카르도르"?mOpen():eliOpen();
+  const smithyOpen=me.cont==="카르도르"?mOpen():me.cont==="아르케인"?arkOpen():me.cont==="솔레니아"?soleOpen():eliOpen();
   ["strade","srepair"].forEach(i=>$(i).disabled=tv||!smithyOpen);
-  $("smstat").textContent=me.cont==="카르도르"?(mOpen()?" · 영업 중":" · 영업 종료"):es;
+  $("smstat").textContent=me.cont==="카르도르"?(mOpen()?" · 영업 중":" · 영업 종료"):me.cont==="아르케인"?(ark?" · 오늘 열림":" · 오늘은 열리지 않음"):me.cont==="솔레니아"?(sole?" · 오늘 열림":" · 오늘은 쉬는 날"):es;
  if($("merchantTrade"))$("merchantTrade").disabled=tv||!!me.expedition||!!me.rest;
  ["cure","traitCure"].forEach(i=>$(i).disabled=tv||!sole);$("clstat").textContent=sole?" · 오늘 열림":" · 오늘은 쉬는 날";
   const sOpen=stableOpen();["buyHorse","buyFeed"].forEach(i=>$(i).disabled=tv||!sOpen);
