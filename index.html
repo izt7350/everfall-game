@@ -3941,7 +3941,7 @@ function invAct(a,i){
   const idx=me.inv.indexOf(x);
   if(it.t==="c"){
    if(me.equipped.acc1&&me.equipped.acc2){
-    const choose=slot=>{const cur=me.equipped[slot];swapPop(cur,x,()=>doEquip(idx,slot))};
+    const choose=slot=>{const cur=me.equipped[slot];swapPop(cur,x,()=>doEquip(idx,slot),slot)};
     pop("악세사리 교체",`<p><b>${esc(nm(x))}</b>을(를) 착용할 슬롯을 선택하세요.</p><p class="dim">교체할 악세사리를 선택하면 능력치 비교를 확인할 수 있습니다.</p>`,[
      {t:`1번: ${esc(nm(me.equipped.acc1))}`,c:"alt",fn:()=>choose("acc1")},
      {t:`2번: ${esc(nm(me.equipped.acc2))}`,c:"alt",fn:()=>choose("acc2")},
@@ -3950,18 +3950,18 @@ function invAct(a,i){
     return;
    }
    const slot=!me.equipped.acc1?"acc1":"acc2";
-   if(me.equipped[slot])swapPop(me.equipped[slot],x,()=>doEquip(idx,slot));
+   if(me.equipped[slot])swapPop(me.equipped[slot],x,()=>doEquip(idx,slot),slot);
    else doEquip(idx,slot);
   }else if(it.t==="w"){
    if(it.s==="sub"){
-    if(me.equipped.sub)swapPop(me.equipped.sub,x,()=>doEquip(idx,"sub"));
+    if(me.equipped.sub)swapPop(me.equipped.sub,x,()=>doEquip(idx,"sub"),"sub");
     else doEquip(idx,"sub");
    }else if(!me.equipped.main){
     doEquip(idx,"main");
    }else if(!me.equipped.sub){
     doEquip(idx,"sub");
    }else{
-    const choose=slot=>swapPop(me.equipped[slot],x,()=>doEquip(idx,slot));
+    const choose=slot=>swapPop(me.equipped[slot],x,()=>doEquip(idx,slot),slot);
     pop("무기 교체",`<p><b>${esc(nm(x))}</b>을(를) 착용할 슬롯을 선택하세요.</p><p class="dim">교체할 무기를 선택하면 능력치 비교를 확인할 수 있습니다.</p>`,[
      {t:`주무기: ${esc(nm(me.equipped.main))}`,c:"alt",fn:()=>choose("main")},
      {t:`보조무기: ${esc(nm(me.equipped.sub))}`,c:"alt",fn:()=>choose("sub")},
@@ -3970,7 +3970,7 @@ function invAct(a,i){
    }
   }else{
    const slot=it.s,cur=me.equipped[slot];
-   if(cur)swapPop(cur,x,()=>doEquip(idx,slot));
+   if(cur)swapPop(cur,x,()=>doEquip(idx,slot),slot);
    else doEquip(idx,slot);
   }
  }
@@ -4619,12 +4619,24 @@ async function guildTick(){
 }
 
 function specs(x){const it=info(nm(x)),o=[];if(it.atk!=null&&+it.atk>0){const lo=it.atkMin!=null?+it.atkMin:Math.max(.1,Math.round(it.atk*.85*10)/10),hi=it.atkMax!=null?+it.atkMax:Math.max(lo,Math.round(it.atk*1.15*10)/10);o.push(["최소 공격력",lo],["최고 공격력",hi])}if(it.def!=null)o.push(["방어",it.def]);if(it.hp!=null)o.push(["최대 HP",it.hp]);if(it.mp!=null)o.push(["최대 정신력",it.mp]);if(it.cap!=null)o.push(["소지품 칸",it.cap]);if(it.trapDamageRed!=null)o.push(["함정 피해 감소",it.trapDamageRed+"%"]);if(typeof x==="object")o.push(["내구도",fmt1(x.dur),x.max]);return o}
-function swapPop(cur,nw,fn){const A=specs(cur),B=specs(nw),acc=info(nm(nw)).t==="c";
+function swapPop(cur,nw,fn,slot){const A=specs(cur),B=specs(nw),acc=info(nm(nw)).t==="c";
  const wk=weaponKindOf(nm(nw)),wtxt=wk==="melee"?"근접":wk==="ranged"?"원거리":wk==="magic"?"마법":"";
  const wnote=wk?`<p class="dim" style="margin:8px 0 0">${wtxt} 무기 · ${wtxt} 공격에만 이 무기의 공격력/치명타가 적용됩니다.</p>`:"";
  const one=v=>{const n=+v;return isFinite(n)?String(Math.round(n*10)/10):"-"};
  const col=(x,S,cmp)=>`<div class="sc"><h4>${cmp?"교체할 장비":"착용 중"}</h4><b>${esc(nm(x))}</b>`+(acc?`<div class="dim" style="font-size:12px;margin-top:4px">${effText(nm(x))}</div>`:S.map(([l,v,m])=>{let d="";if(cmp){const o=A.find(a=>a[0]===l),df=(+v||0)-(o?(+o[1]||0):0);if(Math.abs(df)>=0.05)d=`<span class="cmp ${df>0?"up":"dn"}">${df>0?"▲":"▼"}${one(Math.abs(df))}</span>`}return `<div class="row"><span>${l}</span><b>${one(v)}${m!=null?`/${one(m)}`:""}</b>${d}</div>`}).join(""))+`</div>`;
- pop("교체하시겠습니까?",`<div class="swap">${col(cur,A,false)}${col(nw,B,true)}</div>${wnote}`,[{t:"교체하기",c:"",fn},{t:"취소"}])}
+ let atkCmp="";
+ if(wk){
+  const s=slot||info(nm(nw)).s||"main";
+  const before=calcStats(me),after=calcStats({...me,equipped:{...(me.equipped||{}),[s]:nw}});
+  const rows=[["근접 공격력","melee"],["원거리 공격력","ranged"],["마법 공격력","magic"]].map(([l,k])=>{
+   const bmin=+before[k+"AtkMin"]||0,bmax=+before[k+"AtkMax"]||0,amin=+after[k+"AtkMin"]||0,amax=+after[k+"AtkMax"]||0;
+   const df=((amin+amax)-(bmin+bmax))/2;
+   const d=Math.abs(df)>=0.05?`<span class="cmp ${df>0?"up":"dn"}">${df>0?"▲":"▼"}${one(Math.abs(df))}</span>`:`<span class="cmp dim">-</span>`;
+   return `<div class="row"><span${k===wk?' style="color:var(--text);font-weight:600"':""}>${l}</span><b></b>${d}</div>`;
+  }).join("");
+  atkCmp=`<div class="sc" style="margin-top:10px"><h4>공격력 변화</h4>${rows}</div>`;
+ }
+ pop("교체하시겠습니까?",`<div class="swap">${col(cur,A,false)}${col(nw,B,true)}</div>${wnote}${atkCmp}`,[{t:"교체하기",c:"",fn},{t:"취소"}])}
 // 바닥
 const gkey=()=>[me.cont,me.area,me.sub||""].map(v=>String(v).replace(/[.#$/\[\]]/g,"_")).join("|");
 let graveData={},graveUnsub=null,graveVisit=null;
@@ -7072,6 +7084,8 @@ render();bag();renderAll();clock();
   if(!$("tut")||!$("tutCard"))return;
   tutPrevFocus=document.activeElement;
   tutActive=true;
+  // 한 번이라도 표시됐으면 완료 여부와 관계없이 다시 띄우지 않는다.
+  tutMarkDone();
   $("tut").hidden=false;
   $("tutCard").style.visibility="hidden";
   document.addEventListener("keydown",tutKey,true);
