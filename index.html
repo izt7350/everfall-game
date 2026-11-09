@@ -757,6 +757,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
    <div class="desc" id="desc"></div>
    <div id="areaActions">
 <div class="explore" id="rest"><div><b>휴식</b><span>긴 휴식일수록 회복량이 크다.<em id="reststat"></em></span></div><button class="btn" id="restBtn">휴식</button></div>
+<div class="explore" id="inn" hidden><div><b>여관</b><span>편안하게 휴식할 수 있다. (1시간 · 300G · HP·정신력·허기 회복)</span></div><button class="btn" id="innRestBtn">휴식</button></div>
    <div class="explore">
     <div><b>단기 탐사</b><span>주변을 수색한다. 하루 60회까지 가능하다. 매일 오전 6시에 초기화된다.<em id="explorest"></em></span></div>
     <button class="btn" id="explore">탐사하기</button>
@@ -1744,7 +1745,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.walkRolls=Math.max(0,Math.floor(+c.walkRolls||0));
  o.traits=Array.isArray(c.traits)?c.traits.filter(t=>typeof t==="string"&&TRAITS[t]):(c.trait&&TRAITS[c.trait]?[c.trait]:[]);
  o.lastTraitDay=typeof c.lastTraitDay==="string"?c.lastTraitDay:"";
- o.rest=c.rest&&typeof c.rest==="object"&&isFinite(+c.rest.end)?{start:Math.max(0,+c.rest.start||0),end:+c.rest.end,min:Math.max(0,+c.rest.min||0),hp:Math.max(0,+c.rest.hp||0),mp:Math.max(0,+c.rest.mp||0),lowHp:!!c.rest.lowHp,lowMp:!!c.rest.lowMp}:null;
+ o.rest=c.rest&&typeof c.rest==="object"&&isFinite(+c.rest.end)?{start:Math.max(0,+c.rest.start||0),end:+c.rest.end,min:Math.max(0,+c.rest.min||0),hp:Math.max(0,+c.rest.hp||0),mp:Math.max(0,+c.rest.mp||0),inn:!!c.rest.inn,innPrice:Math.max(0,+c.rest.innPrice||0),campfire:!!c.rest.campfire,lowHp:!!c.rest.lowHp,lowMp:!!c.rest.lowMp}:null;
  o.read=c.read&&typeof c.read==="object"&&isFinite(+c.read.end)&&typeof c.read.n==="string"&&typeof c.read.skill==="string"?{start:Math.max(0,+c.read.start||0),end:+c.read.end,n:String(c.read.n),skill:String(c.read.skill),xp:Math.max(0,+c.read.xp||0),tier:String(c.read.tier||""),baseHours:Math.max(0,+c.read.baseHours||0),pct:Math.max(0,+c.read.pct||100)}:null;
  o.downed=c.downed&&typeof c.downed==="object"&&isFinite(+c.downed.until)?{since:Math.max(0,+c.downed.since||0),until:+c.downed.until,startedAt:(c.downed.startedAt!=null&&isFinite(+c.downed.startedAt))?+c.downed.startedAt:null,cont:String(c.downed.cont||""),area:String(c.downed.area||""),sub:String(c.downed.sub||""),place:String(c.downed.place||""),revive:c.downed.revive&&typeof c.downed.revive==="object"?{...c.downed.revive}:null,dead:!!c.downed.dead}:null;
  const jt=JOB_TRAITS[c.job]||JOB_TRAITS[JOB_ALIAS[c.job]]||{};
@@ -3490,20 +3491,22 @@ function applyDerivedVitals(){
 function syncVitals(){applyDerivedVitals();barsRender();try{renderStatus()}catch(e){}}
 // ---- 휴식 ----
 const REST_OPTIONS=[{m:30,hp:5,mp:2},{m:60,hp:10,mp:6},{m:180,hp:35,mp:20},{m:360,hp:70,mp:50}];
+const INN_PRICE=300;
 function atHub(){return me.area!=="cap"&&!!(curSub()&&curSub().hub)}
 function merchantHere(){
  if(me.cont==="마왕성"){const g=W().gate;return !!g&&me.area===g.id&&!!(curSub()&&curSub().hub)}
  return !!(curSub()&&curSub().hub)
 }
-// ---- 모닥불: 거점·수도 전용 소모품 ----
+// ---- 모닥불: 거점 전용 소모품 ----
 const CAMPFIRE_HP_PCT=15;
 const campfireLocal={};
 let campfireCurrent=null,campfireLoc="",campfireUnsub=null;
-function isRestZone(){return me.area==="cap"||atHub()}
+function isRestZone(){return atHub()}
 function campfireParts(){const sub=me.area==="cap"?"cap":(me.sub||"default");return [me.cont,me.area,sub].map(v=>String(v).replace(/[.#$/\[\]]/g,"_"))}
 function campfireKey(){return campfireParts().join("|")}
 function campfirePath(){return "campfires/"+campfireParts().join("/")}
 function campfireActive(){
+ if(!isRestZone())return null;
  const parts=campfireParts();
  for(const c of [campfireLocal[parts.join("|")],campfireCurrent]){
   if(c&&+c.end>Date.now()&&String(c.cont||"")===parts[0]&&String(c.area||"")===parts[1]&&String(c.sub||"")===parts[2])return c;
@@ -3532,7 +3535,7 @@ function syncCampfire(force){
  try{groundRender()}catch(e){}
 }
 function campfireUsePrompt(x){
- if(!isRestZone())return toast("모닥불은 거점이나 수도에서만 피울 수 있습니다.");
+ if(!isRestZone())return toast("모닥불은 거점에서만 피울 수 있습니다.");
  const cf=campfireActive();
  if(cf)return toast(`이미 모닥불이 피워져 있습니다. (남은 ${campfireLeftText(cf)})`);
  pop("모닥불",`<p>여기에 모닥불을 피울까?</p><p class="dim">6~8시간 동안 이 지역에서 휴식하는 모든 캐릭터의 HP 회복이 +${CAMPFIRE_HP_PCT}% 증가합니다.</p>`,[
@@ -3541,7 +3544,7 @@ function campfireUsePrompt(x){
  ]);
 }
 async function lightCampfire(x){
- if(!isRestZone())return toast("모닥불은 거점이나 수도에서만 피울 수 있습니다.");
+ if(!isRestZone())return toast("모닥불은 거점에서만 피울 수 있습니다.");
  const active=campfireActive();
  if(active)return toast(`이미 모닥불이 피워져 있습니다. (남은 ${campfireLeftText(active)})`);
  const idx=me.inv.indexOf(x);
@@ -3615,7 +3618,7 @@ function checkRest(){
 function openRest(){
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 휴식할 수 없습니다.");
  if(me.travel||me.expedition||me.rest||me.read)return toast("이동·탐사·휴식·독서 중에는 휴식할 수 없습니다.");
- if(!isRestZone())return toast("휴식은 거점이나 수도에서만 가능합니다.");
+ if(!isRestZone())return toast("휴식은 거점에서만 가능합니다.");
  if(me.hp[0]>=me.hp[1]&&me.mp[0]>=me.mp[1])return toast("이미 충분히 회복했습니다.");
  const cf=campfireActive(),rows=REST_OPTIONS.map((o,i)=>{const g=restGain(o.hp,o.mp),gh=cf?Math.round(g.hp*(1+CAMPFIRE_HP_PCT/100)):g.hp;return `<div class="row" style="justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span>${o.m<60?o.m+"분":(o.m/60)+"시간"} <span class="dim">HP +${gh} · 정신력 +${g.mp}</span></span><button class="btn alt sm" data-rest="${i}">휴식</button></div>`}).join("");
  pop("휴식",`<p class="dim">선택한 시간 동안 이동·탐사할 수 없습니다. 중간에 일어나면 쉰 만큼만 회복합니다.</p>${cf?`<p class="dim">모닥불 효과: HP 회복 +${CAMPFIRE_HP_PCT}%</p>`:""}${rows}`,[{t:"닫기"}]);
@@ -3623,7 +3626,7 @@ function openRest(){
 }
 function startRest(o){
  if(me.rest)return toast("이미 휴식 중입니다.");
- if(!isRestZone())return toast("휴식은 거점이나 수도에서만 가능합니다.");
+ if(!isRestZone())return toast("휴식은 거점에서만 가능합니다.");
  if(me.travel||me.expedition||me.read)return toast("이동·탐사·독서 중에는 휴식할 수 없습니다.");
  if(!starvationActionCost())return;
  const now=Date.now(),g=restGain(o.hp,o.mp);
@@ -3632,18 +3635,54 @@ function startRest(o){
  try{opts.save(cp(snap()))}catch(e){}
  renderAll();try{bag()}catch(e){};checkRest();try{clock()}catch(e){};toast(`${o.m<60?o.m+"분":(o.m/60)+"시간"} 휴식을 시작했습니다.`);
 }
+function openInnRest(){
+ if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 휴식할 수 없습니다.");
+ if(me.travel||me.expedition||me.rest||me.read)return toast("이동·탐사·휴식·독서 중에는 휴식할 수 없습니다.");
+ if(me.area!=="cap")return toast("여관은 수도에서만 이용할 수 있습니다.");
+ const price=INN_PRICE;
+ if(me.gold<price)return toast(`${price}G가 필요합니다.`);
+ pop("휴식",`<p>여관에서 편안하게 휴식을 할 수 있다.</p><p class="dim">1시간 · ${price}G · HP, 정신력, 허기를 모두 회복</p>`,[
+  {t:"확인",c:"",fn:startInnRest},
+  {t:"취소"}
+ ]);
+}
+function startInnRest(){
+ if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 휴식할 수 없습니다.");
+ if(me.travel||me.expedition||me.rest||me.read)return toast("이동·탐사·휴식·독서 중에는 휴식할 수 없습니다.");
+ if(me.area!=="cap")return toast("여관은 수도에서만 이용할 수 있습니다.");
+ const price=INN_PRICE;
+ if(me.gold<price)return toast(`${price}G가 필요합니다.`);
+ me.gold-=price;
+ const now=Date.now();
+ me.rest={start:now,end:now+60*60000,min:60,hp:0,mp:0,inn:true,innPrice:price,campfire:false,lowHp:false,lowMp:false};
+ try{opts.save(cp(snap()))}catch(e){}
+ renderAll();try{bag()}catch(e){};checkRest();try{clock()}catch(e){};toast("1시간 휴식을 시작했습니다.");
+}
+$("innRestBtn").onclick=openInnRest;
 function healMul(){try{return Math.max(0.1,1+((calcStats(me).healPct||0)/100))}catch(e){return 1}}
 function healVal(v){return Math.max(0,Math.round((+v||0)*healMul()))}
 function finishRest(early){
  const r=me.rest;if(!r)return;
+ if(early&&Date.now()>=r.end)early=false;
+ const inn=!!r.inn;
+ if(inn&&early){
+  const refund=Math.max(0,+r.innPrice||250);
+  me.rest=null;
+  me.gold+=refund;
+  try{opts.save(cp(snap()))}catch(e){}
+  modal("휴식 중단",`여관 휴식을 중단했습니다. ${refund}G를 돌려받았습니다.`);
+  renderAll();try{bag()}catch(e){};checkRest();try{clock()}catch(e){}
+  return;
+ }
  const mins=Math.max(0,Math.round((early?Date.now()-r.start:r.end-r.start)/60000));
- const ratio=early?restElapsed(r):1,mp=healVal(r.mp*ratio);
- const cf=!!(r.campfire||campfireActive());
- let hp=healVal(r.hp*ratio);
+ const ratio=early?restElapsed(r):1;
+ const cf=!inn&&!!(r.campfire||campfireActive());
+ let hp=inn?0:healVal(r.hp*ratio),mp=inn?0:healVal(r.mp*ratio);
  if(cf)hp=Math.round(hp*(1+CAMPFIRE_HP_PCT/100));
+ if(inn){hp=Math.max(0,me.hp[1]-me.hp[0]);me.hp[0]=me.hp[1];me.mp[0]=me.mp[1];me.hunger[0]=me.hunger[1]}
  if(hp>0)wearTool("생존 책");
  me.rest=null;
- me.hp[0]=Math.min(me.hp[1],me.hp[0]+hp);me.mp[0]=Math.min(me.mp[1],me.mp[0]+mp);
+ if(!inn){me.hp[0]=Math.min(me.hp[1],me.hp[0]+hp);me.mp[0]=Math.min(me.mp[1],me.mp[0]+mp)}
  barsRender();
  if(mins>=30){removeStatus("fatigue",{silent:true});removeStatus("slow",{silent:true});removeStatus("sleep",{silent:true});removeStatus("chill",{silent:true})}
  if(mins>=180)removeStatus("exhaustion",{silent:true});
@@ -3652,7 +3691,7 @@ function finishRest(early){
  if(r.lowMp)tryGoodTrait("깊은 잠");
  try{opts.save(cp(snap()))}catch(e){}
  if(!early)playCompleteSound();
- modal(early?"휴식 중단":"휴식 완료",`${mins}분 휴식했습니다. HP +${hp} · 정신력 +${mp}을(를) 회복했습니다.${cf?` (모닥불 +${CAMPFIRE_HP_PCT}%)`:""}`);
+ modal(early?"휴식 중단":"휴식 완료",inn?"1시간 휴식했습니다. HP, 정신력, 허기가 모두 회복되었습니다.":`${mins}분 휴식했습니다. HP +${hp} · 정신력 +${mp}을(를) 회복했습니다.${cf?` (모닥불 +${CAMPFIRE_HP_PCT}%)`:""}`);
  renderAll();try{bag()}catch(e){};checkRest();try{clock()}catch(e){}
 }
 $("restBtn").onclick=openRest;
@@ -4982,11 +5021,11 @@ function desc(){const w=W(),d=!!view.area,a=d?AR(view.area):AR(view.sel||me.area
  const expState=me.expedition?"탐사 중":me.travel?"이동 중":me.rest?"휴식 중":me.read?"독서 중":"시작";
  $("longgo").textContent=expState;$("dungo").textContent=expState;
  const noAct=!!me.downed||!!me.deadPending;
- const lockNow=!!me.travel||!!me.rest||!!me.expedition||!!me.read||noAct;["trade","atrade","etrade","soletrade","strade","srepair","merchantTrade","cure","traitCure","buyHorse","buyFeed","cgo"].forEach(id=>{const b=$(id);if(b)b.disabled=lockNow});
+ const lockNow=!!me.travel||!!me.rest||!!me.expedition||!!me.read||noAct;["trade","atrade","etrade","soletrade","strade","srepair","merchantTrade","cure","traitCure","buyHorse","buyFeed","cgo","innRestBtn"].forEach(id=>{const b=$(id);if(b)b.disabled=lockNow});
  ["partyAdd","partyClear"].forEach(id=>{const b=$(id);if(b)b.disabled=noAct});
  const cp=me.area==="cap";$("market").hidden=!(cp&&me.cont==="카르도르");$("amarket").hidden=!(cp&&me.cont==="아르케인");$("solemarket").hidden=!(cp&&me.cont==="솔레니아");$("emarket").hidden=!(cp&&me.cont==="엘리시아");$("smithy").hidden=!(cp&&(me.cont==="엘리시아"||me.cont==="카르도르"||me.cont==="아르케인"||me.cont==="솔레니아"));$("clinic").hidden=!(cp&&me.cont==="솔레니아");$("secretMerchant").hidden=!merchantHere();
  $("guild").hidden=!cp;renderGuildBox();const guildLock=guildBusy();$("guild").querySelectorAll("[data-gact]").forEach(b=>b.disabled=guildLock);
- $("fishing").hidden=!(me.area==="dock"||me.area==="beach");$("mining").hidden=me.area!=="mine";$("rest").hidden=!isRestZone();
+ $("fishing").hidden=!(me.area==="dock"||me.area==="beach");$("mining").hidden=me.area!=="mine";$("rest").hidden=!isRestZone();$("inn").hidden=!cp;
  const s=curSub(),g=w.gate;$("stable").hidden=!(g&&me.area===g.id&&s&&s.hub&&me.cont!=="마왕성"&&!busy);$("cont").hidden=!(g&&me.area===g.id&&s&&s.hub&&!busy);
  if($("csel").dataset.c!==me.cont){$("csel").dataset.c=me.cont;$("csel").innerHTML=Object.keys(WORLD).filter(k=>k!==me.cont&&WORLD[k].gate).map(k=>`<option>${k}</option>`).join("")}
  try{refreshRisk()}catch(e){};try{renderProposalPanels()}catch(e){}}
@@ -6297,10 +6336,11 @@ function clock(){const n=new Date();
   $("ststat").textContent=sOpen?" · 영업 중":" · 영업 종료";
   $("stdesc").textContent=`영업시간: ${me.cont==="카르도르"?"정오~자정":"오전 9시~오후 9시"} · 말 700G · 먹이 15G`;
  const busy=tv||!!me.expedition||!!me.rest,rh=isRestZone(),rl=restLeft();
+  if($("innRestBtn"))$("innRestBtn").disabled=busy;
  updateGatherButtons(busy);
  if($("rest"))$("rest").hidden=!rh;
  if($("restBtn"))$("restBtn").disabled=busy||!rh;
- if($("reststat"))$("reststat").textContent=me.rest?` · 휴식 중 ${Math.ceil(rl/60000)}분 남음`:!rh?" · 거점·수도에서만 가능":(campfireActive()?` · 모닥불 HP +${CAMPFIRE_HP_PCT}%`:"")
+ if($("reststat"))$("reststat").textContent=me.rest?` · 휴식 중 ${Math.ceil(rl/60000)}분 남음`:!rh?" · 거점에서만 가능":(campfireActive()?` · 모닥불 HP +${CAMPFIRE_HP_PCT}%`:"")
  const cft=$("cft");
  if(cft){const cf=campfireActive();if(cf)cft.textContent=campfireLeftText(cf);else try{groundRender()}catch(e){}}
 }
