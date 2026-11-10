@@ -3085,8 +3085,8 @@ function removeStatus(x,opts={}){
 }
 let lastDotLog=0;
 const FOOD_POISON_CHANCE=.10;
-// 상처: 단기 탐사 함정 2%, 전투에서 내가 피격될 때마다 1% (2026-11-10)
-const WOUND_TRAP_CHANCE=.02,WOUND_HIT_CHANCE=.01;
+// 상처: 단기 탐사 함정 1%, 전투에서 내가 피격될 때마다 0.5% (2026-11-10)
+const WOUND_TRAP_CHANCE=.01,WOUND_HIT_CHANCE=.005;
 function tickStatus(){
  if(!me.fx||!me.fx.length)return;
  const now=Date.now();let changed=false,removed=[],hpBefore=+me.hp[0]||0;
@@ -5923,7 +5923,7 @@ function setTab(t){
 }
 $("tabs").onclick=e=>{const b=e.target.closest(".tab");if(!b)return;setTab(b.dataset.t)};
 let people=[];
-let presenceRef=null,presenceLoc="",presenceAt=0,rosterUnsub=null,downedUnsub=null,downedMap={},presenceList=[],rosterError=false;
+let presenceRef=null,presenceLoc="",presenceAt=0,rosterUnsub=null,rosterGen=0,presenceWarned=false,downedUnsub=null,downedMap={},presenceList=[],rosterError=false;
 const PEOPLE_TTL=600000;
 const chatData={local:[],world:[],notice:[],whisper:[]};
 const chatUnsub={local:null,world:null,notice:null,whisper:null};
@@ -6012,8 +6012,8 @@ function syncPresence(force){
  }
  if(force||moved||Date.now()-presenceAt>30000){
   presenceAt=Date.now();
-  const d={name:me.name,cont:me.cont,area:me.area,sub:me.sub||"",day:me.day,at:presenceAt,c:me.color,downed:!!me.downed,downedUntil:me.downed?me.downed.until:0};
-  const p=set(presenceRef,d).catch(()=>{const {c,...bare}=d;return set(presenceRef,bare).catch(()=>{})});
+  const d=Object.fromEntries(Object.entries({name:me.name,cont:me.cont,area:me.area,sub:me.sub||"",day:me.day,at:presenceAt,c:me.color,downed:!!me.downed,downedUntil:me.downed?me.downed.until:0}).filter(([,v])=>v!==undefined));
+  const p=set(presenceRef,d).catch(err=>{console.warn("presence write",err);if(!presenceWarned){presenceWarned=true;try{toast("접속 정보를 저장하지 못했습니다. Firebase presence 규칙을 확인해 주세요.")}catch(e){}}const bare={...d};delete bare.c;return set(presenceRef,bare).catch(e=>console.warn("presence retry",e))});
   onDisconnect(presenceRef).remove().catch(()=>{});
   return p;
  }
@@ -6049,14 +6049,18 @@ function subscribeDownedMap(){
 }
 function startRoster(){
  if(!uid)return;
+ const gen=++rosterGen,cont=me.cont,area=me.area;
  if(rosterUnsub){rosterUnsub();rosterUnsub=null}
- rosterUnsub=onValue(ref(realtimeDB,"presence/"+me.cont+"/"+me.area),s=>{
+ rosterUnsub=onValue(ref(realtimeDB,"presence/"+cont+"/"+area),s=>{
+  if(gen!==rosterGen)return;
   const now=Date.now(),v=s.val()||{};
-  presenceList=Object.entries(v).map(([id,p])=>({uid:id,...(p||{})})).filter(p=>p&&now-(+p.at||0)<PEOPLE_TTL);
+  presenceList=Object.entries(v).map(([id,p])=>({uid:id,...(p||{})})).filter(p=>p&&(!p.cont||p.cont===cont)&&(!p.area||p.area===area)&&now-(+p.at||0)<PEOPLE_TTL);
   rosterError=false;renderRoster();
  },err=>{
+  if(gen!==rosterGen)return;
   console.warn("presence",err);
   rosterError=true;presenceList=[{uid,name:me.name,day:me.day,at:Date.now(),c:me.color}];renderRoster();
+  setTimeout(()=>{if(gen===rosterGen)try{startRoster()}catch(e){}},5000);
  });
 }
 
@@ -6660,6 +6664,10 @@ function clock(){const n=new Date();
  if(cft){const cf=campfireActive();if(cf)cft.textContent=campfireLeftText(cf);else try{groundRender()}catch(e){}}
 }
 T(clock,1000);
+// 접속 정보 하트비트: 화면 갱신이 없어도 30초 안에 presence를 갱신해 '이 장소의 사람들'에서 사라지지 않게 한다.
+T(()=>{if(uid&&!me.deadPending){try{syncPresence()}catch(e){}}},20000);
+// 탭으로 돌아왔을 때 즉시 접속 위치를 다시 쓰고 명단을 새로 구독한다(백그라운드 스로틀 대응).
+document.addEventListener("visibilitychange",()=>{if(document.hidden||!uid)return;try{syncPresence(true)}catch(e){}try{startRoster()}catch(e){}});
 // 대장간 상점: 아이템 데이터의 장비를 매일 대륙별로 무작위 8종 (등급 비중은 시장과 같음: 일반 70 / 고급 20 / 희귀 8.5 / 영웅 1.5)
 const SMITH_SLOTS=8,SMITH_GROUP_W=[["무기",40],["방어구",30],["악세사리",20],["가방",10]];
 const smithGroupOf=d=>/무기/.test(d.sub)?"무기":d.sub==="방어구"?"방어구":d.sub==="악세사리"?"악세사리":d.sub==="가방"?"가방":"기타";
