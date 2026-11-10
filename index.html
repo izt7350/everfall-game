@@ -785,6 +785,17 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .q-btns small{margin-right:auto}
 #gameRoot .q-btns .sm2,#pop .q-btns .sm2{height:28px;padding:0 12px}
 #gameRoot .q-btns .btn.sm2:disabled,#pop .q-btns .btn.sm2:disabled{opacity:.45;cursor:default}
+
+/* 상태창: 버프/디버프 태그형 (2026-11-11) */
+#fx.fxG{display:flex;flex-direction:column;gap:10px}
+#fx.fxG .fxh{font-size:11.5px;font-weight:700;color:var(--dim);letter-spacing:.2px;margin-bottom:6px}#fx.fxG .fxh b{color:var(--text);margin-left:3px}
+#fx.fxG .fxw{display:flex;flex-wrap:wrap;gap:6px}
+#fx.fxG .fxp{display:inline-flex;align-items:center;gap:6px;max-width:100%;min-height:30px;padding:4px 10px 4px 8px;border-radius:15px;font-size:13px;font-weight:600;line-height:1.25;cursor:pointer;border:0;font-family:inherit}
+#fx.fxG .fxp svg{flex:none}
+#fx.fxG .fxp.buff{background:var(--success-soft);color:var(--fg-success)}#fx.fxG .fxp.debuff{background:var(--danger-soft);color:var(--fg-danger)}
+#fx.fxG .fxp i{font-style:normal;font-weight:500;font-size:12px;opacity:.75;font-variant-numeric:tabular-nums;white-space:nowrap}
+#fx.fxG .fxp:hover{filter:brightness(.97)}#fx.fxG .fxp:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#fx.fxG .fxe{font-size:13px;color:var(--dim);padding:2px 0 4px}
 </style>
 </head>
 <body>
@@ -3218,7 +3229,14 @@ function barsRender(){$("bars").innerHTML=[["HP",me.hp,"var(--hp)"],["정신력"
 function fxRender(){$("fxcnt").textContent=`${Math.min(me.fx.length,10)} / 10`;
  me.fx=Array.isArray(me.fx)?me.fx.filter(Boolean):[];me.fx.forEach(f=>fixFxEntry(f));
  while(me.fx.length>FX_LIMIT){let bi=-1,oldest=Infinity;me.fx.forEach((f,j)=>{if(f&&f.t==="buff"&&(+f.at||0)<oldest){oldest=+f.at||0;bi=j}});if(bi<0)break;me.fx.splice(bi,1)}
- $("fx").innerHTML=Array.from({length:10},(_,i)=>{const f=me.fx[i];if(!f)return `<div class="slot"></div>`;const rem=fxRemainText(f);return `<div class="slot ${f.t}" data-fx="${i}" style="flex-direction:column;gap:1px;overflow:hidden;cursor:pointer" title="${esc(f.label||f.n)} · ${esc(rem)}"><span>${esc(f.label||f.n)}${f.stacks>1?` ${f.stacks}`:""}</span><small style="display:block;font-size:9px;line-height:1.1;opacity:.85">${esc(rem)}</small></div>`}).join("")}
+ // 상태창: 버프/디버프로 묶은 태그형 (2026-11-11)
+ const FXI={전투:'<path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/>',탐색:'<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',부상:'<rect x="3" y="8" width="18" height="8" rx="4" transform="rotate(-45 12 12)"/><path d="M10.5 10.5h.01M13.5 13.5h.01M10.5 13.5h.01M13.5 10.5h.01"/>',환경:'<path d="M17.5 19H8a5 5 0 1 1 1.2-9.86A6 6 0 0 1 20 11.5 3.75 3.75 0 0 1 17.5 19z"/>',음식:'<path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M8 7c0-1 1-1.5 1-2.5M12 7c0-1 1-1.5 1-2.5M16 7c0-1 1-1.5 1-2.5"/>',일상:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',아이템:'<path d="M9 3h6M10 3v6L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3"/><path d="M7.5 14h9"/>',추모:'<path d="M12 3c1.5 2 2 3 2 4a2 2 0 0 1-4 0c0-1 .5-2 2-4z"/><rect x="9" y="11" width="6" height="10" rx="1"/>'};
+ const fxIcon=f=>{let sub="탐색";try{const d=statusDefOf(f);sub=f.id==="dishBuff"?"음식":(d&&d.sub)||"탐색"}catch(e){}return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${FXI[sub]||FXI["탐색"]}</svg>`};
+ const fxPill=(f,i)=>`<button type="button" class="fxp ${f.t==="buff"?"buff":"debuff"}" data-fx="${i}" title="${esc(f.label||f.n)} · ${esc(fxRemainText(f))}">${fxIcon(f)}<span>${esc(f.label||f.n)}${f.stacks>1?` ×${f.stacks}`:""}</span><i>${esc(fxRemainText(f))}</i></button>`;
+ const fxB=[],fxD=[];me.fx.slice(0,10).forEach((f,i)=>(f.t==="buff"?fxB:fxD).push(fxPill(f,i)));
+ const fxGrp=(t,a)=>a.length?`<div><div class="fxh">${t}<b>${a.length}</b></div><div class="fxw">${a.join("")}</div></div>`:"";
+ $("fx").className="fx fxG";
+ $("fx").innerHTML=(fxB.length||fxD.length)?fxGrp("버프",fxB)+fxGrp("디버프",fxD):`<div class="fxe">걸린 상태가 없습니다.</div>`}
 fxRender();
 $("fx").onclick=e=>{const s=e.target.closest("[data-fx]");if(!s)return;const f=me.fx[+s.dataset.fx];if(f)openStatusDetail(f)};
 function openStatusDetail(f){
