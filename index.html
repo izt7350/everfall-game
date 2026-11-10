@@ -1430,9 +1430,9 @@ const defStatus=o=>{const d={maxStacks:1,min:60,ef:{},clear:[],...o};STATUS_DB[d
  defStatus({id:"overcast",n:"흐린 하늘",t:"buff",sub:"환경",d:"구름이 햇빛을 가려 선선하고 몸을 숨기기 쉬운 상태. (날씨: 흐림)",min:180,env:1,weather:1,ef:{stealth:5,mpRegenPct:5}}),
  defStatus({id:"gale",n:"강풍",t:"debuff",sub:"환경",d:"거센 바람에 몸을 가누기 어렵고 화살이 빗나간다. (날씨: 강풍)",min:180,env:1,weather:1,ef:{rangedPct:-15,movePct:-10},clear:["날씨 변화"],treat:{action:"날씨가 바뀌거나 그 지역을 떠나면 해제"}}),
  // 전투 상태이상 15
- defStatus({id:"bleed",n:"출혈",t:"debuff",sub:"전투",d:"상처에서 피가 계속 흐른다.",min:60,maxStacks:3,ef:{hpDot10:-2,movePct:-5},clear:["붕대"],treat:{item:"붕대"}}),
- defStatus({id:"poison",n:"중독",t:"debuff",sub:"전투",d:"독이 몸에 퍼졌다.",min:60,maxStacks:3,ef:{hpDot10:-1,healPct:-20},clear:["해독제"],treat:{item:"해독제"}}),
- defStatus({id:"burn",n:"화상",t:"debuff",sub:"전투",d:"불에 데어 계속 아프다.",min:60,maxStacks:2,ef:{hpDot10:-2,defPct:-10},clear:["치유 연고"],treat:{item:"치유 연고"}}),
+ defStatus({id:"bleed",n:"출혈",t:"debuff",sub:"전투",d:"상처에서 피가 계속 흐른다.",min:60,maxStacks:3,ef:{hpPctHr:-2,movePct:-5},clear:["붕대"],treat:{item:"붕대"}}),
+ defStatus({id:"poison",n:"중독",t:"debuff",sub:"전투",d:"독이 몸에 퍼졌다.",min:60,maxStacks:3,ef:{hpPctHr:-1,healPct:-20},clear:["해독제"],treat:{item:"해독제"}}),
+ defStatus({id:"burn",n:"화상",t:"debuff",sub:"전투",d:"불에 데어 계속 아프다.",min:60,maxStacks:2,ef:{hpPctHr:-2,defPct:-10},clear:["치유 연고"],treat:{item:"치유 연고"}}),
  defStatus({id:"freeze",n:"빙결",t:"debuff",sub:"전투",d:"몸이 얼어 움직임이 둔해졌다.",min:60,ef:{speedPct:-30,evasionPct:-10},clear:["따뜻한 곳"],treat:{action:"따뜻한 곳에서 해제"}}),
  defStatus({id:"confusion",n:"혼란",t:"debuff",sub:"전투",d:"정신이 흐려 판단이 흔들린다.",min:60,ef:{accuracyPct:-15,evasionPct:-10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
  defStatus({id:"fear",n:"공포",t:"debuff",sub:"전투",d:"두려움에 몸이 굳었다.",min:60,ef:{atkPct:-10,fleePct:10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
@@ -1446,8 +1446,8 @@ const defStatus=o=>{const d={maxStacks:1,min:60,ef:{},clear:[],...o};STATUS_DB[d
  defStatus({id:"starvation",n:"굶주림",t:"debuff",sub:"탐색",d:"배가 고파 힘이 빠졌다. 행동할 때마다 HP -4.",min:0,ef:{atkPct:-10},clear:["식사"],treat:{action:"식사"}}),
  defStatus({id:"dehydration",n:"탈수",t:"debuff",sub:"탐색",d:"물이 부족하다.",min:190,ef:{mpHr:-2},clear:["생수","맑은 지역에서 30분 휴식"],treat:{action:"생수 마시기 · 맑은 지역에서 30분 이상 휴식"}}),
  defStatus({id:"chill",n:"한기",t:"debuff",sub:"탐색",d:"몸이 차가워졌다.",min:60,ef:{speedPct:-10,healPct:-10},clear:["모닥불·맑은 지역에서 30분 휴식","치료 (재료 불필요)"],treat:{noItem:1,action:"치료 (재료 불필요) · 모닥불이나 맑은 지역에서 30분 이상 휴식"}}),
- defStatus({id:"hypothermia",n:"저체온",t:"debuff",sub:"환경",d:"한파에 몸이 깊게 식었다. (날씨: 한파)",min:120,env:1,weather:1,ef:{hpDot10:-2,speedPct:-20},clear:["날씨 변화"],treat:{action:"날씨가 바뀌거나 그 지역을 떠나면 해제"}}),
- defStatus({id:"heatstroke",n:"열사병",t:"debuff",sub:"환경",d:"폭염에 몸이 과열됐다. (날씨: 폭염)",min:120,env:1,weather:1,ef:{mpDot10:-2,accuracyPct:-10},clear:["날씨 변화"],treat:{action:"날씨가 바뀌거나 그 지역을 떠나면 해제"}}),
+ defStatus({id:"hypothermia",n:"저체온",t:"debuff",sub:"환경",d:"한파에 몸이 깊게 식었다. (날씨: 한파)",min:120,env:1,weather:1,ef:{hpPctHr:-2,speedPct:-20},clear:["날씨 변화"],treat:{action:"날씨가 바뀌거나 그 지역을 떠나면 해제"}}),
+ defStatus({id:"heatstroke",n:"열사병",t:"debuff",sub:"환경",d:"폭염에 몸이 과열됐다. (날씨: 폭염)",min:120,env:1,weather:1,ef:{mpHr:-2,accuracyPct:-10},clear:["날씨 변화"],treat:{action:"날씨가 바뀌거나 그 지역을 떠나면 해제"}}),
  defStatus({id:"wound",n:"상처",t:"debuff",sub:"탐색",d:"피부가 찢어졌다.",min:1440,ef:{healPct:-20},clear:["붕대"],treat:{item:"붕대"}}),
  defStatus({id:"infection",n:"감염",t:"debuff",sub:"탐색",d:"상처에 세균이 들어갔다.",min:0,ef:{healPct:-30},clear:["치유 연고"],treat:{item:"치유 연고"}}),
  defStatus({id:"disease",n:"질병",t:"debuff",sub:"탐색",d:"몸이 앓고 있다.",min:0,ef:{atkPct:-10,defPct:-10,healPct:-20},clear:["약초"],treat:{item:"약초"}}),
@@ -1459,7 +1459,7 @@ const defStatus=o=>{const d={maxStacks:1,min:60,ef:{},clear:[],...o};STATUS_DB[d
  defStatus({id:"fracture",n:"골절",t:"debuff",sub:"부상",d:"팔, 다리가 부러진 상태.",min:1440,ef:{atkPct:-15,speedPct:-20},clear:["부목"],treat:{item:"부목"}}),
  defStatus({id:"headInjury",n:"머리 부상",t:"debuff",sub:"부상",d:"머리를 다쳐 집중이 어렵다.",min:1440,ef:{accuracyPct:-10,mpRegenPct:-10},clear:["붕대"],treat:{item:"붕대"}}),
  defStatus({id:"frostbite",n:"동상",t:"debuff",sub:"부상",d:"한파 속에 오래 머물러 살갗이 상했다.",min:0,ef:{atkPct:-10,speedPct:-10},clear:["맑은 지역·모닥불에서 30분 휴식","치유 연고"],treat:{item:"치유 연고"}}),
- defStatus({id:"heatburn",n:"열창",t:"debuff",sub:"부상",d:"폭염 속에 오래 머물러 피부가 상했다.",min:1440,ef:{hpDot10:-1},clear:["맑은 지역에서 30분 휴식","치유 연고"],treat:{item:"치유 연고"}}),
+ defStatus({id:"heatburn",n:"열창",t:"debuff",sub:"부상",d:"폭염 속에 오래 머물러 피부가 상했다.",min:1440,ef:{hpPctHr:-1},clear:["맑은 지역에서 30분 휴식","치유 연고"],treat:{item:"치유 연고"}}),
  defStatus({id:"nightmare",n:"악몽",t:"debuff",sub:"부상",d:"잠에서 깨어도 기분이 나쁘다.",min:360,ef:{mpPct:-10,resistPct:-10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
  defStatus({id:"guilt",n:"죄책감",t:"debuff",sub:"추모",d:"그 얼굴이 자꾸 떠오른다. 악몽을 꾼다.",min:360,ef:{healPct:-20,hpRegenPct:-20,mpRegenPct:-20},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
  defStatus({id:"sad",n:"슬픔",t:"debuff",sub:"추모",d:"남의 일 같지 않아 마음이 쓰인다.",min:360,ef:{mpPct:-10},clear:["시간 경과"],treat:{action:"시간이 지나면 해제"}}),
@@ -1953,7 +1953,7 @@ boot();
 
 function startGame(char,opts){const ids=[];try{return _start(char,opts,ids)}catch(e){ids.forEach(clearInterval);throw e}}
 let gameMe=null;
-const STATUS_NUM_KEYS=["atkPct","atkFlat","rangedFlat","magicFlat","defFlat","meleePct","rangedPct","magicPct","defPct","hpPct","mpPct","hungerPct","speedPct","speedFlat","accuracyPct","evasionPct","critPct","critDmgPct","healPct","dropPct","encounterPct","resistPct","movePct","fleePct","luck","coldResist","stealth","negotiate","hpRegenPct","mpRegenPct","hpDot10","mpDot10","hungerDot10","hpHr","mpHr","dmgTakenPct","allStatsPct"];
+const STATUS_NUM_KEYS=["atkPct","atkFlat","rangedFlat","magicFlat","defFlat","meleePct","rangedPct","magicPct","defPct","hpPct","mpPct","hungerPct","speedPct","speedFlat","accuracyPct","evasionPct","critPct","critDmgPct","healPct","dropPct","encounterPct","resistPct","movePct","fleePct","luck","coldResist","stealth","negotiate","hpRegenPct","mpRegenPct","hpPctHr","hpHr","mpHr","hungerHr","dmgTakenPct","allStatsPct"];
 function emptyMods(){const m={flags:{}};STATUS_NUM_KEYS.forEach(k=>m[k]=0);return m}
 function modsFromFx(list){
  const m=emptyMods();
@@ -2978,7 +2978,7 @@ function fxEffectsText(d,stacks=1,ef){
  f("atkPct",v=>`공격력 ${v>0?"+":""}${v}%`);f("magicPct",v=>`마법 공격력 ${v>0?"+":""}${v}%`);f("defPct",v=>`방어력 ${v>0?"+":""}${v}%`);f("hpPct",v=>`최대 HP ${v>0?"+":""}${v}%`);f("mpPct",v=>`최대 정신력 ${v>0?"+":""}${v}%`);f("hungerPct",v=>`최대 허기 ${v>0?"+":""}${v}%`);
  f("speedFlat",v=>`속도 ${v>0?"+":""}${v}`);f("speedPct",v=>`속도 ${v>0?"+":""}${v}%`);f("accuracyPct",v=>`명중 ${v>0?"+":""}${v}%`);f("evasionPct",v=>`회피 ${v>0?"+":""}${v}%`);f("critPct",v=>`치명타 ${v>0?"+":""}${v}%`);f("critDmgPct",v=>`치명타 피해 ${v>0?"+":""}${v}%`);
  f("healPct",v=>`치유 ${v>0?"+":""}${v}%`);f("dropPct",v=>`드롭 ${v>0?"+":""}${v}%`);f("encounterPct",v=>`조우 ${v>0?"+":""}${v}%`);f("resistPct",v=>`저항 ${v>0?"+":""}${v}%`);f("movePct",v=>`이동 ${v>0?"+":""}${v}%`);f("fleePct",v=>`도주 ${v>0?"+":""}${v}%`);
- f("hpDot10",v=>`HP ${v}/10분`);f("hpHr",v=>`HP ${v}/1시간`);f("mpHr",v=>`정신력 ${v}/1시간`);f("coldResist",v=>`한기·동상·빙결 확률 ${v>0?"-":"+"}${Math.abs(v)}%`);f("mpDot10",v=>`정신력 ${v}/10분`);f("hungerDot10",v=>`허기 ${v}/10분`);f("dmgTakenPct",v=>`받는 피해 ${v>0?"+":""}${v}%`);f("allStatsPct",v=>`모든 능력치 ${v>0?"+":""}${v}%`);
+ f("hpPctHr",v=>`HP ${v}%/1시간`);f("hpHr",v=>`HP ${v}/1시간`);f("mpHr",v=>`정신력 ${v}/1시간`);f("coldResist",v=>`한기·동상·빙결 확률 ${v>0?"-":"+"}${Math.abs(v)}%`);f("hungerHr",v=>`허기 ${v}/1시간`);f("dmgTakenPct",v=>`받는 피해 ${v>0?"+":""}${v}%`);f("allStatsPct",v=>`모든 능력치 ${v>0?"+":""}${v}%`);
  f("meleePct",v=>`근접 공격력 ${v>0?"+":""}${v}%`);f("rangedPct",v=>`원거리 공격력 ${v>0?"+":""}${v}%`);
  f("hpRegenPct",v=>`HP 회복 ${v>0?"+":""}${v}%`);f("mpRegenPct",v=>`정신력 회복 ${v>0?"+":""}${v}%`);f("luck",v=>`행운 ${v>0?"+":""}${v}`);f("negotiate",v=>`교섭 ${v>0?"+":""}${v}% (구매가 -${v}%, 판매가 +${v}%)`);f("restPct",v=>`휴식 회복 ${v>0?"+":""}${v}%`);f("stealth",v=>`은신 ${v>0?"+":""}${v}%`);
  if(d.flags&&d.flags.act)out.push("행동 불가");if(d.flags&&d.flags.flee)out.push("도주 불가");if(d.flags&&d.flags.magic)out.push("마법 사용 불가");
@@ -3088,31 +3088,26 @@ const FOOD_POISON_CHANCE=.10;
 function tickStatus(){
  if(!me.fx||!me.fx.length)return;
  const now=Date.now();let changed=false,removed=[],hpBefore=+me.hp[0]||0;
- me.fx.forEach(f=>{
-  fixFxEntry(f,now);
-  if(f.exp&&now>=f.exp){removed.push(f.n);return}
-  const d=STATUS_DB[f.id];if(!d)return;
-  const last=+f.lastTick||now,elapsedMin=(now-last)/60000;
-  if(elapsedMin>=1){
-   const stacks=Math.max(1,+f.stacks||1),E=f.ef||d.ef||{},hpPct=((E.hpDot10||0)*stacks)*(elapsedMin/10),mpPct=((E.mpDot10||0)*stacks)*(elapsedMin/10),hungerPct=((E.hungerDot10||0)*stacks)*(elapsedMin/10);
-   // 소수점 누적: 10분당 -1 같은 작은 지속 효과가 매분 반올림으로 0이 되지 않게 (2026-11-10)
-   const acc=f.dotAcc||(f.dotAcc={hp:0,mp:0,hg:0}),take=k=>{const w=acc[k]<0?Math.ceil(acc[k]):Math.floor(acc[k]);acc[k]-=w;return w};
-   acc.hp+=me.hp[1]*hpPct/100;acc.mp+=mpPct;acc.hg+=hungerPct;
-   const dh=take("hp"),dm=take("mp"),dg=take("hg");
+ // 지속 효과는 모두 1시간마다 (2026-11-10): HP %(hpPctHr), HP·정신력·허기 고정 수치(hpHr·mpHr·hungerHr). 중첩 수만큼 곱한다.
+ // 걸린 시각(at)부터 1시간째, 2시간째…에 적용. 만료되는 순간까지의 몫은 만료 전에 적용한다.
+ const hourly=(f,d,until)=>{
+  const E=f.ef||d.ef||{};if(!(E.hpPctHr||E.hpHr||E.mpHr||E.hungerHr))return;
+  const stacks=Math.max(1,+f.stacks||1),st0=+f.at||now;if(!f.hrNext)f.hrNext=st0+3600000;
+  while(until>=f.hrNext&&(!f.exp||f.hrNext<=f.exp)){f.hrNext+=3600000;
+   const dh=Math.round(me.hp[1]*((E.hpPctHr||0)*stacks)/100)+(E.hpHr||0)*stacks,dm=(E.mpHr||0)*stacks,dg=(E.hungerHr||0)*stacks;
    if(dh){me.hp[0]=Math.max(1,Math.min(me.hp[1],me.hp[0]+dh));changed=true}
    if(dm){me.mp[0]=Math.max(0,Math.min(me.mp[1],me.mp[0]+dm));changed=true}
-   if(dg){me.hunger[0]=Math.max(0,Math.min(me.hunger[1],me.hunger[0]+dg));changed=true}
-   f.lastTick=now;
-  }
-  // 1시간마다 고정 수치 (탈수 정신력 -2, 식중독 HP -2)
-  const E2=f.ef||d.ef||{};
-  if(E2.hpHr||E2.mpHr){const st0=+f.at||now;if(!f.hrNext)f.hrNext=st0+3600000;
-   while(now>=f.hrNext&&(!f.exp||f.hrNext<=f.exp)){f.hrNext+=3600000;
-    if(E2.hpHr){me.hp[0]=Math.max(1,Math.min(me.hp[1],me.hp[0]+E2.hpHr));changed=true}
-    if(E2.mpHr){me.mp[0]=Math.max(0,Math.min(me.mp[1],me.mp[0]+E2.mpHr));changed=true}}}
+   if(dg){me.hunger[0]=Math.max(0,Math.min(me.hunger[1],me.hunger[0]+dg));changed=true}}
+ };
+ me.fx.forEach(f=>{
+  fixFxEntry(f,now);
+  const d=STATUS_DB[f.id];
+  if(f.exp&&now>=f.exp){if(d)hourly(f,d,f.exp);removed.push(f.n);return}
+  if(!d)return;
+  hourly(f,d,now);f.lastTick=now;
  });
  if(removed.length){me.fx=me.fx.filter(f=>f&&(!f.exp||now<f.exp));changed=true;removed.forEach(n=>toast(`‘${n}’ 상태가 만료되었다.`))}
- if((+me.hp[0]||0)<hpBefore&&now-lastDotLog>=60000){lastDotLog=now;const dotFx=(me.fx||[]).filter(f=>{const d=f&&STATUS_DB[f.id],E=f&&f.ef||d&&d.ef||{};return ((E.hpDot10||0)*(+f.stacks||1))<0||(E.hpHr||0)<0}).map(f=>`${f.label||f.n}${(+f.stacks||1)>1?`×${safeNum(f.stacks,1)}`:""}`);logChar("dot",`지속 피해 · HP ${hpBefore} → ${me.hp[0]}`,{before:hpBefore,after:me.hp[0],maxHp:me.hp[1],hunger:me.hunger.slice(),mp:me.mp.slice(),fx:dotFx})}
+ if((+me.hp[0]||0)<hpBefore&&now-lastDotLog>=60000){lastDotLog=now;const dotFx=(me.fx||[]).filter(f=>{const d=f&&STATUS_DB[f.id],E=f&&f.ef||d&&d.ef||{};return (E.hpPctHr||0)<0||(E.hpHr||0)<0}).map(f=>`${f.label||f.n}${(+f.stacks||1)>1?`×${safeNum(f.stacks,1)}`:""}`);logChar("dot",`지속 피해 · HP ${hpBefore} → ${me.hp[0]}`,{before:hpBefore,after:me.hp[0],maxHp:me.hp[1],hunger:me.hunger.slice(),mp:me.mp.slice(),fx:dotFx})}
  if(changed){checkVitals();try{syncVitals()}catch(e){}}
  checkVitals();
 }
