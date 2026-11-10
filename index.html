@@ -3876,6 +3876,8 @@ function subscribeOwnDowned(){
  myDownedUnsub=onValue(ref(realtimeDB,"downed/"+uid),s=>{
   const v=s.val();
   if(v&&v.revive&&me.downed)applyRevive(v.revive);
+  // 이미 일어난 상태인데 쓰러짐 기록이 남아 있으면 지운다 (다른 사람 화면에 계속 쓰러짐으로 보이는 문제)
+  else if(v&&!me.downed&&!me.deadPending&&!v.dead)S.delDowned(uid).catch(()=>{});
  });
 }
 function triggerDowned(){
@@ -3982,6 +3984,7 @@ async function attemptRevive(targetUid,targetName,d){
  if(!uid)return toast("로그인이 필요합니다.");
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 소생할 수 없습니다.");
  let live=null;try{live=await S.getDowned(targetUid)}catch(e){}
+ if(live&&live.revive)return toast("이미 다른 사람이 소생시켰습니다. 그 사람이 접속하면 일어납니다.");
  if(!live||live.dead||+live.until<=Date.now())return toast("이미 숨이 끊어졌거나 소생되었습니다.");
  d=live;
  if(me.cont!==d.cont||me.area!==d.area||(me.sub||"")!==(d.sub||""))return toast("같은 소지역에 있어야 소생할 수 있습니다.");
@@ -4007,6 +4010,7 @@ T(checkDowned,1000);
 applyDerivedVitals();barsRender();
 logChar("session",`접속 · HP ${me.hp[0]}/${me.hp[1]} · 정신력 ${me.mp[0]}/${me.mp[1]} · 허기 ${me.hunger[0]}/${me.hunger[1]}`,{hp:me.hp.slice(),mp:me.mp.slice(),hunger:me.hunger.slice(),area:locText(),fx:(me.fx||[]).map(f=>f&&(f.label||f.n)),expedition:me.expedition?{kind:me.expedition.kind,min:me.expedition.min}:null,travel:!!me.travel,rest:!!me.rest,downed:!!me.downed,partyId:me.partyId||null,lv:me.lv,gold:me.gold,traits:me.traits.slice(),expLogs:(me.expLogs||[]).slice(-10)});
 if(me.downed){subscribeOwnDowned();updateDownedBar();if(me.downed.revive)setTimeout(()=>applyRevive(me.downed.revive),100)}
+else if(uid)setTimeout(subscribeOwnDowned,3000); // 일어난 상태면 남은 쓰러짐 기록 정리
 
 // 팝업
 let popF=[];
@@ -4422,6 +4426,59 @@ async function guildApply(gid,msg){
   toast("가입 신청을 보냈습니다.");
   openGuildJoin();
  }catch(e){toast("가입 신청에 실패했습니다.")}
+}
+// ---- 길드 초대 (2026-11-10) ----
+// guildInvites/{받는 사람}/{길드 id} = {from, fromName, gid, guildName, at}
+const guildInviteSeen=new Set();let guildInviteUnsub=null;
+async function guildInvite(targetUid,name){
+ if(!uid||!me.guildId)return toast("길드에 가입되어 있어야 초대할 수 있습니다.");
+ if(!targetUid||targetUid===uid)return;
+ try{
+  const ms=await get(ref(realtimeDB,"guildMembership/"+targetUid));
+  if(ms.exists()&&ms.val())return toast(`${name||"상대"}님은 이미 길드에 가입되어 있습니다.`);
+  const gs=await get(guildRef(me.guildId));const g=gs.val();
+  if(!g||!g.members||!g.members[uid])return toast("길드 정보를 확인할 수 없습니다.");
+  await set(ref(realtimeDB,"guildInvites/"+targetUid+"/"+me.guildId),{from:uid,fromName:me.name,gid:me.guildId,guildName:String(g.name||me.guild||"길드"),at:Date.now()});
+  toast(`${name||"상대"}님에게 길드 초대를 보냈습니다.`);
+ }catch(e){console.warn("guildInvite",e);toast("길드 초대에 실패했습니다.")}
+}
+function guildInviteDrop(gid){guildInviteSeen.delete(gid);return remove(ref(realtimeDB,"guildInvites/"+uid+"/"+gid)).catch(()=>{})}
+async function guildInviteAccept(gid,inv){
+ if(me.guildId){guildInviteDrop(gid);return toast("이미 길드에 가입되어 있습니다.")}
+ try{
+  const s=await get(guildRef(gid));const g=s.val();
+  if(!g){guildInviteDrop(gid);return toast("길드를 찾을 수 없습니다.")}
+  const mode=["auto","approve","closed"].includes(g.joinMode)?g.joinMode:"approve";
+  if(mode==="auto"){await guildJoinAuto(gid)}
+  else{
+   await set(ref(realtimeDB,"guilds/"+gid+"/apps/"+uid),{name:me.name,msg:"길드 초대를 받아 신청",at:Date.now()});
+   toast(`‘${g.name||inv.guildName||"길드"}’에 가입 신청을 보냈습니다.`);
+  }
+ }catch(e){console.warn("guildInviteAccept",e);toast("처리에 실패했습니다. 잠시 후 다시 시도해 주세요.")}
+ guildInviteDrop(gid);
+}
+async function showGuildInvite(gid,inv){
+ if(me.guildId){guildInviteDrop(gid);return}
+ let g=null;try{const s=await get(guildRef(gid));g=s.val()}catch(e){}
+ if(!g){guildInviteDrop(gid);return}
+ const mode=["auto","approve","closed"].includes(g.joinMode)?g.joinMode:"approve";
+ const gname=String(g.name||inv.guildName||"길드");
+ const ro=(()=>{const c=gname.charCodeAt(gname.length-1)-0xAC00;if(c<0||c>11171)return "(으)로";const j=c%28;return j===0||j===8?"로":"으로"})();
+ pop("길드 초대",`<p>길드 <b>‘${esc(gname)}’</b>${ro}부터 초대를 받았다.</p><p class="dim">초대한 사람: ${esc(inv.fromName||"길드원")} · 길드원 ${Object.keys(g.members||{}).length}명 · ${esc(GUILD_JOIN_LABEL[mode]||"")}</p>`,[
+  {t:mode==="auto"?"가입하기":"가입 신청하기",c:"",fn:()=>guildInviteAccept(gid,inv)},
+  {t:"거절하기",fn:()=>{guildInviteDrop(gid);toast("길드 초대를 거절했습니다.")}}
+ ]);
+}
+function subscribeGuildInvites(){
+ if(!uid||guildInviteUnsub)return;
+ guildInviteUnsub=onValue(ref(realtimeDB,"guildInvites/"+uid),s=>{
+  const v=s.val()||{};
+  Object.entries(v).forEach(([gid,inv])=>{
+   if(!inv||guildInviteSeen.has(gid))return;
+   guildInviteSeen.add(gid);
+   showGuildInvite(gid,inv);
+  });
+ },err=>console.warn("guildInvites",err));
 }
 function openGuildCreate(){
  if(me.guildId){openGuildBoard();return}
@@ -5966,11 +6023,13 @@ function syncPresence(force){
  }
 }
 
+// 쓰러짐 기록이 살아 있는지: 시간 안, 사망 아님, 아직 소생 요청이 없음 (2026-11-10)
+const downedLive=(d,now=Date.now())=>!!d&&+d.until>now&&!d.dead&&!d.revive;
 function rosterEntries(){
  const now=Date.now();
  let list=presenceList.slice();
  Object.entries(downedMap).forEach(([id,d])=>{
-  if(!d||+d.until<=now||d.dead)return;
+  if(!downedLive(d,now))return;
   if(d.cont!==me.cont||d.area!==me.area)return;
   if(list.some(p=>p.uid===id))return;
   list.push({uid:id,name:d.name||"무명",day:1,at:now,c:"#CB3533",downed:true,sub:d.sub||"",place:d.place||""});
@@ -5981,9 +6040,9 @@ function rosterEntries(){
 }
 function renderRoster(){
  const now=Date.now(),list=rosterEntries();
- people=list.map(p=>({n:p.name||"무명",s:p.uid===uid?"나":`생존 ${safeNum(p.day,1)}일`,self:p.uid===uid,c:colorOf(p.c),uid:p.uid,downed:!!p.downed||!!(downedMap[p.uid]&&+downedMap[p.uid].until>now)}));
+ people=list.map(p=>({n:p.name||"무명",s:p.uid===uid?"나":`생존 ${safeNum(p.day,1)}일`,self:p.uid===uid,c:colorOf(p.c),uid:p.uid,downed:p.uid===uid?!!me.downed:(downedMap[p.uid]?downedLive(downedMap[p.uid],now):!!p.downed&&+p.downedUntil>now)}));
  $("rcnt").textContent=list.length+"명";
- $("roster").innerHTML=list.map(p=>{const c=colorOf(p.c),down=p.downed||!!(downedMap[p.uid]&&+downedMap[p.uid].until>now),self=p.uid===uid;return `<div class="ch"><span class="dot"></span><span class="js-name" data-uid="${esc(p.uid||"")}" data-name="${esc(p.name||"무명")}" title="캐릭터 정보 보기" style="--name-color:${c}">${esc(p.name||"무명")}</span>${down?'<span class="down-badge">[쓰러짐]</span>':''}${self?' <span class="dim">(나)</span>':""}<small>${self?"나":`생존 ${p.day||1}일`}</small></div>`}).join("")||`<div class="dim">이곳에 다른 생존자가 없다.</div>`;
+ $("roster").innerHTML=list.map(p=>{const c=colorOf(p.c),self=p.uid===uid,down=self?!!me.downed:(downedMap[p.uid]?downedLive(downedMap[p.uid],now):!!p.downed&&+p.downedUntil>now);return `<div class="ch"><span class="dot"></span><span class="js-name" data-uid="${esc(p.uid||"")}" data-name="${esc(p.name||"무명")}" title="캐릭터 정보 보기" style="--name-color:${c}">${esc(p.name||"무명")}</span>${down?'<span class="down-badge">[쓰러짐]</span>':''}${self?' <span class="dim">(나)</span>':""}<small>${self?"나":`생존 ${p.day||1}일`}</small></div>`}).join("")||`<div class="dim">이곳에 다른 생존자가 없다.</div>`;
  if(rosterError)$("roster").insertAdjacentHTML("beforeend",`<div class="dim" style="font-size:12px">접속자 목록을 불러오지 못했어요. Firebase 규칙을 확인해 주세요.</div>`);
  decorateNames();
 }
@@ -6354,7 +6413,7 @@ $("partyClear").onclick=()=>{
 };
 $("partyList").onclick=e=>{const k=e.target.closest("[data-party-kick]"),b=e.target.closest("[data-px]");if((k||b)&&actionLock("휴식 중에는 파티를 관리할 수 없습니다."))return;if(k&&partyData&&partyData.leader===uid){remove(ref(realtimeDB,"parties/"+me.partyId+"/members/"+k.dataset.partyKick)).catch(()=>{});return}if(b){me.party.splice(+b.dataset.px,1);partyRender();toast("파티에서 내보냈다.")}};
 partyRender();
-if(uid){subscribePartyInvites();subscribePartyJoinRequests();subscribePartyJoinResults();}
+if(uid){subscribePartyInvites();subscribePartyJoinRequests();subscribePartyJoinResults();subscribeGuildInvites();}
 if(me.partyId)subscribeParty();
 
 function subscribeChat(tab,force){
@@ -6460,7 +6519,7 @@ function sameSubArea(p){
 async function openPlayerProfile(targetUid,name){
  let p=null;if(targetUid){try{p=await S.getProfile(targetUid)}catch(e){}}
  let d=null;if(targetUid){try{d=await S.getDowned(targetUid)}catch(e){}}
- if(d&&(+d.until<=Date.now()||d.dead))d=null;
+ if(d&&!downedLive(d))d=null;
  const self=(!!targetUid&&targetUid===uid)||(!targetUid&&name===me.name)||name===me.name;
  const same=!self&&sameSubArea(p);
  if(p&&self&&!okPhoto(p.photo)&&okPhoto(me.photo))p.photo=me.photo;
@@ -6477,6 +6536,8 @@ async function openPlayerProfile(targetUid,name){
    buttons.push({t:"귓속말",fn:()=>startWhisper(targetUid,name)});
    if(partyData&&partyData.leader===uid)buttons.push({t:"파티 초대",fn:()=>invitePlayer(targetUid)});
    else if(p&&p.partyId&&!me.partyId)buttons.push({t:"파티 가입 요청",fn:()=>requestJoin(p.partyId,p.partyLeader||targetUid)});
+   // 길드 초대: 내가 길드에 있고, 상대가 길드가 없을 때만
+   if(me.guildId&&!(p&&p.guild))buttons.push({t:"길드 초대",fn:()=>guildInvite(targetUid,name)});
   }
  }
  buttons.push({t:"닫기"});
