@@ -1598,7 +1598,7 @@ async function admin(){
    <button class="btn alt sm" data-a="del" data-i="${a.id}" ${self?"disabled":""}>${arm==="del"+a.id?"정말 삭제?":"삭제"}</button></span>
    ${b?`<span class="rs dim sm">정지 사유 : ${esc(b.reason||"없음")} (${fmt(b.at)})</span>`:""}
    ${open===a.id?`<span class="rs"><input type="text" id="rs" placeholder="정지 사유" maxlength="60"><button class="btn bad sm banok" data-a="banok" data-i="${a.id}">정지 확정</button><button class="btn alt sm bancancel" data-a="bancancel" data-i="${a.id}">취소</button></span>`:""}</div>`}).join("")||`<div class="dim" style="padding:16px">회원이 없습니다.</div>`}</div>
-  <div class="note">캐릭터 정보창에서 개별 HP 회복과 상태이상 부여·제거가 가능합니다. 정지된 계정은 로그인 단계에서 접속이 막힙니다. 캐릭터 초기화·삭제는 되돌릴 수 없습니다.</div></div>`);
+  <div class="note">캐릭터 정보창에서 개별 HP·정신력·허기 회복과 상태이상 부여·제거가 가능합니다. 정지된 계정은 로그인 단계에서 접속이 막힙니다. 캐릭터 초기화·삭제는 되돌릴 수 없습니다.</div></div>`);
   $("bk").onclick=()=>go("login");
   $("lg").onclick=async()=>{resumeSet(false);if(game){try{game.stop()}catch(e){}game=null}$("gameRoot").hidden=true;$("authRoot").hidden=false;await releaseSession();await signOut(auth);me={uid:null,name:"",admin:false};acc=null;go("login")};
   $("rf").onclick=admin;
@@ -1638,6 +1638,8 @@ async function admin(){
  const showChar=id=>{const t=accs.find(x=>x.id===id),c=t&&t.character;if(!c)return;
   const buttons=[
    {t:"HP 회복",c:"",fn:()=>adminHealChar(id)},
+   {t:"정신력 회복",c:"",fn:()=>adminFillChar(id,"mp","정신력을")},
+   {t:"허기 회복",c:"",fn:()=>adminFillChar(id,"hunger","허기를")},
    {t:"상태이상 추가",fn:()=>adminAddStatus(id)},
    {t:"상태이상 제거",fn:()=>adminRemoveStatus(id)},
    {t:"활동 로그",fn:()=>showLogs(id)},
@@ -1654,6 +1656,8 @@ async function admin(){
   toast(okMsg);showChar(id)
  }catch(e){console.warn("adminMutate",id,e);toast(e&&e.message==="FX_FULL"?"상태 슬롯이 가득 찼습니다.":"처리에 실패했어요")}};
  const adminHealChar=id=>adminMutate(id,c=>{const max=Math.max(1,+(Array.isArray(c.hp)?c.hp[1]:0)||100);c.hp=[max,max]},"HP를 최대치로 회복했습니다.");
+ // 정신력·허기 최대치 회복 (2026-11-10)
+ const adminFillChar=(id,key,label)=>adminMutate(id,c=>{const max=Math.max(1,+(Array.isArray(c[key])?c[key][1]:0)||100);c[key]=[max,max];if(key==="hunger"&&Array.isArray(c.fx))c.fx=c.fx.filter(f=>!(f&&f.id==="starvation"))},`${label} 최대치로 회복했습니다.`);
  const adminApplyDebuff=(id,d)=>adminMutate(id,c=>{
   const now=Date.now(),fx=Array.isArray(c.fx)?c.fx:[],ex=fx.find(f=>f&&(f.id===d.id||f.n===d.n));
   if(ex){ex.t=d.t;ex.stacks=Math.min(Math.max(1,+d.maxStacks||1),Math.max(1,+ex.stacks||1)+1);ex.at=now;ex.exp=d.min>0?now+d.min*60000:0;ex.lastTick=now}
