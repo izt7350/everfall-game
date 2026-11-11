@@ -6269,7 +6269,7 @@ function partyRender(){
  const list=online||[{name:me.name,job:me.job,lv:me.lv,color:me.color,self:true},...me.party];
  $("pcnt").textContent=`${list.length} / 5`;
  if($("partyClear"))$("partyClear").textContent=partyData?(partyData.leader===uid?"파티 해산":"파티 탈퇴"):"해산";
- $("partyList").innerHTML=list.map((p,i)=>{const c=p.self?me.color:(/^#[0-9a-fA-F]{6}$/.test(p.color||"")?p.color:"#2F6FB0");const kick=online&&partyData.leader===uid&&!p.self?`<button class="ic" data-party-kick="${esc(p.uid)}" title="내보내기">×</button>`:(!online&&!p.self?`<button class="ic" data-px="${i-1}" title="내보내기">×</button>`:"");return `<div class="ch"><span class="dot" style="--name-color:${c}"></span><span class="js-name" style="--name-color:${c}">${esc(p.name||"동료")}${p.self?" (나)":""}${p.leader?" 👑":""}</span><small>Lv${safeNum(p.lv,1)} ${esc(p.job||"모험가")}</small>${kick}</div>`}).join("");
+ $("partyList").innerHTML=list.map((p,i)=>{const c=p.self?me.color:(/^#[0-9a-fA-F]{6}$/.test(p.color||"")?p.color:"#2F6FB0");const kick=online&&partyData.leader===uid&&!p.self?`<button class="ic" data-party-lead="${esc(p.uid)}" title="리더 넘기기">👑</button><button class="ic" data-party-kick="${esc(p.uid)}" title="내보내기">×</button>`:(!online&&!p.self?`<button class="ic" data-px="${i-1}" title="내보내기">×</button>`:"");return `<div class="ch"><span class="dot" style="--name-color:${c}"></span><span class="js-name" style="--name-color:${c}">${esc(p.name||"동료")}${p.self?" (나)":""}${p.leader?" 👑":""}</span><small>Lv${safeNum(p.lv,1)} ${esc(p.job||"모험가")}</small>${kick}</div>`}).join("");
  try{renderProposalPanels()}catch(e){}
  try{refreshRisk()}catch(e){}
 }
@@ -6296,14 +6296,34 @@ function addMercenary(){
 function memberPayload(){
  return {name:me.name,lv:me.lv,job:me.job,color:me.color,stats:me.stats.slice(),skills:{...me.skills},equipped:cp(me.equipped),traits:me.traits.slice(),hp:me.hp.slice(),at:Date.now()};
 }
-async function createParty(){
- if(actionLock("휴식 중에는 파티를 만들 수 없습니다."))return;
- if(!uid)return toast("로그인이 필요하다.");
- if(me.partyId)return toast("이미 파티에 속해 있다.");
+// 파티 로컬 상태 정리 (해산·추방·잔여 partyId) — 2026-11-11
+function clearPartyLocal(msg){
+ if(partyUnsub){try{partyUnsub()}catch(e){}partyUnsub=null}
+ if(partyProposalUnsub){try{partyProposalUnsub()}catch(e){}partyProposalUnsub=null}
+ if(partyExpUnsub){try{partyExpUnsub()}catch(e){}partyExpUnsub=null}
+ if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null}
+ partyProposal=null;proposalRunId=null;proposalPromptId=null;proposalPromptLabel=null;partyExpedition=null;
+ me.partyId=null;me.partyLeader=null;partyData=null;partyAppliedBattle=null;
+ partyRender();try{renderExpLogBtn()}catch(e){}try{renderProposalPanels()}catch(e){}
+ if(msg)toast(msg);
+}
+// 저장된 partyId가 실제로 유효한지 확인. 파티가 없거나 내가 멤버가 아니면 정리 후 false
+async function verifyParty(){
+ if(!me.partyId)return false;
+ try{
+  const s=await get(ref(realtimeDB,"parties/"+me.partyId)),v=s.exists()?s.val():null;
+  if(!v||!v.members||!v.members[uid]){clearPartyLocal();return false}
+  partyData=v;me.partyLeader=v.leader||null;return true;
+ }catch(e){return !!me.partyId}
+}
+async function createParty(silent){
+ if(actionLock("휴식 중에는 파티를 만들 수 없습니다."))return false;
+ if(!uid){toast("로그인이 필요하다.");return false}
+ if(me.partyId&&await verifyParty()){if(!silent)toast("이미 파티에 속해 있다.");return partyData&&partyData.leader===uid}
  const pid=uid.slice(0,6)+"-"+Date.now().toString(36);
  const data={leader:uid,created:Date.now(),members:{[uid]:memberPayload()}};
- try{await set(ref(realtimeDB,"parties/"+pid),data);me.partyId=pid;me.partyLeader=uid;me.party=[];partyData=data;subscribeParty();partyRender();toast("파티를 만들었다.")}
- catch(e){toast("파티 생성 실패 · Firebase 규칙을 확인해 주세요.")}
+ try{await set(ref(realtimeDB,"parties/"+pid),data);me.partyId=pid;me.partyLeader=uid;me.party=[];partyData=data;subscribeParty();partyRender();if(!silent)toast("파티를 만들었다.");return true}
+ catch(e){toast("파티 생성 실패 · Firebase 규칙을 확인해 주세요.");return false}
 }
 function subscribePartyExpedition(){
  if(partyExpUnsub){try{partyExpUnsub()}catch(e){}partyExpUnsub=null}
@@ -6321,7 +6341,10 @@ function subscribeParty(){
  subscribePartyProposal();subscribePartyExpedition();
  partyUnsub=onValue(ref(realtimeDB,"parties/"+me.partyId),s=>{
   const v=s.val();
-  if(!v){me.partyId=null;partyData=null;partyRender();subscribePartyProposal();subscribePartyExpedition();return}
+  if(!v){clearPartyLocal(partyData&&partyData.leader!==uid?"파티가 해산되었다.":"");return}
+  if(!v.members||!v.members[uid]){clearPartyLocal("파티에서 내보내졌다.");return}
+  const prevLeader=partyData&&partyData.leader;
+  if(prevLeader&&v.leader&&prevLeader!==v.leader&&prevLeader!==uid){const nl=v.members[v.leader];toast(v.leader===uid?"파티 리더가 되었다.":`${(nl&&nl.name)||"파티원"}이(가) 새 파티 리더가 되었다.`)}
   partyData=v;me.partyLeader=v.leader||null;partyRender();
   if(v.battle&&v.leader!==uid)renderPartyBattle(v.battle);
  },err=>console.warn("party",err));
@@ -6333,12 +6356,14 @@ async function leaveParty(){
  if(partyProposalUnsub){try{partyProposalUnsub()}catch(e){}partyProposalUnsub=null}
  if(partyExpUnsub){try{partyExpUnsub()}catch(e){}partyExpUnsub=null}
  if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null}
- partyProposal=null;proposalRunId=null;proposalPromptId=null;proposalPromptLabel=null;partyExpedition=null;
- me.partyId=null;me.partyLeader=null;partyData=null;partyAppliedBattle=null;if(partyUnsub){partyUnsub();partyUnsub=null}partyRender();renderExpLogBtn();toast("파티에서 나왔다.");
+ if(partyUnsub){try{partyUnsub()}catch(e){}partyUnsub=null}
+ clearPartyLocal(partyData&&partyData.leader===uid?"파티를 해산했다.":"파티에서 나왔다.");
 }
 async function invitePlayer(target){
  if(actionLock("휴식 중에는 파티를 초대할 수 없습니다."))return;
- if(!me.partyId||!uid)return toast("먼저 파티를 만들어야 한다.");
+ if(!uid)return toast("로그인이 필요하다.");
+ if(!target||target===uid)return;
+ if(!me.partyId||!partyData){if(!(await createParty(true)))return}
  if(partyData&&partyData.leader!==uid)return toast("파티장만 초대할 수 있다.");
  if(partyData&&partyData.members&&Object.keys(partyData.members).length>=5)return toast("파티가 가득 찼다.");
  if(partyData&&partyData.members&&partyData.members[target])return toast("이미 파티에 있다.");
@@ -6348,9 +6373,10 @@ async function invitePlayer(target){
 async function joinParty(pid,inv){
  if(actionLock("휴식 중에는 파티에 합류할 수 없습니다."))return;
  if(!uid)return;
+ if(me.partyId&&me.partyId!==pid&&await verifyParty()){remove(ref(realtimeDB,"partyInvites/"+uid+"/"+pid)).catch(()=>{});return toast("이미 파티에 속해 있다.")}
  try{
   const ps=await get(ref(realtimeDB,"parties/"+pid)),pv=ps.exists()?ps.val():null;
-  if(!pv)return toast("파티가 이미 해산되었다.");
+  if(!pv){remove(ref(realtimeDB,"partyInvites/"+uid+"/"+pid)).catch(()=>{});return toast("파티가 이미 해산되었다.")}
   if(pv.members&&Object.keys(pv.members).length>=5)return toast("파티가 가득 찼다.");
   await update(ref(realtimeDB,"parties/"+pid),{["members/"+uid]:memberPayload()});
   me.partyId=pid;me.partyLeader=inv.from||pv.leader||null;me.party=[];subscribeParty();
@@ -6361,7 +6387,7 @@ async function joinParty(pid,inv){
 async function requestJoin(pid,leaderUid){
  if(actionLock("휴식 중에는 파티에 가입 요청할 수 없습니다."))return;
  if(!uid)return toast("로그인이 필요하다.");
- if(me.partyId)return toast("이미 파티에 속해 있다.");
+ if(me.partyId&&await verifyParty())return toast("이미 파티에 속해 있다.");
  if(!pid||!leaderUid)return toast("가입할 파티를 찾을 수 없다.");
  try{await set(ref(realtimeDB,"partyJoinRequests/"+leaderUid+"/"+uid),{from:uid,fromName:me.name,partyId:pid,payload:memberPayload(),at:Date.now()});toast("파티 가입 요청을 보냈다.")}
  catch(e){toast("가입 요청 실패 · Firebase 규칙을 확인해 주세요.")}
@@ -6401,29 +6427,34 @@ function subscribePartyInvites(){
  partyInviteUnsub=onValue(ref(realtimeDB,"partyInvites/"+uid),s=>{
   const v=s.val()||{};
   Object.entries(v).forEach(([pid,inv])=>{
-   if(!inv||partyInviteSeen.has(pid))return;
-   partyInviteSeen.add(pid);
-   pop("파티 초대",`<p><b>${esc(inv.fromName||"파티장")}</b>의 파티에 초대되었다.</p>`,[
+   const key=pid+":"+(inv&&inv.at||0);
+   if(!inv||partyInviteSeen.has(key))return;
+   partyInviteSeen.add(key);
+   if(me.partyId&&me.partyId===pid){remove(ref(realtimeDB,"partyInvites/"+uid+"/"+pid)).catch(()=>{});return}
+   pop("파티 초대",`<p><b>${esc(inv.fromName||"생존자")}</b>이(가) 파티 초대를 보냈다.</p>`,[
     {t:"수락",c:"",fn:()=>joinParty(pid,inv)},
-    {t:"거절",fn:()=>{remove(ref(realtimeDB,"partyInvites/"+uid+"/"+pid)).catch(()=>{});partyInviteSeen.delete(pid)}}
-   ]);
+    {t:"거절",fn:()=>{remove(ref(realtimeDB,"partyInvites/"+uid+"/"+pid)).catch(()=>{})}}
+   ],true);
   });
  },err=>console.warn("partyInvites",err));
 }
-$("partyAdd").onclick=()=>{
+// 온라인 파티 초대 창: 주변 생존자를 골라 초대 (파티가 없으면 첫 초대 때 자동 생성)
+function openPartyInvitePicker(){
  if(actionLock("휴식 중에는 파티를 관리할 수 없습니다."))return;
- if(partyData){
-  if(partyData.leader!==uid)return toast("파티장만 초대할 수 있다.");
-  const others=people.filter(p=>!p.self&&p.uid&&!partyData.members[p.uid]);
-  if(!others.length)return toast("초대할 생존자가 없다.");
-  pop("파티 초대",`<p class="dim">같은 장소의 생존자를 초대한다.</p>`,others.map(p=>({t:p.n,c:"alt",fn:()=>invitePlayer(p.uid)})).concat([{t:"취소"}]));
-  return;
- }
+ if(partyData&&partyData.leader!==uid)return toast("파티장만 초대할 수 있다.");
+ const mem=partyData&&partyData.members||{};
+ if(Object.keys(mem).length>=5)return toast("파티가 가득 찼다.");
+ const others=people.filter(p=>!p.self&&p.uid&&!p.downed&&!mem[p.uid]);
+ pop("온라인 파티",others.length?`<p class="dim">주변 생존자에게 파티 초대를 보낸다. 상대가 수락하면 파티에 합류한다.</p>`:`<p class="dim">주변에 초대할 수 있는 생존자가 없다.</p>`,
+  others.map(p=>({t:p.n,c:"alt",fn:()=>invitePlayer(p.uid)})).concat([{t:"닫기"}]));
+}
+$("partyAdd").onclick=async()=>{
+ if(actionLock("휴식 중에는 파티를 관리할 수 없습니다."))return;
+ if(me.partyId&&!partyData)await verifyParty();
+ if(partyData)return openPartyInvitePicker();
  if(me.party.length>=4)return toast("파티는 최대 5인이다.");
- const others=people.filter(p=>!p.self&&p.uid);
- const btns=others.map(p=>({t:p.n,c:"alt",fn:async()=>{const pr=await S.getProfile(p.uid).catch(()=>null);addAllyFromProfile(pr,p)}}));
- btns.push({t:"용병 영입",c:"",fn:addMercenary},{t:"온라인 파티 만들기",c:"alt",fn:createParty},{t:"취소"});
- pop("파티 영입",others.length?`<p class="dim">동료를 영입하거나 온라인 파티를 만든다.</p>`:`<p class="dim">용병을 영입하거나 온라인 파티를 만들 수 있다.</p>`,btns);
+ pop("파티 영입",`<p class="dim">용병을 영입하거나 온라인 파티를 만든다.</p>`,[
+  {t:"용병 영입",c:"",fn:addMercenary},{t:"온라인 파티 만들기",c:"alt",fn:openPartyInvitePicker},{t:"취소"}]);
 };
 $("partyClear").onclick=()=>{
  if(actionLock("휴식 중에는 파티를 관리할 수 없습니다."))return;
@@ -6431,10 +6462,22 @@ $("partyClear").onclick=()=>{
  if(!me.party.length)return toast("해산할 파티가 없다.");
  pop("파티 해산","<p>파티를 해산할까?</p>",[{t:"해산",c:"bad",fn:()=>{me.party=[];partyRender();toast("파티를 해산했다.")}},{t:"취소"}]);
 };
-$("partyList").onclick=e=>{const k=e.target.closest("[data-party-kick]"),b=e.target.closest("[data-px]");if((k||b)&&actionLock("휴식 중에는 파티를 관리할 수 없습니다."))return;if(k&&partyData&&partyData.leader===uid){remove(ref(realtimeDB,"parties/"+me.partyId+"/members/"+k.dataset.partyKick)).catch(()=>{});return}if(b){me.party.splice(+b.dataset.px,1);partyRender();toast("파티에서 내보냈다.")}};
+// 파티 리더 넘기기 (2026-11-11)
+function transferPartyLeader(target){
+ if(actionLock("휴식 중에는 파티를 관리할 수 없습니다."))return;
+ if(!me.partyId||!partyData||partyData.leader!==uid)return toast("파티장만 리더를 넘길 수 있다.");
+ const m=partyData.members&&partyData.members[target];
+ if(!m||target===uid)return toast("파티원을 찾을 수 없다.");
+ if(partyProposal&&partyProposal.status==="running"||partyExpedition)return toast("파티 원정 중에는 리더를 바꿀 수 없다.");
+ const nm=m.name||"파티원";
+ pop("리더 넘기기",`<p><b>${esc(nm)}</b>에게 파티 리더를 넘길까?</p><p class="dim">넘긴 뒤에는 초대·내보내기·해산을 새 리더가 맡는다.</p>`,[
+  {t:"넘기기",c:"",fn:async()=>{try{await update(ref(realtimeDB,"parties/"+me.partyId),{leader:target});toast(`${nm}에게 파티 리더를 넘겼다.`)}catch(e){toast("리더 변경 실패 · Firebase 규칙을 확인해 주세요.")}}},
+  {t:"취소"}]);
+}
+$("partyList").onclick=e=>{const L=e.target.closest("[data-party-lead]");if(L){transferPartyLeader(L.dataset.partyLead);return}const k=e.target.closest("[data-party-kick]"),b=e.target.closest("[data-px]");if((k||b)&&actionLock("휴식 중에는 파티를 관리할 수 없습니다."))return;if(k&&partyData&&partyData.leader===uid){remove(ref(realtimeDB,"parties/"+me.partyId+"/members/"+k.dataset.partyKick)).catch(()=>{});return}if(b){me.party.splice(+b.dataset.px,1);partyRender();toast("파티에서 내보냈다.")}};
 partyRender();
 if(uid){subscribePartyInvites();subscribePartyJoinRequests();subscribePartyJoinResults();subscribeGuildInvites();}
-if(me.partyId)subscribeParty();
+if(me.partyId){subscribeParty();verifyParty()}
 
 function subscribeChat(tab,force){
  if(!uid)return;
@@ -6554,11 +6597,14 @@ async function openPlayerProfile(targetUid,name){
     buttons.push({t:"거래하기",fn:()=>startTrade(targetUid,name)});
    }
    buttons.push({t:"귓속말",fn:()=>startWhisper(targetUid,name)});
-   if(partyData&&partyData.leader===uid)buttons.push({t:"파티 초대",fn:()=>invitePlayer(targetUid)});
+   // 파티 초대: 같은 소지역 + (내가 파티장이거나 파티 없음) + 상대가 파티 없음
+   const inMine=partyData&&partyData.members&&partyData.members[targetUid];
+   const iCanInvite=!me.partyId||(partyData&&partyData.leader===uid);
+   if(same&&iCanInvite&&!inMine&&!(p&&p.partyId))buttons.push({t:"파티 초대",fn:()=>invitePlayer(targetUid)});
    else if(p&&p.partyId&&!me.partyId)buttons.push({t:"파티 가입 요청",fn:()=>requestJoin(p.partyId,p.partyLeader||targetUid)});
-   // 길드 초대: 내가 길드에 있고, 상대가 길드가 없을 때만
-   if(me.guildId&&!(p&&p.guild))buttons.push({t:"길드 초대",fn:()=>guildInvite(targetUid,name)});
   }
+  // 길드 초대: 장소 무관 · 내가 길드에 있고, 상대가 길드가 없을 때만
+  if(me.guildId&&!(p&&p.guild))buttons.push({t:"길드 초대",fn:()=>guildInvite(targetUid,name)});
  }
  buttons.push({t:"닫기"});
  const areaNote=(!self&&targetUid&&name&&!d&&!same)?`<p class="dim" style="margin:0 0 8px;color:var(--bad)">같은 소지역에 있어야 거래하거나 치료할 수 있습니다.</p>`:"";
