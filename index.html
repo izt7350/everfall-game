@@ -6307,6 +6307,22 @@ function clearPartyLocal(msg){
  partyRender();try{renderExpLogBtn()}catch(e){}try{renderProposalPanels()}catch(e){}
  if(msg)toast(msg);
 }
+const isPermDenied=e=>/permission/i.test(String(e&&(e.code||e.message)||""));
+// 다른 캐릭터의 파티가 실제로 있는지 확인 → {ok, leader}. 규칙 미게시로 읽기가 막히면 리더 프로필로 대조
+async function partyAliveFor(pid,member,hintLeader){
+ if(!pid)return {ok:false,leader:null};
+ try{
+  const [ls,ms]=await Promise.all([get(ref(realtimeDB,"parties/"+pid+"/leader")),get(ref(realtimeDB,"parties/"+pid+"/members/"+member))]);
+  const leader=ls.exists()?ls.val():null;
+  return {ok:!!leader&&ms.exists(),leader};
+ }catch(e){
+  try{
+   const lp=hintLeader?await S.getProfile(hintLeader):null;
+   const ok=!!lp&&lp.partyId===pid&&lp.partyLeader===hintLeader&&hintLeader!==member;
+   return {ok,leader:ok?hintLeader:null};
+  }catch(e2){return {ok:false,leader:null}}
+ }
+}
 // 저장된 partyId가 실제로 유효한지 확인. 파티가 없거나 내가 멤버가 아니면 정리 후 false
 async function verifyParty(){
  if(!me.partyId)return false;
@@ -6314,7 +6330,7 @@ async function verifyParty(){
   const s=await get(ref(realtimeDB,"parties/"+me.partyId)),v=s.exists()?s.val():null;
   if(!v||!v.members||!v.members[uid]){clearPartyLocal();return false}
   partyData=v;me.partyLeader=v.leader||null;return true;
- }catch(e){return !!me.partyId}
+ }catch(e){if(isPermDenied(e)){clearPartyLocal();return false}return !!me.partyId}
 }
 async function createParty(silent){
  if(actionLock("휴식 중에는 파티를 만들 수 없습니다."))return false;
@@ -6347,7 +6363,7 @@ function subscribeParty(){
   if(prevLeader&&v.leader&&prevLeader!==v.leader&&prevLeader!==uid){const nl=v.members[v.leader];toast(v.leader===uid?"파티 리더가 되었다.":`${(nl&&nl.name)||"파티원"}이(가) 새 파티 리더가 되었다.`)}
   partyData=v;me.partyLeader=v.leader||null;partyRender();
   if(v.battle&&v.leader!==uid)renderPartyBattle(v.battle);
- },err=>console.warn("party",err));
+ },err=>{console.warn("party",err);if(isPermDenied(err))clearPartyLocal(partyData?"파티에서 내보내졌다.":"")});
 }
 async function leaveParty(){
  const pid=me.partyId;if(!pid)return;
@@ -6581,6 +6597,8 @@ function sameSubArea(p){
 }
 async function openPlayerProfile(targetUid,name){
  let p=null;if(targetUid){try{p=await S.getProfile(targetUid)}catch(e){}}
+ // 프로필에 남은 partyId가 실제 파티인지 확인 (해산·추방 후 남은 값 제거, 현재 리더로 교정)
+ if(p&&p.partyId&&targetUid&&targetUid!==uid&&p.partyId!==me.partyId){const chk=await partyAliveFor(p.partyId,targetUid,p.partyLeader);if(chk.ok)p.partyLeader=chk.leader;else{p.partyId=null;p.partyLeader=null}}
  let d=null;if(targetUid){try{d=await S.getDowned(targetUid)}catch(e){}}
  if(d&&!downedLive(d))d=null;
  const self=(!!targetUid&&targetUid===uid)||(!targetUid&&name===me.name)||name===me.name;
