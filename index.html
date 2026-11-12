@@ -4300,6 +4300,7 @@ function recipes(focus,msg,query=""){
   if(!success){
    let back=0;
    if(returnChance>0)used.forEach(x=>{if(x!=null&&Math.random()<returnChance){me.inv.push(x);back++}});
+   toast(`‘${r.out}’ ${isCook?"요리":"제작"} 실패${back?` · 재료 ${back}개 반환`:""}`);
    sfx("bad");bag();recipes(focus,`‘${esc(r.out)}’ ${isCook?"요리":"제작"} 실패 · 성공률 ${fmt1(cc.pct)}%${back?` · 재료 ${back}개 반환`:""}`,q);return;
   }
   if(!addItem(out)){me.inv.push(...used);bag();recipes(focus,"소지품 칸이 부족해서 만들 수 없다.",q);return}
@@ -4309,6 +4310,7 @@ function recipes(focus,msg,query=""){
   if(first)me.crafted.push(r.out);
   awardAction(skill,first?ACTION_XP.newRecipe:ACTION_XP.craft,ri.grade||"일반",skill);
   if(ri.grade&&ITEM_GRADES.indexOf(ri.grade)>=ITEM_GRADES.indexOf("희귀"))tryGoodTrait("손재주");
+  toast(`‘${r.out}’ ${isCook?"요리":"제작"} 성공!`);
   sfx("ok");bag();recipes(focus,`‘${esc(r.out)}’을(를) 만들었다.`,q)}}
 $("v-inv").onclick=e=>{const t=e.target;let b;
  if(b=t.closest("#invTabs .tab")){if(b.dataset.cat&&b.dataset.cat!==invTab){invTab=b.dataset.cat;invRefreshTabs();invRefreshList()}return}
