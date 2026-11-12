@@ -1623,15 +1623,19 @@ async function admin(){
   $("q").oninput=e=>{q=e.target.value;draw();const i=$("q");i.focus();i.setSelectionRange(q.length,q.length)};
   document.querySelectorAll("[data-a]").forEach(b=>b.onclick=()=>act(b.dataset.a,b.dataset.i));
   document.querySelectorAll("[data-char]").forEach(el=>el.onclick=()=>showChar(el.dataset.char))};
- const showLogs=async id=>{
+ const showLogs=async (id,mode="all")=>{
   const t=accs.find(x=>x.id===id),who=t?nameOf(t):("UID "+String(id).slice(0,8));
   admPop("활동 로그",`<p class="dim">${esc(who)}의 로그를 불러오는 중…</p>`,[{t:"닫기"}],true);
   let data=null,err=null;try{data=await S.getLogs(id)}catch(e){err=e}
   const rows=[];Object.entries(data||{}).forEach(([cid,slots])=>{if(!slots||typeof slots!=="object")return;Object.values(slots).forEach(v=>{if(v&&typeof v==="object"&&isFinite(+v.at))rows.push({...v,charId:cid})})});
   rows.sort((a,b)=>b.at-a.at);
-  const label={session:"접속",downed:"쓰러짐",death:"사망",revive:"소생",battle:"전투",expedition:"탐사",dot:"지속피해",party:"파티",trap:"함정",will:"유언",event:"이벤트"};
+  const allN=rows.length;
+  if(mode==="item")rows.splice(0,rows.length,...rows.filter(r=>r.type==="item"));
+  else if(mode==="noitem")rows.splice(0,rows.length,...rows.filter(r=>r.type!=="item"));
+  const label={session:"접속",downed:"쓰러짐",death:"사망",revive:"소생",battle:"전투",expedition:"탐사",dot:"지속피해",party:"파티",trap:"함정",will:"유언",event:"이벤트",item:"아이템",quest:"의뢰",survive:"생존"};
   const body=err?`<p style="color:var(--bad)">로그를 불러오지 못했습니다. Firebase 규칙의 logs 읽기 권한을 확인해 주세요.</p>`:rows.length?`<div style="max-height:55vh;overflow:auto">${rows.slice(0,300).map(r=>{const ty=label[r.type]||r.type||"이벤트",detail=adminLogDetail(r);return `<div style="padding:10px 0;border-bottom:1px solid var(--line)"><div style="display:flex;gap:8px;align-items:baseline;flex-wrap:wrap"><b>${esc(ty)}</b><span class="dim sm">${fmt(r.at)}</span>${r.name?`<span class="dim sm">${esc(r.name)}</span>`:""}</div><div style="margin-top:2px">${esc(r.text||"")}</div>${detail}</div>`}).join("")}</div>`:`<p class="dim">기록된 로그가 없습니다.</p>`;
-  admPop("활동 로그",`<p class="dim" style="margin:0 0 8px">${esc(who)} · 최근 ${Math.min(rows.length,300)}건 / 전체 ${rows.length}건</p>${body}`,[{t:"새로고침",fn:()=>showLogs(id)},{t:"닫기"}],true);
+  const modeName={all:"전체",item:"아이템 증감만",noitem:"아이템 제외"}[mode]||"전체";
+  admPop("활동 로그",`<p class="dim" style="margin:0 0 8px">${esc(who)} · ${modeName} · 최근 ${Math.min(rows.length,300)}건 / ${rows.length}건${mode!=="all"?` (전체 ${allN}건)`:""}</p>${body}`,[{t:"전체",c:mode==="all"?" ":"alt",fn:()=>showLogs(id,"all")},{t:"아이템만",c:mode==="item"?" ":"alt",fn:()=>showLogs(id,"item")},{t:"아이템 제외",c:mode==="noitem"?" ":"alt",fn:()=>showLogs(id,"noitem")},{t:"새로고침",fn:()=>showLogs(id,mode)},{t:"닫기"}],true);
  };
  async function grantPotions(){
   const targets=accs.filter(a=>a&&a.character&&!a.character.potionGrant20);
@@ -1797,7 +1801,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.statPts=Math.max(0,Math.floor(+c.statPts||0));
  o.skillPts=Math.max(0,Math.floor(+c.skillPts||0));
  o.crafted=Array.isArray(c.crafted)?c.crafted.filter(x=>typeof x==="string").slice(-600):[];
- o.speedPotionGrant=!!c.speedPotionGrant;o.speedPotionGrant2=!!c.speedPotionGrant2;o.mpGrant50=!!c.mpGrant50;o.partyBattleSeen=typeof c.partyBattleSeen==="string"?c.partyBattleSeen.slice(0,80):"";
+ o.speedPotionGrant=!!c.speedPotionGrant;o.speedPotionGrant2=!!c.speedPotionGrant2;o.mpGrant50=!!c.mpGrant50;o.partyBattleSeen=typeof c.partyBattleSeen==="string"?c.partyBattleSeen.slice(0,80):"";o.itemLogSeq=Math.max(0,Math.floor(+c.itemLogSeq||0));
  o.potionLock=Array.isArray(c.potionLock)?c.potionLock.filter(x=>typeof x==="string").slice(-100):[];
  o.itemLock=Array.isArray(c.itemLock)?c.itemLock.filter(x=>typeof x==="string").slice(-1000):[];
  o.potionGrant=!!c.potionGrant;o.potionGrant20=!!c.potionGrant20||!!o.drosselPotion20;o.mpAt=isFinite(+c.mpAt)?+c.mpAt:Date.now();o.mpCarry=Math.max(0,+c.mpCarry||0);
@@ -2426,7 +2430,7 @@ const initialMageTrait=hasSavedSkills?(char.mageTraitMagic5===2?2:!!char.mageTra
 const initialPriestTrait=hasSavedSkills?(char.priestTraitHeal5===2?2:0):2;
 const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||char.origin,area:char.area||"cap",sub:char.sub||null,travel:char.travel||null,gold:char.gold??100,
  inv:cp(char.items||[]),equipped:cp(char.equipped||{}),vehicles:cp(char.vehicles||[]),pet:cp(char.pet||null),petAdoptLockUntil:Math.max(0,+char.petAdoptLockUntil||0),ground:cp(char.ground||{}),blocked:cp(char.blocked||[]),
- hp:cp(char.hp||[100,100]),mp:cp(char.mp||[100,100]),hunger:cp(char.hunger||[100,100]),isAdmin:!!opts.admin,speedPotionGrant:!!char.speedPotionGrant,speedPotionGrant2:!!char.speedPotionGrant2,mpGrant50:!!char.mpGrant50,partyBattleSeen:typeof char.partyBattleSeen==="string"?char.partyBattleSeen:"",fx:cp(char.fx||[]),
+ hp:cp(char.hp||[100,100]),mp:cp(char.mp||[100,100]),hunger:cp(char.hunger||[100,100]),isAdmin:!!opts.admin,speedPotionGrant:!!char.speedPotionGrant,speedPotionGrant2:!!char.speedPotionGrant2,mpGrant50:!!char.mpGrant50,partyBattleSeen:typeof char.partyBattleSeen==="string"?char.partyBattleSeen:"",itemLogSeq:Math.max(0,Math.floor(+char.itemLogSeq||0)),fx:cp(char.fx||[]),
  color:/^#[0-9a-fA-F]{6}$/.test(char.color||"")?char.color:"#CB3533",
  photo:okPhoto(char.photo)?char.photo:null,
  traits:cp(Array.isArray(char.traits)?char.traits:(char.trait?[char.trait]:[])),
@@ -2478,6 +2482,36 @@ function logChar(type,text,data){
   S.setLog(uid,charId,slot,entry).catch(()=>{});
  }catch(e){}
 }
+// ---- 아이템 증감 기록 (2026-11-12) ----
+// 소지품+장비의 아이템 개수를 주기적으로 비교해 바뀐 것만 기록한다. 원인은 itemReason()으로 지정한 행동 → 최근 누른 버튼 → 진행 중 활동 순으로 붙인다.
+// 일반 로그(200칸)를 밀어내지 않도록 logs/{uid}/{charId}_items 에 별도 300칸 링으로 저장.
+const ITEM_LOG_SLOTS=300;let itemPrev=null,itemWhy=null,itemClick=null;
+function itemReason(text,soft){if(soft&&itemWhy&&Date.now()-itemWhy.at<10000)return;itemWhy={text:String(text||""),at:Date.now()}}
+function itemCountsNow(){const m={};const add=x=>{if(x==null)return;const n=nm(x);if(n)m[n]=(m[n]||0)+1};(me.inv||[]).forEach(add);Object.values(me.equipped||{}).forEach(add);return m}
+function itemActivityHint(){try{if(battle)return "전투 중";if(me.expedition)return "탐사 중";if(me.travel)return "이동 중";if(me.rest)return "휴식 중";if(me.downed)return "쓰러짐"}catch(e){}return ""}
+function itemLogTick(){
+ try{
+  if(!uid||!me)return;
+  const now=itemCountsNow();
+  if(!itemPrev){itemPrev=now;return}
+  const delta={};new Set([...Object.keys(now),...Object.keys(itemPrev)]).forEach(n=>{const d=(now[n]||0)-(itemPrev[n]||0);if(d)delta[n]=d});
+  itemPrev=now;
+  const keys=Object.keys(delta);if(!keys.length)return;
+  const t=Date.now();
+  const why=itemWhy&&t-itemWhy.at<15000?itemWhy.text:itemClick&&t-itemClick.at<15000?"버튼 · "+itemClick.text:(itemActivityHint()||"원인 미상");
+  itemWhy=null;itemClick=null;
+  const parts=keys.sort((a,b)=>delta[a]-delta[b]).map(n=>`${n} ${delta[n]>0?"+":""}${delta[n]}`);
+  const text=(why+" · "+parts.join(", ")).slice(0,240);
+  const seqKey="everfall_itemlogseq_"+uid+"_"+charId;let seq=Math.max(0,+me.itemLogSeq||0)+1;
+  try{const ls=+localStorage.getItem(seqKey);if(isFinite(ls)&&ls>=seq)seq=ls+1}catch(e){}
+  me.itemLogSeq=seq;try{localStorage.setItem(seqKey,String(seq))}catch(e){}
+  const entry={at:t,type:"item",text,name:String(me.name||"").slice(0,16),data:{why:why.slice(0,80),delta,place:String(locText()||"").slice(0,80)}};
+  S.setLog(uid,charId+"_items",seq%ITEM_LOG_SLOTS,entry).catch(()=>{});
+ }catch(e){}
+}
+document.addEventListener("click",e=>{try{const b=e.target&&e.target.closest&&e.target.closest("button");if(!b)return;const lab=(b.textContent||b.title||"").trim().slice(0,24);if(!lab)return;
+ const pop=b.closest("#pop,.adm-pop,.modal");let title="";if(pop){const h=pop.querySelector("#pt,h3,.adm-title,h2");title=h?(h.textContent||"").trim().slice(0,24):""}
+ itemClick={text:title&&title!==lab?`${title} › ${lab}`:lab,at:Date.now()}}catch(err){}},true);
 const jobKey=()=>JOB_TRAITS[me.job]?me.job:(JOB_ALIAS[me.job]||"");
 const JT=()=>JOB_TRAITS[jobKey()]||{};
 const traitTotal=key=>me.traits.reduce((a,t)=>a+((TRAITS[t]&&TRAITS[t][key])||0),0);
@@ -2755,6 +2789,7 @@ function encounterCount(kind,min){
  return lo+Math.floor(Math.random()*(hi-lo+1));
 }
 function resolveExp(partial=false){
+ try{itemReason(`탐사 정산 · ${((EXPD[me.expedition&&me.expedition.kind]||{}).label)||"탐사"}${partial?" (중도 귀환)":""}`)}catch(e){}
  const e=me.expedition;if(!e)return;
  const hpBefore=+me.hp[0]||0,hungerBefore=+me.hunger[0]||0,fxBefore=(me.fx||[]).map(f=>f&&(f.label||f.n));
  catchUpExp();
@@ -4300,6 +4335,7 @@ function recipes(focus,msg,query=""){
   if(!success){
    let back=0;
    if(returnChance>0)used.forEach(x=>{if(x!=null&&Math.random()<returnChance){me.inv.push(x);back++}});
+   itemReason(`${isCook?"요리":"제작"} 실패 · ${r.out}${back?` (재료 ${back}개 반환)`:""}`);
    toast(`‘${r.out}’ ${isCook?"요리":"제작"} 실패${back?` · 재료 ${back}개 반환`:""}`);
    sfx("bad");bag();recipes(focus,`‘${esc(r.out)}’ ${isCook?"요리":"제작"} 실패 · 성공률 ${fmt1(cc.pct)}%${back?` · 재료 ${back}개 반환`:""}`,q);return;
   }
@@ -4310,6 +4346,7 @@ function recipes(focus,msg,query=""){
   if(first)me.crafted.push(r.out);
   awardAction(skill,first?ACTION_XP.newRecipe:ACTION_XP.craft,ri.grade||"일반",skill);
   if(ri.grade&&ITEM_GRADES.indexOf(ri.grade)>=ITEM_GRADES.indexOf("희귀"))tryGoodTrait("손재주");
+  itemReason(`${isCook?"요리":"제작"} 성공 · ${r.out}`);
   toast(`‘${r.out}’ ${isCook?"요리":"제작"} 성공!`);
   sfx("ok");bag();recipes(focus,`‘${esc(r.out)}’을(를) 만들었다.`,q)}}
 $("v-inv").onclick=e=>{const t=e.target;let b;
@@ -5552,7 +5589,7 @@ function autoBattle(mon,party,opts={}){
    if(f.hp<=0)continue;
    if(f.self&&f.hp/f.maxHp<=.3&&!(f.potionCd>0)){
     const idxs=[];me.inv.forEach((x,i)=>{const n=nm(x);if(isHpPotion(n)&&!isPotionAutoLocked(n))idxs.push(i)});
-    if(idxs.length){const ix=idxs[Math.floor(Math.random()*idxs.length)],x=me.inv.splice(ix,1)[0],n=nm(x),heal=healVal(info(n).fx.hp||0);f.hp=Math.min(f.maxHp,f.hp+heal);me.hp[0]=f.hp;if(heal>0)wearTool("생존 책");f.potionCd=3;used++;applyItemStatus(n,info(n));log.push(`${f.name}이(가) ${n}을(를) 사용해 HP +${heal} (턴 소모, 쿨타임 2턴)`);continue}
+    if(idxs.length){itemReason("전투 중 자동 포션",true);const ix=idxs[Math.floor(Math.random()*idxs.length)],x=me.inv.splice(ix,1)[0],n=nm(x),heal=healVal(info(n).fx.hp||0);f.hp=Math.min(f.maxHp,f.hp+heal);me.hp[0]=f.hp;if(heal>0)wearTool("생존 책");f.potionCd=3;used++;applyItemStatus(n,info(n));log.push(`${f.name}이(가) ${n}을(를) 사용해 HP +${heal} (턴 소모, 쿨타임 2턴)`);continue}
    }
    const st=f.st;
     if(f.self&&st.statusFlags&&st.statusFlags.act){log.push(`${f.name}\uC740(\uB294) \uBAB8\uC774 \uB9D0\uC744 \uB4E3\uC9C0 \uC54A\uC544 \uD589\uB3D9\uD560 \uC218 \uC5C6\uB2E4.`);continue}
@@ -7299,6 +7336,7 @@ function questComplete(qid,viaNpc){
 }
 function questFinish(qid,skill){
  const st=questState(),a=st.active.find(x=>x.id===qid),q=QUEST_BY_ID[qid];if(!a||!q)return;
+ itemReason(`의뢰 완료 · ${q.id} ${q.title}`);
  if(q.k!=="deliver"&&!questReady(a,q))return toast("아직 조건을 채우지 못했습니다.");
  const taken=[];
  if(q.k==="give")for(const [n,c] of q.req)taken.push(...takeItems(n,c));
@@ -7793,8 +7831,9 @@ const pubProfile=()=>{
 let lastProfile=JSON.stringify(pubProfile()),profileAt=0;
 if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(uid,p).catch(()=>{})}
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
+T(itemLogTick,2000);setTimeout(itemLogTick,0);
 function savePartyBattleSeen(){try{opts.save(cp(snap()))}catch(e){}}
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
 // 기존 캐릭터 1회 지급: 이동속도 증가 포션 20개
 const SPEED_POTION_GRANT_CUTOFF=Date.parse("2026-11-07T23:59:59+09:00");
 if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
