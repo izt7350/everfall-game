@@ -5267,7 +5267,10 @@ function adoptPet(species,name){
    }).join("")||`<span class="dim">탈것이 없다.</span>`;
    $("ride").innerHTML=`<h2>동행 <span class="cnt">${(p?1:0)+me.vehicles.length}</span></h2>${pet}${vs}<div class="pet-hint">훈련·개조 1회당 이동 속도 +3% · 각설탕 / 마법 개조석 1개 소모</div>`}
   function askName(init,cb){pop("이름 변경",`<input id="rnIn" maxlength="10" value="${esc(init)}">`,[{t:"변경",c:"",fn:()=>{const v=$("rnIn").value.trim();if(v)cb(v.slice(0,10))}},{t:"취소"}])}
-  $("ride").onclick=e=>{const t=e.target.closest("button");if(!t)return;if(actionLock("휴식 중에는 동행을 돌볼 수 없습니다."))return;if(!starvationActionCost())return;const p=me.pet;
+  let rideTapAt=0;
+  $("ride").onclick=e=>{const t=e.target.closest("button");if(!t)return;
+   // 연속 터치(더블탭) 방지: 첫 번째 터치로 마지막 각설탕을 쓰고 두 번째 터치에서 '없다' 창이 뜨던 문제 (2026-11-13)
+   if(t.dataset.rn==null){const now=Date.now();if(now-rideTapAt<800)return;rideTapAt=now}if(actionLock("휴식 중에는 동행을 돌볼 수 없습니다."))return;if(!starvationActionCost())return;const p=me.pet;
    if(t.dataset.rn!=null){const o=t.dataset.rn==="pet"?p:me.vehicles[+t.dataset.rn];askName(o.name,v=>{o.name=v;rideRender()})}
    else if(t.dataset.pa==="feed"){if(!p)return;if(p.hunger>=100)modal("배부르다",`${p.name}은(는) 배가 부르다.`);else if(count("먹이")<1)modal("먹이가 없다","먹이가 필요하다.");else{consume("먹이",1);p.hunger=Math.min(100,p.hunger+20);p.hungerAt=Date.now();petHungerCarry=0;bag();rideRender()}}
    else if(t.dataset.pa==="pet"){if(!p)return;const wait=3*36e5-(Date.now()-(+p.petAt||0));
@@ -5277,7 +5280,7 @@ function adoptPet(species,name){
    else if(t.dataset.vt!=null){const v=me.vehicles[+t.dataset.vt];if(!v)return;const tier=v.tier||0;if(tier>=3)return;
     const mat=v.type==="말"?"각설탕":"마법 개조석";
     if(count(mat)<1){modal(mat+"이 없다",`${v.type} ${v.type==="말"?"훈련":"개조"}에는 ${mat} 1개가 필요하다.`);return}
-    consume(mat,1);v.tier=Math.min(3,tier+1);bag();rideRender()}};
+    consume(mat,1);v.tier=Math.min(3,tier+1);bag();rideRender();toast(`${v.name||v.type} ${v.type==="말"?"훈련":"개조"} 완료 (${v.tier}/3) · ${mat} 1개 사용 · 남은 ${count(mat)}개`)}};
 
 function locText(){const w=W();
  if(me.travel)return me.cont+" · "+(me.area==="cap"?w.cap.name:AR(me.area).name)+" → "+me.travel.label+" (이동 중)";
