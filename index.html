@@ -611,6 +611,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .g-dot{width:7px;height:7px;border-radius:50%;background:var(--dim);display:inline-block;flex:0 0 auto}
 #gameRoot .g-dot.on{background:var(--ok)}
 #gameRoot .g-dot.off{background:var(--bad)}
+#gameRoot #v-guild{text-align:left}#gameRoot .g-tabtitle{font-weight:800;font-size:18px;margin:4px 0 10px}
 #gameRoot .g-tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:2px 0 12px;overflow-x:auto;scrollbar-width:none}
 #gameRoot .g-tab{flex:0 0 auto;height:36px;padding:0 10px;border:0;border-bottom:2px solid transparent;background:none;color:var(--dim);font-size:13px;line-height:20px;font-weight:500}
 #gameRoot .g-tab[aria-selected="true"]{color:var(--accent-text);border-bottom-color:var(--accent)}
@@ -841,7 +842,9 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
    <button class="tab" role="tab" aria-selected="true" data-t="map">지도</button>
    <button class="tab" role="tab" aria-selected="false" data-t="inv">소지품</button>
    <button class="tab" role="tab" aria-selected="false" data-t="stat">상태</button>
+   <button class="tab" role="tab" aria-selected="false" data-t="guild" id="guildTabBtn" hidden>길드</button>
   </div>
+  <div class="view" id="v-guild" hidden><div class="g-tabtitle" id="gtabTitle">길드</div><div id="gtabBody" class="g-host"><div class="g-empty">불러오는 중…</div></div></div>
   <div class="view" id="v-map">
    <div class="maphead"><button class="back" id="back" hidden>← 대지역 지도</button><span id="maptitle"></span><small id="mapsub"></small></div>
    <div class="banner" id="banner" hidden><span id="btxt"></span><button class="back" id="skip">테스트: 즉시 도착</button></div>
@@ -4073,8 +4076,8 @@ else if(uid)setTimeout(subscribeOwnDowned,3000); // 일어난 상태면 남은 �
 // 팝업
 let popF=[];
 const guildView={gid:"",data:null,tab:"board",page:0,noticeMode:"view",noticeIndex:0,noticePage:0,postMode:"list",postIndex:0,postPage:0,online:"",onlineSet:new Set(),open:false,unsub:null};
-function pop(t,h,b,lock,sheet){guildView.open=false;$("pt").textContent=t;$("pb").innerHTML=h;$("pb").onclick=null;$("pb").oninput=null;popF=b;$("pbtn").innerHTML=b.map((x,k)=>`<button class="btn ${x.c===undefined?"alt":x.c}" data-k="${k}"${x.disabled?" disabled":""}>${esc(x.t)}</button>`).join("");$("pop").dataset.lock=lock?"1":"";$("pop").classList.toggle("sheet",!!sheet);$("pop").classList.remove("guild");$("pop").hidden=false}
-const closePop=()=>{guildView.open=false;if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}$("pop").hidden=true;expRecordView=false};
+function pop(t,h,b,lock,sheet){$("pt").textContent=t;$("pb").innerHTML=h;$("pb").onclick=null;$("pb").oninput=null;popF=b;$("pbtn").innerHTML=b.map((x,k)=>`<button class="btn ${x.c===undefined?"alt":x.c}" data-k="${k}"${x.disabled?" disabled":""}>${esc(x.t)}</button>`).join("");$("pop").dataset.lock=lock?"1":"";$("pop").classList.toggle("sheet",!!sheet);$("pop").classList.remove("guild");$("pop").hidden=false}
+const closePop=()=>{$("pop").hidden=true;expRecordView=false};
 $("pbtn").onclick=e=>{const b=e.target.closest("[data-k]");if(!b)return;const f=popF[+b.dataset.k];closePop();if(f.fn)f.fn()};
 
 function bag(){$("bag").textContent=`${usedSlots()}/${cap()}`;$("gold").textContent=me.gold+" G";invRender();rideRender();try{questRender()}catch(e){}}
@@ -4412,6 +4415,7 @@ const guildIsLeader=g=>guildRole(g)==="leader";
 const guildBusy=()=>!!me.travel||!!me.expedition||!!me.rest||!!me.read||!!me.downed||!!me.deadPending;
 function guildSaveSelf(){try{opts.save(cp(snap()))}catch(e){};try{updateProfileCard()}catch(e){};try{renderGuildBox()}catch(e){}}
 function renderGuildBox(){
+ try{syncGuildTab()}catch(e){}
  const el=$("guild");if(!el)return;
  el.hidden=me.area!=="cap";
  const st=$("guildstat");if(st)st.textContent=me.guildId?`현재 길드 · ${me.guild||"길드"}`:"";
@@ -4574,31 +4578,49 @@ async function submitGuildCreate(){
   openGuildBoard();
  }catch(e){err("길드 생성에 실패했습니다. 잠시 후 다시 시도해 주세요.");if(btn)btn.disabled=false}
 }
+// 길드 탭 (2026-11-12): 길드 게시판·창고·관리를 지도/소지품/상태 옆 '길드' 탭에서 상시 확인
+const gHost=()=>$("gtabBody");
+function syncGuildTab(){
+ const btn=$("guildTabBtn");if(!btn)return;
+ const has=!!me.guildId;btn.hidden=!has;
+ if(!has&&btn.getAttribute("aria-selected")==="true")setTab("map");
+ if(!has&&guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null;guildView.open=false;guildView.data=null}
+}
 function openGuildBoard(){
  if(!me.guildId){renderGuildBox();return}
- guildView.gid=me.guildId;guildView.tab="board";guildView.page=0;
+ if(!$("pop").hidden&&$("pop").classList.contains("guild"))closePop();
+ syncGuildTab();
+ if($("guildTabBtn").getAttribute("aria-selected")!=="true"){setTab("guild");return}
+ if(guildView.data)guildRender();else startGuildTab();
+}
+function startGuildTab(){
+ if(!me.guildId)return;
+ const gid=me.guildId;
+ if(guildView.open&&guildView.gid===gid&&guildView.unsub){if(guildView.data)guildRender();return}
+ if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}
+ guildView.gid=gid;guildView.tab=guildView.tab||"board";guildView.page=0;
  guildView.noticeMode="view";guildView.noticeIndex=0;guildView.noticePage=0;
  guildView.postMode="list";guildView.postIndex=0;guildView.postPage=0;
- guildDraft.notice="";guildDraft.noticeTitle="";guildDraft.post="";guildDraft.postTitle="";
- pop("길드",`<div class="g-empty">불러오는 중…</div>`,[{t:"닫기"}],false,true);
- guildView.open=true;
- $("pop").classList.add("guild");
- if(guildView.unsub){try{guildView.unsub()}catch(e){}}
- const gid=me.guildId;
+ guildView.open=true;guildView.data=null;
+ gHost().innerHTML=`<div class="g-empty">불러오는 중…</div>`;
  guildView.unsub=onValue(guildRef(gid),s=>{
-  if(!guildView.open||guildView.gid!==gid||$("pop").hidden)return;
+  if(!guildView.open||guildView.gid!==gid)return;
   const g=s.val();
-  if(!g){guildView.data=null;$("pb").innerHTML=`<div class="g-empty">길드가 해산되었거나 찾을 수 없습니다.</div>`;return}
-  guildView.data=g;guildRender();
- },err=>{if(guildView.open&&$("pb"))$("pb").innerHTML=`<div class="g-empty">길드 정보를 불러오지 못했습니다.</div>`});
+  if(!g){guildView.data=null;gHost().innerHTML=`<div class="g-empty">길드가 해산되었거나 찾을 수 없습니다.</div>`;return}
+  guildView.data=g;
+  // 글을 쓰는 중이면 다시 그리지 않음 (입력 중 내용이 날아가는 것 방지)
+  const ae=document.activeElement;if(ae&&gHost().contains(ae)&&/^(INPUT|TEXTAREA)$/.test(ae.tagName)&&ae.value)return;
+  guildRender();
+ },err=>{if(guildView.open)gHost().innerHTML=`<div class="g-empty">길드 정보를 불러오지 못했습니다.</div>`});
 }
+function stopGuildTab(){guildView.open=false;if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}}
 function guildRender(){
- const g=guildView.data;if(!g||!$("pb"))return;
+ const g=guildView.data;if(!g||!gHost())return;
  const role=guildRole(g),leader=role==="leader",canManage=guildPerm(g,"memberManage");
  const members=guildMembers(g);
  const openLabel=g.open===false?"미공개":"공개";
  const mode=GUILD_JOIN_LABEL[g.joinMode]||"신청 후 승인";
- $("pt").textContent=String(g.name||"길드");
+ $("gtabTitle").textContent=String(g.name||"길드");
  const chips=`<div class="g-head">
   <span class="g-chip">길드원 <b>${members.length}</b></span>
   <span class="g-chip">접속 <b class="g-online" id="gOnline">${esc(guildView.online||"…")}</b></span>
@@ -4618,10 +4640,10 @@ function guildRender(){
  if(guildView.tab==="warehouse")body=guildWarehouseHtml(g);
  else if(guildView.tab==="manage"&&canManage)body=guildManageHtml(g);
  else body=guildBoardHtml(g);
- $("pb").innerHTML=chips+tabs+body;
- $("pb").onclick=guildClick;
- $("pb").oninput=e=>{const id=e.target.id;if(id==="gNoticeIn")guildDraft.notice=e.target.value;else if(id==="gNoticeTitle")guildDraft.noticeTitle=e.target.value;else if(id==="gPostIn")guildDraft.post=e.target.value;else if(id==="gPostTitle")guildDraft.postTitle=e.target.value;else if(id==="gVaultAmt")guildDraft.vault=e.target.value};
- $("pb").onchange=e=>{const s=e.target.closest("[data-grole]");if(s)guildSetRole(s.dataset.grole,s.value)};
+ gHost().innerHTML=chips+tabs+body;
+ gHost().onclick=guildClick;
+ gHost().oninput=e=>{const id=e.target.id;if(id==="gNoticeIn")guildDraft.notice=e.target.value;else if(id==="gNoticeTitle")guildDraft.noticeTitle=e.target.value;else if(id==="gPostIn")guildDraft.post=e.target.value;else if(id==="gPostTitle")guildDraft.postTitle=e.target.value;else if(id==="gVaultAmt")guildDraft.vault=e.target.value};
+ gHost().onchange=e=>{const s=e.target.closest("[data-grole]");if(s)guildSetRole(s.dataset.grole,s.value)};
  refreshGuildOnline(members);
 }
 function guildBoardHtml(g){
@@ -4765,7 +4787,7 @@ async function refreshGuildOnline(members){
  }));
  guildView.online=`${online}/${ids.length}`;guildView.onlineSet=set;
  const el=$("gOnline");if(el)el.textContent=guildView.online;
- if($("pb"))$("pb").querySelectorAll("[data-gdot]").forEach(d=>{const on=set.has(d.dataset.gdot);d.classList.toggle("on",on);d.classList.toggle("off",!on)});
+ if(gHost())gHost().querySelectorAll("[data-gdot]").forEach(d=>{const on=set.has(d.dataset.gdot);d.classList.toggle("on",on);d.classList.toggle("off",!on)});
 }
 function guildClick(e){
  const b=e.target.closest("[data-gtab],[data-gnmode],[data-gnpage],[data-gnprev],[data-gnnext],[data-gnview],[data-gncancel],[data-gnotice],[data-gpmode],[data-gppage],[data-gpprev],[data-gpnext],[data-gpview],[data-gpcancel],[data-gpost],[data-gvaultin],[data-gvaultout],[data-gwh],[data-gdep],[data-gdepi],[data-gwit],[data-gwexpand],[data-gaccept],[data-greject],[data-gkick],[data-gdetails],[data-gsettings],[data-gleave],[data-gdisband]");
@@ -5992,7 +6014,8 @@ $("mineBtn").onclick=mineAction;
 function setTab(t){
  const b=document.querySelector(`#tabs .tab[data-t="${t}"]`);if(!b)return;
  document.querySelectorAll("#tabs .tab").forEach(x=>x.setAttribute("aria-selected",x===b));
- ["map","inv","stat"].forEach(k=>$("v-"+k).hidden=k!==t);
+ ["map","inv","stat","guild"].forEach(k=>$("v-"+k).hidden=k!==t);
+ if(t==="guild")startGuildTab();else stopGuildTab();
 }
 $("tabs").onclick=e=>{const b=e.target.closest(".tab");if(!b)return;setTab(b.dataset.t)};
 let people=[];
@@ -7877,7 +7900,7 @@ if(!me.potionGrant20){
  try{opts.save(cp(snap()))}catch(e){}
 }
 let last=JSON.stringify(snap());
-setTimeout(()=>guildTick(),1200);T(()=>guildTick(),20000);
+setTimeout(()=>{guildTick();try{syncGuildTab()}catch(e){}},1200);T(()=>guildTick(),20000);
 T(()=>{if(me.deadPending||accountHold||syncHold)return;const j=JSON.stringify(snap());if(j!==last){last=j;opts.save(cp(snap()))}},3000);
 // 다른 기기 동기화는 새 세션 접속 시 이전 세션을 종료하고, 로그인할 때 최신 캐릭터를 불러오는 방식으로 처리한다.
 // 플레이 중 자동 새로고침은 팝업을 닫아 방해하므로 사용하지 않는다.
