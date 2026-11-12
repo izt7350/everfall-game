@@ -612,6 +612,12 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .g-dot.on{background:var(--ok)}
 #gameRoot .g-dot.off{background:var(--bad)}
 #gameRoot #v-guild{text-align:left}#gameRoot .g-tabtitle{font-weight:800;font-size:18px;margin:4px 0 10px}
+#gameRoot .exp-live{margin:8px 0;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel);text-align:left;font-size:13px}
+#gameRoot .exp-live .el-head{display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:6px}
+#gameRoot .exp-live .el-bars>div:not(.track){display:flex;justify-content:space-between;font-size:12px;margin-top:4px}
+#gameRoot .exp-live .track{height:6px;border-radius:3px;background:var(--track,var(--line));overflow:hidden}
+#gameRoot .exp-live .fill{height:100%;transition:width .4s}
+#gameRoot .exp-live .el-log{margin-top:6px;min-height:72px}
 #gameRoot .g-tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:2px 0 12px;overflow-x:auto;scrollbar-width:none}
 #gameRoot .g-tab{flex:0 0 auto;height:36px;padding:0 10px;border:0;border-bottom:2px solid transparent;background:none;color:var(--dim);font-size:13px;line-height:20px;font-weight:500}
 #gameRoot .g-tab[aria-selected="true"]{color:var(--accent-text);border-bottom-color:var(--accent)}
@@ -849,6 +855,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
    <div class="maphead"><button class="back" id="back" hidden>← 대지역 지도</button><span id="maptitle"></span><small id="mapsub"></small></div>
    <div class="banner" id="banner" hidden><span id="btxt"></span><button class="back" id="skip">테스트: 즉시 도착</button></div>
    <div class="banner" id="expb" hidden><span id="exptxt"></span><button class="back" id="expback">중도 귀환</button><button class="back" id="expskip">테스트: 즉시 완료</button></div>
+   <div class="exp-live" id="expLive" hidden></div>
    <div class="banner" id="restb" hidden><span id="resttxt"></span><button class="back" id="restwake">중간에 일어나기</button></div>
    <div class="banner" id="readb" hidden><span id="readtxt"></span><button class="back" id="readcancel">읽기 중단</button></div>
    <div class="stage" id="stage"></div>
@@ -2782,6 +2789,7 @@ function beginExp(kind,min,opts={}){
  }
  me.expedition={kind,min,area:me.area,cont:me.cont,end,nextLogAt:now+nextGap(),participants:Array.isArray(opts.participants)?opts.participants:null,runLeader:opts.runLeader||null,proposalId:opts.proposalId||null};
  if(kind==="long"&&isNightNow())me.expedition.night=true;
+ expInitRT(me.expedition);
  me.expLogs=[];me.expMeta={label:EXPD[kind].label,kind,min,area:(AR(me.area)||{}).name||me.area,start:now,end};
  logAct(`${EXPD[kind].label}를 시작했다.`,now);
  if(me.expedition.night){logAct("[밤] 어둠 속 탐사 — 몬스터가 더 강하고 정예가 자주 나타난다.",now);toast("밤 탐사: 몬스터가 더 강하고 정예가 자주 나타납니다.")}
@@ -2793,12 +2801,128 @@ function encounterCount(kind,min){
  const key=[30,60,120,180].includes(+min)?+min:30,[lo,hi]=table[key];
  return lo+Math.floor(Math.random()*(hi-lo+1));
 }
-function resolveExp(partial=false){
+// ---- 실시간 탐사 전투 (2026-11-13) ----
+// 조우 시각을 탐사 시작 때 미리 정해 두고, 그 시각이 되면 전투를 바로 처리한다(HP·전리품 즉시 반영).
+// 30분마다 허기 -2 / 정신력(던전 -1, 장기 1시간마다 -2)과 채집도 그때그때 반영. 화면을 보고 있으면 전투를 한 턴씩 재생.
+const EXP_SEG=30*60000;
+function expStartAt(e){return (+e.end||Date.now())-(+e.min||0)*60000}
+function expInitRT(e,legacy){
+ if(e.rt)return e.rt;
+ const start=expStartAt(e),night=!!e.night&&e.kind==="long";
+ const n=encounterCount(e.kind,e.min)+(night?NIGHT_LONG.extraEnc:0);
+ let encAt=[];
+ if(!legacy){for(let i=0;i<n;i++)encAt.push(start+Math.floor((.05+.9*Math.random())*e.min*60000));encAt.sort((a,b)=>a-b)}
+ else{const total=Math.max(1,Math.round(e.min/30)),k=legacy.partial?Math.max(0,Math.round(n*(legacy.segs/total))):n;encAt=Array(k).fill(start)}
+ e.rt={encAt,encDone:0,segDone:0,found:[],lost:0,enc:0,gain:0,sxp:0,dmg:0,used:0,battles:[],defeated:false,bossDefeat:false,hpBefore:+me.hp[0]||0,hungerBefore:+me.hunger[0]||0,mpBefore:+me.mp[0]||0,allyHp:{}};
+ return e.rt;
+}
+function expCtx(e){
+ const areaObj=(()=>{try{return AR(e.area)}catch(_){return null}})();
+ const tier=(()=>{const n=parseInt((areaObj&&areaObj.diff)||"");return isFinite(n)?n:1})();
+ const participants=Array.isArray(e.participants)?e.participants:null,rt=e.rt||{allyHp:{}};
+ const allyList=(me.partyId?onlineAllies():me.party||[]).filter(a=>!participants||participants.includes(a.uid)).slice(0,4);
+ const party=[{self:true,name:me.name,st:calcStats(me),hp:me.hp[0],maxHp:me.hp[1]},...allyList.map(a=>{const st=calcStats(a),key=a.uid||a.name,h=rt.allyHp?rt.allyHp[key]:null;return{self:false,name:a.name,ally:a,st,hp:h!=null?Math.max(0,Math.min(h,st.hpMax)):st.hpMax,maxHp:st.hpMax,key}})];
+ return {areaObj,tier,party,nightRun:!!e.night&&e.kind==="long",cfg:EXPD[e.kind]||EXPD.long};
+}
+function expAddLoot(rt,names){for(const n of names){if(!n)continue;registerItem(n);const d=ITEM_BY_NAME[n],item=lootObj(n);if(canAdd(item)){addItem(item);rt.found.push(n);if(d)awardAction("search",d.grade==="일반"?ACTION_XP.search:ACTION_XP.rareSearch,d.grade,"search")}else rt.lost++}}
+function expRunBattle(e,ctx,mon,source,isBoss,at){
+ const rt=e.rt,party=ctx.party,tier=ctx.tier;
+ party[0].hp=me.hp[0];party[0].maxHp=me.hp[1];party[0].st=calcStats(me);
+ const syncParty=()=>{me.hp[0]=Math.max(0,Math.min(party[0].maxHp,party[0].hp));for(const f of party.slice(1)){if(f.ally)f.ally.hp=[f.hp,f.maxHp];if(rt.allyHp)rt.allyHp[f.key]=f.hp}};
+ const before=party[0].hp,res=autoBattle(mon,party,{expedition:true,star:tier,source,mode:e.kind,boss:isBoss,night:ctx.nightRun});
+ rt.used+=res.used||0;
+ for(let i=0;i<party.length;i++)party[i].hp=res.party[i].hp;
+ syncParty();
+ const tag=mon.role==="정예"?"[정예] ":mon.role==="보스"?"[보스] ":"",leaderAlive=res.party[0].hp>0,win=res.win&&leaderAlive;
+ rt.battles.push({name:mon.name,role:mon.role,win,rounds:res.rounds,log:res.log.slice(-60)});if(rt.battles.length>12)rt.battles.shift();
+ rt.dmg+=Math.max(0,before-party[0].hp);
+ if(win){
+  const xp=Math.max(1,Math.floor(+(mon.xp||40)||0));rt.gain+=xp;gainPlayerXP(xp);
+  try{questKill(mon,tier,source)}catch(err){}
+  const self=res.party[0],sx=Math.max(1,(mon.killSkillXp||Math.ceil((mon.xp||40)/5))+(mon.finisherXp||20));
+  gainSkillXP(self.skill||"melee",sx);rt.sxp+=sx;
+  expAddLoot(rt,capBattleLoot(rollLoot(tier,source,mon.grade,ctx.areaObj,e.min),tier));
+  logAct(`전투: ${tag}${mon.name} · ${res.rounds}턴 승리`,at);
+ }else{
+  rt.defeated=true;
+  if(isBoss){me.hp[0]=1;party[0].hp=1;rt.bossDefeat=true;logAct(`[보스] ${mon.name} · ${res.rounds}턴 패배 · HP 1 귀환`,at)}
+  else{me.hp[0]=0;party[0].hp=0;logAct(`전투: ${tag}${mon.name} · ${res.rounds}턴 패배`,at)}
+   logChar("battle",`탐사 패배 · ${tag}${mon.name} (${res.rounds}턴)`,{monster:mon.name,role:mon.role,rounds:res.rounds,kind:e.kind,tier,before,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],mp:me.mp.slice(),hunger:me.hunger.slice(),boss:isBoss,status:"lose",fx:(me.fx||[]).map(f=>f&&(f.label||f.n)),expLogs:(me.expLogs||[]).slice(-10)});
+ }
+ return {res,before,tag,mon,win};
+}
+function expEncounter(e,ctx,at){
+ const rt=e.rt,mon=rollShortMonster(ctx.tier,e.kind,ctx.nightRun?NIGHT_LONG.elite:.10);
+ if(!mon)return null;
+ rt.enc++;
+ if(mon.role==="정예"&&me.hp[0]/me.hp[1]<.5){logAct("[정예] 회피",at);return null}
+ const source=e.kind==="dungeon"?(mon.role==="정예"?"dungeonElite":"dungeonNormal"):(mon.role==="정예"?"fieldElite":"fieldNormal");
+ return expRunBattle(e,ctx,mon,source,false,at);
+}
+// upTo 시각까지 밀린 조우·30분 정산을 처리. live=true면 방금 일어난 전투를 화면에 재생
+function expAdvance(upTo,live){
+ const e=me.expedition;if(!e)return;
+ const rt=expInitRT(e),start=expStartAt(e),lim=Math.min(upTo,+e.end||upTo);
+ let ctx=null;const C=()=>ctx||(ctx=expCtx(e));
+ while(rt.encDone<rt.encAt.length&&rt.encAt[rt.encDone]<=lim&&!rt.defeated){
+  const at=rt.encAt[rt.encDone];rt.encDone++;
+  const r=expEncounter(e,C(),at);
+  if(r&&live&&Date.now()-at<90000&&!document.hidden)expLiveQueue(r);
+ }
+ const segsDue=Math.max(0,Math.min(Math.max(1,Math.round(e.min/30)),Math.floor((lim-start)/EXP_SEG)));
+ let changed=!!ctx;
+ while(rt.segDone<segsDue){
+  rt.segDone++;changed=true;
+  if(!rt.defeated&&Math.random()<C().cfg.find)expAddLoot(rt,rollLoot(C().tier,"gather",null,C().areaObj));
+  spendHunger(2);
+  const mp=e.kind==="dungeon"?1:(rt.segDone%2===0?2:0);
+  if(mp)spendMp(Math.min(+me.mp[0]||0,mp));
+ }
+ if(changed){barsRender();try{bag()}catch(_){}try{renderStatus()}catch(_){}}
+}
+// ---- 전투 재생 ----
+let liveHpView=null;
+const expLive={q:[],cur:null,timer:null};
+function expLiveQueue(r){
+ const tr=(r.res.trace||[]).slice(0,120);
+ expLive.q.push({title:r.tag+r.mon.name,mMax:r.res.mMax||1,sMax:me.hp[1],hp0:r.before,trace:tr,win:r.win,rounds:r.res.rounds,final:me.hp[0]});
+ if(!expLive.cur)expLiveNext();
+}
+function expLiveNext(){
+ clearTimeout(expLive.timer);
+ const b=expLive.q.shift();expLive.cur=b||null;
+ const box=$("expLive");
+ if(!b){liveHpView=null;if(box)box.hidden=true;barsRender();return}
+ b.i=0;if(box)box.hidden=false;expLiveDraw();
+ const step=()=>{
+  if(b.i<b.trace.length){b.i++;expLiveDraw();expLive.timer=setTimeout(step,b.i>=b.trace.length?1600:750)}
+  else expLiveNext();
+ };
+ expLive.timer=setTimeout(step,700);
+}
+function expLiveDraw(){
+ const b=expLive.cur,box=$("expLive");if(!b||!box)return;
+ const fr=b.i>0?b.trace[b.i-1]:null,mHp=fr?fr[1]:b.mMax,sHp=fr?fr[2]:b.hp0,done=b.i>=b.trace.length;
+ liveHpView=done?null:sHp;barsRender();
+ const bar=(v,m,c)=>`<div class="track"><div class="fill" style="width:${Math.max(0,Math.min(100,v/Math.max(1,m)*100))}%;background:${c}"></div></div>`;
+ const lines=b.trace.slice(Math.max(0,b.i-4),b.i).map(t=>`<div class="explog-line">${esc(t[0])}</div>`).join("");
+ box.innerHTML=`<div class="el-head"><b>⚔ ${esc(b.title)}</b><span class="dim">${done?(b.win?`${b.rounds}턴 승리`:`${b.rounds}턴 패배`):`전투 중 · ${Math.min(b.i,b.trace.length)}/${b.trace.length}`}</span></div>
+ <div class="el-bars"><div><span>${esc(b.title.replace(/^\[[^\]]+\] /,""))}</span><b>${Math.round(mHp)} / ${Math.round(b.mMax)}</b></div>${bar(mHp,b.mMax,"var(--bad,#c33)")}<div><span>${esc(me.name)}</span><b>${Math.round(done?b.final:sHp)} / ${Math.round(b.sMax)}</b></div>${bar(done?b.final:sHp,b.sMax,"var(--hp)")}</div>
+ <div class="el-log">${lines||'<div class="dim">전투가 시작되었다.</div>'}</div>`;
+}
+function expLiveStop(){clearTimeout(expLive.timer);expLive.q=[];expLive.cur=null;liveHpView=null;const box=$("expLive");if(box)box.hidden=true}
+function resolveExp(partial=false,why){
  try{itemReason(`탐사 정산 · ${((EXPD[me.expedition&&me.expedition.kind]||{}).label)||"탐사"}${partial?" (중도 귀환)":""}`)}catch(e){}
  const e=me.expedition;if(!e)return;
- const hpBefore=+me.hp[0]||0,hungerBefore=+me.hunger[0]||0,fxBefore=(me.fx||[]).map(f=>f&&(f.label||f.n));
+ expLiveStop();
+ const fxBefore=(me.fx||[]).map(f=>f&&(f.label||f.n));
  catchUpExp();
  const startedAt=e.end-e.min*60000,elapsed=Math.max(0,Math.min(e.min,(Date.now()-startedAt)/60000));
+ const total=Math.max(1,Math.round(e.min/30)),segs=partial?Math.min(total,Math.floor(elapsed/30)):total;
+ if(!e.rt)expInitRT(e,{partial,segs}); // 실시간 도입 전에 시작한 탐사는 예전처럼 한꺼번에
+ expAdvance(partial?Date.now():(+e.end||Date.now()),false);
+ const rt=e.rt,ctx=expCtx(e);
+ const hpBefore=rt.hpBefore,hungerBefore=rt.hungerBefore;
  me.expedition=null;
  const runLeader=e.runLeader||null,participants=Array.isArray(e.participants)?e.participants:null,proposalId=e.proposalId||null;
  const endedAt=partial?Date.now():Math.min(Date.now(),+e.end||Date.now());
@@ -2811,78 +2935,33 @@ function resolveExp(partial=false){
   // 탈수: 폭염 지역에서 장기 탐사를 마쳤는데 생수가 없으면 (2026-11-10)
   if(!partial&&e.kind==="long"){try{const wx=weatherAt(e.cont||me.cont,e.area||me.area).id;if(wx==="heat"&&!(me.inv||[]).some(x=>nm(x)==="생수"))applyStatus("dehydration")}catch(err){}}
  if(me.expMeta&&typeof me.expMeta==="object"){me.expMeta.kind=e.kind;me.expMeta.end=endedAt;if(!isFinite(+me.expMeta.start))me.expMeta.start=endedAt-e.min*60000}
- const cfg=EXPD[e.kind]||EXPD.long,total=Math.max(1,Math.round(e.min/30)),idx=Math.max(0,[30,60,120,180].indexOf(e.min));
- const segs=partial?Math.min(total,Math.floor(elapsed/30)):total;
- const areaObj=(()=>{try{return AR(e.area)}catch(_){return null}})();
- const tier=(()=>{const n=parseInt((areaObj&&areaObj.diff)||"");return isFinite(n)?n:1})();
- let found=[],lost=0,enc=0,gain=0,skillGain=0,dmg=0,box=false,defeated=false,used=0;
- const battleLogs=[];
- const addLoot=names=>{for(const n of names){if(!n)continue;registerItem(n);const d=ITEM_BY_NAME[n],item=lootObj(n);if(canAdd(item)){addItem(item);found.push(n);if(d)awardAction("search",d.grade==="일반"?ACTION_XP.search:ACTION_XP.rareSearch,d.grade,"search")}else lost++}};
- const allyList=(me.partyId?onlineAllies():me.party||[]).filter(a=>!participants||participants.includes(a.uid)).slice(0,4);
- const party=[{self:true,name:me.name,st:calcStats(me),hp:me.hp[0],maxHp:me.hp[1]},...allyList.map(a=>{const st=calcStats(a);return{self:false,name:a.name,ally:a,st,hp:st.hpMax,maxHp:st.hpMax}})];
- const partyXp=(base,n)=>Math.max(1,Math.floor(+base||0));
+ const cfg=ctx.cfg,idx=Math.max(0,[30,60,120,180].indexOf(e.min));
+ const areaObj=ctx.areaObj,tier=ctx.tier,party=ctx.party;
+ let box=false;
+ const addLoot=names=>expAddLoot(rt,names);
  const clearProposal=()=>{if(proposalId&&me.partyId&&runLeader===uid){try{remove(ref(realtimeDB,"partyProposals/"+me.partyId)).catch(()=>{})}catch(e){}}};
- const syncParty=()=>{me.hp[0]=Math.max(0,Math.min(party[0].maxHp,party[0].hp));for(const f of party.slice(1))if(f.ally)f.ally.hp=[f.hp,f.maxHp]};
- let bossDefeat=false,chestData=null;
- const nightRun=!!e.night&&e.kind==="long";
- const runBattle=(mon,source,isBoss=false)=>{
-  const before=party[0].hp,res=autoBattle(mon,party,{expedition:true,star:tier,source,mode:e.kind,boss:isBoss,night:nightRun});
-   used+=res.used||0;
-  for(let i=0;i<party.length;i++)party[i].hp=res.party[i].hp;
-  syncParty();
-  const tag=mon.role==="정예"?"[정예] ":mon.role==="보스"?"[보스] ":"",leaderAlive=res.party[0].hp>0;
-  battleLogs.push({name:mon.name,role:mon.role,win:res.win&&leaderAlive,rounds:res.rounds,log:res.log});
-  dmg+=Math.max(0,before-party[0].hp);
-  if(res.win&&leaderAlive){
-   const xp=partyXp(mon.xp||40,party.length);gain+=xp;gainPlayerXP(xp);
-   try{questKill(mon,tier,source)}catch(e){}
-   const self=res.party[0],sx=Math.max(1,(mon.killSkillXp||Math.ceil((mon.xp||40)/5))+(mon.finisherXp||20));
-   gainSkillXP(self.skill||"melee",sx);skillGain+=sx;
-   addLoot(capBattleLoot(rollLoot(tier,source,mon.grade,areaObj,e.min),tier));
-   logAct(`전투: ${tag}${mon.name} · ${res.rounds}턴 승리`);
-  }else{
-   defeated=true;
-   if(isBoss){me.hp[0]=1;party[0].hp=1;bossDefeat=true;logAct(`[보스] ${mon.name} · ${res.rounds}턴 패배 · HP 1 귀환`)}
-   else{me.hp[0]=0;party[0].hp=0;logAct(`전투: ${tag}${mon.name} · ${res.rounds}턴 패배`)}
-   logChar("battle",`탐사 패배 · ${tag}${mon.name} (${res.rounds}턴)`,{monster:mon.name,role:mon.role,rounds:res.rounds,kind:e.kind,tier,before,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],mp:me.mp.slice(),hunger:me.hunger.slice(),boss:isBoss,status:"lose",fx:(me.fx||[]).map(f=>f&&(f.label||f.n)),expLogs:(me.expLogs||[]).slice(-10)});
-  }
-  return res;
- };
- const encBase=encounterCount(e.kind,e.min)+(nightRun?NIGHT_LONG.extraEnc:0);
- const encTarget=partial?Math.max(0,Math.round(encBase*(segs/Math.max(1,total)))):encBase;
- for(let i=0;i<encTarget;i++){
-  if(defeated)break;
-  const mon=rollShortMonster(tier,e.kind,nightRun?NIGHT_LONG.elite:.10);
-  if(!mon)continue;
-  enc++;
-  if(mon.role==="정예"&&me.hp[0]/me.hp[1]<.5){logAct("[정예] 회피");continue}
-  const source=e.kind==="dungeon"?(mon.role==="정예"?"dungeonElite":"dungeonNormal"):(mon.role==="정예"?"fieldElite":"fieldNormal");
-  runBattle(mon,source,false);
- }
- if(!partial&&!defeated&&e.kind==="dungeon"){
+ let chestData=null;
+ const runBattle=(mon,source,isBoss=false)=>expRunBattle(e,ctx,mon,source,isBoss,Date.now()).res;
+ if(!partial&&!rt.defeated&&e.kind==="dungeon"){
   const bm=rollNamedMonster(tier)||rollShortMonster(tier,e.kind);
   if(bm){
    const bossMon={...bm,role:"보스"};
-   enc++;
+   rt.enc++;
    const res=runBattle(bossMon,"dungeonBoss",true);
    if(res.win){
     const boxTier=(areaObj&&areaObj.diff==="7~8")?"78":"45",chest={n:"던전 보상 상자",tier:boxTier,area:e.area,min:e.min};
-    if(canAdd(chest)){addItem(chest);box=true}else lost++;
+    if(canAdd(chest)){addItem(chest);box=true}else rt.lost++;
     chestData={tier:boxTier,area:e.area};
    }
   }
  }
  // 장기 탐사 완료 시 보스 (마왕성 ★9 이상 지역, 35%). 보스 19종: 전설 ★9~10 / 신화 ★11~12 — rollBossMonster()
  let longBoss=null;
- if(!partial&&!defeated&&e.kind==="long"&&tier>=9&&Math.random()<LONG_BOSS_CHANCE){
+ if(!partial&&!rt.defeated&&e.kind==="long"&&tier>=9&&Math.random()<LONG_BOSS_CHANCE){
   const bm=rollBossMonster(tier);
-  if(bm){longBoss=bm.name;enc++;logAct(`[보스] ${bm.name} 출현!`);runBattle({...bm,role:"보스"},"dungeonBoss",true)}
+  if(bm){longBoss=bm.name;rt.enc++;logAct(`[보스] ${bm.name} 출현!`);runBattle({...bm,role:"보스"},"dungeonBoss",true)}
  }
- if(!defeated){
-  for(let i=0;i<segs;i++){
-   if(Math.random()<cfg.find)addLoot(rollLoot(tier,"gather",null,areaObj));
-  }
- }
+ const defeated=rt.defeated,bossDefeat=rt.bossDefeat;
  // 장기 탐사 완료 시에만 전용 보상 판정 (중도 귀환·전투 패배 시 없음).
  if(!partial&&!defeated&&e.kind==="long"){
   const exclChance=(Array.isArray(cfg.excl)&&+cfg.excl[idx])||0;
@@ -2893,10 +2972,9 @@ function resolveExp(partial=false){
   }
  }
  if(segs)awardAction("survival",e.kind==="dungeon"?ACTION_XP.dangerousSurvival:ACTION_XP.travel,areaGrade(tier),"survival");
- syncParty();me.hp[0]=Math.max(0,Math.min(party[0].maxHp,party[0].hp||0));
- const mpBefore=+me.mp[0]||0,mpCost=Math.min(mpBefore,e.kind==="dungeon"?Math.max(0,segs):Math.floor(Math.max(0,segs)/2)*2); // 장기 1시간마다 -2, 던전 30분마다 -1 (2026-11-11)
- spendHunger(Math.max(0,segs)*2);
- spendMp(mpCost);
+ const found=rt.found,lost=rt.lost,enc=rt.enc,gain=rt.gain,skillGain=rt.sxp,dmg=rt.dmg,used=rt.used,battleLogs=rt.battles;
+ me.hp[0]=Math.max(0,Math.min(me.hp[1],me.hp[0]||0));
+ const mpBefore=rt.mpBefore; // 허기·정신력은 expAdvance()에서 30분마다 반영 (장기 1시간마다 -2, 던전 30분마다 -1)
  const mpAfter=+me.mp[0]||0,hpUsed=Math.max(0,hpBefore-me.hp[0]),hungerUsed=Math.max(0,hungerBefore-me.hunger[0]),mpUsed=Math.max(0,mpBefore-mpAfter);
  const settle={minutes:partial?Math.max(1,Math.floor(elapsed)):e.min,battles:battleLogs.length,wins:battleLogs.filter(b=>b.win).length,used,loot:found.slice(),chest:!!box,defeated:!!defeated,at:endedAt,hpUsed,hungerUsed,mpUsed};
  if(me.expMeta&&typeof me.expMeta==="object")me.expMeta.settle=settle;
@@ -2915,7 +2993,7 @@ function resolveExp(partial=false){
  }
  barsRender();renderStatus();bag();renderAll();
  const fxNow=(me.fx||[]).map(f=>f&&(f.label||f.n)),fxAdded=fxNow.filter(x=>x&&!fxBefore.includes(x)),fxRemoved=fxBefore.filter(x=>x&&!fxNow.includes(x));
- logChar("expedition",`${cfg.label} ${partial?"중도 귀환":"완료"} · 계획 ${e.min}분 · 아이템 ${found.length}개 · 조우 ${enc}회 · HP ${hpBefore} → ${me.hp[0]}/${me.hp[1]} · 정신력 ${mpBefore} → ${mpAfter} · 허기 ${hungerBefore} → ${me.hunger[0]}/${me.hunger[1]}`,{kind:e.kind,min:e.min,elapsed:Math.floor(elapsed),partial,area:(areaObj&&areaObj.name)||e.area,found,lost,encounters:enc,battles:battleLogs.length,wins:battleLogs.filter(b=>b.win).length,dmg,mpCost,mpBefore,mpAfter,box,defeated,before:hpBefore,after:me.hp[0],hp:me.hp.slice(),mp:me.mp.slice(),hungerBefore,hungerAfter:me.hunger[0],hunger:me.hunger.slice(),xp:gain,skillXp:skillGain,fx:fxNow,fxAdded,fxRemoved,expLogs:(me.expLogs||[]).slice(-10)});
+ logChar("expedition",`${cfg.label} ${partial?"중도 귀환":"완료"} · 계획 ${e.min}분 · 아이템 ${found.length}개 · 조우 ${enc}회 · HP ${hpBefore} → ${me.hp[0]}/${me.hp[1]} · 정신력 ${mpBefore} → ${mpAfter} · 허기 ${hungerBefore} → ${me.hunger[0]}/${me.hunger[1]}`,{kind:e.kind,min:e.min,elapsed:Math.floor(elapsed),partial,area:(areaObj&&areaObj.name)||e.area,found,lost,encounters:enc,battles:battleLogs.length,wins:battleLogs.filter(b=>b.win).length,dmg,mpCost:Math.max(0,mpBefore-mpAfter),mpBefore,mpAfter,box,defeated,before:hpBefore,after:me.hp[0],hp:me.hp.slice(),mp:me.mp.slice(),hungerBefore,hungerAfter:me.hunger[0],hunger:me.hunger.slice(),xp:gain,skillXp:skillGain,fx:fxNow,fxAdded,fxRemoved,expLogs:(me.expLogs||[]).slice(-10)});
  clearProposal();
  if(me.hp[0]<=0||me.hunger[0]<=0){triggerDowned();return}
  const lines=[];
@@ -2951,7 +3029,7 @@ function resolveExp(partial=false){
  if(!partial&&e.kind==="long")playCompleteSound();
  const btns=[{t:"확인"}];
  if(!partial&&me.expLogs.length)btns.unshift({t:"탐사 기록 보기",fn:()=>openExpRecord(0)});
- pop(partial?"중도 귀환":`${cfg.label} 완료`,lines.join(""),btns)}
+ pop(partial?(why==="defeat"?`${cfg.label} 종료`:"중도 귀환"):`${cfg.label} 완료`,lines.join(""),btns)}
 function expClock(ms){const s=Math.max(0,Math.ceil(ms/1000)),h=Math.floor(s/3600),m=Math.floor(s%3600/60),ss=s%60;return (h?h+":":"")+String(m).padStart(2,"0")+":"+String(ss).padStart(2,"0")}
 function updateExpText(){if(!me.expedition)return;const cfg=EXPD[me.expedition.kind]||{label:"탐사"};$("exptxt").textContent=`${cfg.label} 진행 중… ${expClock(me.expedition.end-Date.now())}`}
 function catchUpExp(){
@@ -2972,7 +3050,11 @@ function checkExpAct(){
  if(!me.expedition)return;
  catchUpExp();
  if(!me.expedition)return;
- if(Date.now()>=me.expedition.end){resolveExp();return}
+ try{expAdvance(Date.now(),true)}catch(err){console.warn("expAdvance",err)}
+ const rt=me.expedition.rt;
+ // 전투 패배·HP 0·허기 0이면 그 자리에서 탐사 종료 (재생 중이면 끝난 뒤)
+ if((rt&&rt.defeated)||me.hp[0]<=0||me.hunger[0]<=0){if(!expLive.cur)resolveExp(true,"defeat");return}
+ if(Date.now()>=me.expedition.end){if(expLive.cur&&Date.now()<me.expedition.end+60000)return;resolveExp();return}
  try{updateExpText()}catch(e){}
 }
 const onExpVisible=()=>{if(!document.hidden)checkExpAct()};
@@ -3273,7 +3355,7 @@ updateProfileCard();
 const nameEl=$("name");
 const fitName=()=>{let s=24;nameEl.style.fontSize="24px";while(s>15&&nameEl.scrollWidth>nameEl.clientWidth){s--;nameEl.style.fontSize=s+"px"}};
 fitName();requestAnimationFrame(fitName);window.addEventListener("resize",fitName);
-function barsRender(){$("bars").innerHTML=[["HP",me.hp,"var(--hp)"],["정신력",me.mp,"var(--mp)"],["허기",me.hunger,"var(--hunger)"]].map(([l,[v,m],c])=>{v=Math.max(0,Math.round(+v||0));m=Math.max(1,Math.round(+m||0));return `<div class="bar"><div class="lab"><span>${l}</span><span>${v} / ${m}</span></div><div class="track"><div class="fill" style="width:${Math.max(0,Math.min(100,v/m*100))}%;background:${c}"></div></div></div>`}).join("")}
+function barsRender(){$("bars").innerHTML=[["HP",typeof liveHpView==="number"?[liveHpView,me.hp[1]]:me.hp,"var(--hp)"],["정신력",me.mp,"var(--mp)"],["허기",me.hunger,"var(--hunger)"]].map(([l,[v,m],c])=>{v=Math.max(0,Math.round(+v||0));m=Math.max(1,Math.round(+m||0));return `<div class="bar"><div class="lab"><span>${l}</span><span>${v} / ${m}</span></div><div class="track"><div class="fill" style="width:${Math.max(0,Math.min(100,v/m*100))}%;background:${c}"></div></div></div>`}).join("")}
 function fxRender(){$("fxcnt").textContent=`${Math.min(me.fx.length,10)} / 10`;
  me.fx=Array.isArray(me.fx)?me.fx.filter(Boolean):[];me.fx.forEach(f=>fixFxEntry(f));
  while(me.fx.length>FX_LIMIT){let bi=-1,oldest=Infinity;me.fx.forEach((f,j)=>{if(f&&f.t==="buff"&&(+f.at||0)<oldest){oldest=+f.at||0;bi=j}});if(bi<0)break;me.fx.splice(bi,1)}
@@ -5638,7 +5720,8 @@ function autoBattle(mon,party,opts={}){
  const scaled=scaleMonster(mon,opts.star||1,{mode,partySize:pn,boss:!!opts.boss});
  const nk=opts.night?NIGHT_LONG.stat:1; // 밤 장기 탐사 보정
  const m={...scaled,maxHp:Math.max(1,Math.floor(scaled.hp*(psc.hp||1)*nk)),hp:0,atk:scaled.atk*(psc.atk||1)*nk,atkMin:scaled.atkMin*(psc.atk||1)*nk,atkMax:scaled.atkMax*(psc.atk||1)*nk,def:scaled.def*(psc.def||1)*nk};m.hp=m.maxHp;
- const fs=party.map(p=>({...p,hp:Math.min(p.hp??p.maxHp,p.maxHp),maxHp:p.maxHp,skill:p.skill||"melee",potionCd:0})),log=[];
+ const fs=party.map(p=>({...p,hp:Math.min(p.hp??p.maxHp,p.maxHp),maxHp:p.maxHp,skill:p.skill||"melee",potionCd:0})),log=[],trace=[];
+ const L=t=>{log.push(t);trace.push([t,Math.max(0,Math.round(m.hp)),Math.max(0,Math.round(fs[0].hp))])}; // 실시간 재생용 (문구, 몬스터 HP, 내 HP)
  let rounds=0,used=0;
  while(m.hp>0&&rounds<80){
   rounds++;
@@ -5647,27 +5730,27 @@ function autoBattle(mon,party,opts={}){
    if(f.hp<=0)continue;
    if(f.self&&f.hp/f.maxHp<=.3&&!(f.potionCd>0)){
     const idxs=[];me.inv.forEach((x,i)=>{const n=nm(x);if(isHpPotion(n)&&!isPotionAutoLocked(n))idxs.push(i)});
-    if(idxs.length){itemReason("전투 중 자동 포션",true);const ix=idxs[Math.floor(Math.random()*idxs.length)],x=me.inv.splice(ix,1)[0],n=nm(x),heal=healVal(info(n).fx.hp||0);f.hp=Math.min(f.maxHp,f.hp+heal);me.hp[0]=f.hp;if(heal>0)wearTool("생존 책");f.potionCd=3;used++;applyItemStatus(n,info(n));log.push(`${f.name}이(가) ${n}을(를) 사용해 HP +${heal} (턴 소모, 쿨타임 2턴)`);continue}
+    if(idxs.length){itemReason("전투 중 자동 포션",true);const ix=idxs[Math.floor(Math.random()*idxs.length)],x=me.inv.splice(ix,1)[0],n=nm(x),heal=healVal(info(n).fx.hp||0);f.hp=Math.min(f.maxHp,f.hp+heal);me.hp[0]=f.hp;if(heal>0)wearTool("생존 책");f.potionCd=3;used++;applyItemStatus(n,info(n));L(`${f.name}이(가) ${n}을(를) 사용해 HP +${heal} (턴 소모, 쿨타임 2턴)`);continue}
    }
    const st=f.st;
-    if(f.self&&st.statusFlags&&st.statusFlags.act){log.push(`${f.name}\uC740(\uB294) \uBAB8\uC774 \uB9D0\uC744 \uB4E3\uC9C0 \uC54A\uC544 \uD589\uB3D9\uD560 \uC218 \uC5C6\uB2E4.`);continue}
+    if(f.self&&st.statusFlags&&st.statusFlags.act){L(`${f.name}\uC740(\uB294) \uBAB8\uC774 \uB9D0\uC744 \uB4E3\uC9C0 \uC54A\uC544 \uD589\uB3D9\uD560 \uC218 \uC5C6\uB2E4.`);continue}
     const picks=[["근접",st.meleeAtk,st.meleeAcc,"melee"],["원거리",st.rangedAtk,st.rangedAcc,"ranged"],["마법",st.magicAtk,st.magicAcc,"magic"]].sort((a,b)=>b[1]-a[1]);
    const[label,atk,acc,skill]=picks[0];f.skill=skill;
    const wslot=st[skill+"WeaponSlot"],labelShown=wslot?label:`맨손 ${label}`;
-   if(Math.random()*100>=battleHit(acc,m.eva)){log.push(`${f.name}의 ${labelShown} 공격이 빗나갔다.`);continue}
+   if(Math.random()*100>=battleHit(acc,m.eva)){L(`${f.name}의 ${labelShown} 공격이 빗나갔다.`);continue}
    const crit=Math.random()*100<st[skill+"CritChance"],dmg=battleDamageRange(st[skill+"AtkMin"],st[skill+"AtkMax"],m.def,crit,st[skill+"CritDamage"]);
-   m.hp=Math.max(0,m.hp-dmg);log.push(`${f.name}의 ${labelShown} 공격! ${dmg} 피해${crit?" (치명타)":""}`);
+   m.hp=Math.max(0,m.hp-dmg);L(`${f.name}의 ${labelShown} 공격! ${dmg} 피해${crit?" (치명타)":""}`);
    if(f.self&&wslot)wearEquip(wslot,crit?wearRange(.3,.5):wearRange(.1,.2));
    if(m.hp<=0)break;
   }
   if(m.hp<=0)break;
   const alive=fs.filter(f=>f.hp>0);if(!alive.length)break;
   const t=alive[Math.floor(Math.random()*alive.length)],st=t.st;
-  if(Math.random()*100>=battleHit(m.acc,st.evasion)){log.push(`${m.name}의 공격이 ${t.name}를 빗나갔다.`)}
-  else{const crit=Math.random()*100<m.crit,raw=battleDamageRange(m.atkMin??m.atk*ATK_ROLL_MIN,m.atkMax??m.atk*ATK_ROLL_MAX,st.def,crit,m.cd),low=t.hp<=t.maxHp*.2,red=Math.min(.6,(st.dmgRed||0)+(low?(st.lowHpRed||0):0)+(opts.expedition?(st.expDmgRed||0):0)),dmg=Math.max(1,Math.floor(raw*(1-red)*(1+((st.dmgTakenPct||0)/100))));t.hp=Math.max(0,t.hp-dmg);if(t.self){const dmgRatio=Math.min(1,dmg/Math.max(1,t.maxHp));wearEquip("armor",.2+Math.min(.3,dmgRatio*.5));wearEquip("sub",wearRange(.1,.2));wearEquip("acc1",wearRange(.1,.2));wearEquip("acc2",wearRange(.1,.2))}log.push(`${m.name}의 공격! ${t.name}에게 ${dmg} 피해${crit?" (치명타)":""}`);if(t.hp<=0)log.push(`${t.name}이(가) 쓰러졌다.`);if(t.self&&t.hp>0){if(Math.random()<WOUND_HIT_CHANCE){applyStatus("wound",{silent:true});log.push("공격에 베여 상처가 났다.")}if(me.fx.some(f=>f&&f.id==="sleep")){removeStatus("sleep",{silent:true});log.push("충격으로 잠에서 깼다.")}const sd=rollMonsterStatus(m);if(sd){applyStatus(sd.id,{silent:true,stack:true});t.st=calcStats(me);log.push(`${m.name}의 공격으로 ‘${sd.n}’ 상태이상에 걸렸다.`)}}}
+  if(Math.random()*100>=battleHit(m.acc,st.evasion)){L(`${m.name}의 공격이 ${t.name}를 빗나갔다.`)}
+  else{const crit=Math.random()*100<m.crit,raw=battleDamageRange(m.atkMin??m.atk*ATK_ROLL_MIN,m.atkMax??m.atk*ATK_ROLL_MAX,st.def,crit,m.cd),low=t.hp<=t.maxHp*.2,red=Math.min(.6,(st.dmgRed||0)+(low?(st.lowHpRed||0):0)+(opts.expedition?(st.expDmgRed||0):0)),dmg=Math.max(1,Math.floor(raw*(1-red)*(1+((st.dmgTakenPct||0)/100))));t.hp=Math.max(0,t.hp-dmg);if(t.self){const dmgRatio=Math.min(1,dmg/Math.max(1,t.maxHp));wearEquip("armor",.2+Math.min(.3,dmgRatio*.5));wearEquip("sub",wearRange(.1,.2));wearEquip("acc1",wearRange(.1,.2));wearEquip("acc2",wearRange(.1,.2))}L(`${m.name}의 공격! ${t.name}에게 ${dmg} 피해${crit?" (치명타)":""}`);if(t.hp<=0)L(`${t.name}이(가) 쓰러졌다.`);if(t.self&&t.hp>0){if(Math.random()<WOUND_HIT_CHANCE){applyStatus("wound",{silent:true});L("공격에 베여 상처가 났다.")}if(me.fx.some(f=>f&&f.id==="sleep")){removeStatus("sleep",{silent:true});L("충격으로 잠에서 깼다.")}const sd=rollMonsterStatus(m);if(sd){applyStatus(sd.id,{silent:true,stack:true});t.st=calcStats(me);L(`${m.name}의 공격으로 ‘${sd.n}’ 상태이상에 걸렸다.`)}}}
  }
  battleEquipSnapshot=null;
- return {win:m.hp<=0,rounds,m,party:fs,log,used};
+ return {win:m.hp<=0,rounds,m,party:fs,log,used,trace,mMax:m.maxHp};
 }
 function battleLog(text){if(!battle)return;battle.log.push({at:Date.now(),text});if(battle.log.length>40)battle.log.shift()}
 function battleBody(){
