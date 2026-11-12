@@ -377,7 +377,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .pet-actions .btn{height:32px;padding:0;font-size:12px;border-radius:8px}
 #gameRoot .pet-actions .btn.alt{background:var(--panel2)}
 #gameRoot .pet-actions .btn.outline{background:var(--panel);color:var(--accent-text);box-shadow:inset 0 0 0 1px var(--accent-strong)}
-#gameRoot .fuelbar{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;flex:none}
+#gameRoot .fuelbar{display:grid;grid-template-columns:repeat(6,1fr);gap:3px;flex:none}
 #gameRoot .fuelbar .seg{height:6px;border-radius:3px;background:var(--track)}
 #gameRoot .fuelbar .seg.on{background:var(--mp)}
 #gameRoot .fuelrow{display:grid;grid-template-columns:44px minmax(0,1fr) 78px;align-items:center;gap:8px;font-size:12px;line-height:18px;color:var(--dim)}
@@ -3519,7 +3519,10 @@ function rollLoot(star,source,monsterGrade=null,areaObj=null,minutes=null){
 
 const count=n=>me.inv.filter(x=>nm(x)===n).length;
 const hasV=t=>me.vehicles.some(v=>v.type===t),vt=t=>((me.vehicles.find(v=>v.type===t)||{}).tier)||0;
-const airShip=()=>me.vehicles.find(v=>v.type==="비행선"),airFuel=()=>{const a=airShip();return a?Math.max(0,Math.min(3,a.fuel||0)):0};
+// 비행선 (2026-11-12): 연료 6칸, 마력석 1개 = 2칸(마법사 3칸), 대지역 이동 1칸 · 대륙 이동 2칸
+const AIR_FUEL_MAX=6,AIR_FUEL_PER_STONE=2,AIR_FUEL_PER_STONE_MAGE=3,AIR_TAKEOFF_LAND_MIN=2;
+const AIR_REPAIR={gold:2000,mats:[["마력석",2],["두꺼운 가죽",3],["마나 결정",1],["번개석",1]]};
+const airShip=()=>me.vehicles.find(v=>v.type==="비행선"),airFuel=()=>{const a=airShip();return a?Math.max(0,Math.min(AIR_FUEL_MAX,a.fuel||0)):0};
 const BASE_INV_CAP=30;
 const cap=()=>BASE_INV_CAP+(JT().inv||0)+(me.equipped.bag?(info(nm(me.equipped.bag)).cap||0):0);
 const usedSlots=()=>new Set(me.inv.filter(x=>typeof x==="string").map(nm)).size+me.inv.filter(x=>typeof x==="object").length;
@@ -5047,8 +5050,34 @@ function subscribeGraves(){
  if(graveUnsub){try{graveUnsub()}catch(e){}graveUnsub=null}
  graveUnsub=onValue(ref(realtimeDB,"graves"),s=>{graveData=s.val()||{};try{groundRender()}catch(e){}},err=>console.warn("graves",err));
 }
+const atAirWorkshop=()=>{try{return me.cont==="카르도르"&&me.area==="hangar"&&!!curSub()&&curSub().name==="기체 정비소"}catch(e){return false}};
+function openAirRepair(){
+ if(!atAirWorkshop())return;
+ if(me.travel)return toast("이동 중에는 수리할 수 없습니다.");
+ if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 수리할 수 없습니다.");
+ if(actionLock("휴식 중에는 수리할 수 없습니다."))return;
+ const owned=!!airShip();
+ const rows=AIR_REPAIR.mats.map(([n,c])=>{const h=count(n);return `<div class="pet-row"><span>${esc(n)} ×${c}</span><b style="color:${h>=c?"inherit":"var(--debuff)"}">보유 ${h}</b></div>`}).join("")+`<div class="pet-row"><span>비용 ${AIR_REPAIR.gold.toLocaleString()}G</span><b style="color:${me.gold>=AIR_REPAIR.gold?"inherit":"var(--debuff)"}">보유 ${Math.floor(me.gold).toLocaleString()}G</b></div>`;
+ const ok=!owned&&me.gold>=AIR_REPAIR.gold&&AIR_REPAIR.mats.every(([n,c])=>count(n)>=c);
+ pop("부서진 비행선",`<p class="dim">격납고에 버려진 비행선. 동력 기관과 기낭을 손보면 다시 띄울 수 있을 것 같다.</p>${rows}${owned?`<p style="color:var(--debuff);margin-top:8px">이미 비행선을 가지고 있다.</p>`:""}<p class="dim" style="margin-top:8px">수리한 비행선은 동행에 추가된다. 연료(마력석)를 넣어야 띄울 수 있다.</p>`,
+  [{t:"수리하기",c:ok?"":"alt",fn:()=>{if(!ok)return toast(owned?"이미 비행선을 가지고 있습니다.":"재료나 골드가 부족합니다.");repairAirship()}},{t:"닫기"}]);
+}
+function repairAirship(){
+ if(!atAirWorkshop()||airShip())return;
+ if(me.gold<AIR_REPAIR.gold||!AIR_REPAIR.mats.every(([n,c])=>count(n)>=c))return toast("재료나 골드가 부족합니다.");
+ if(!starvationActionCost())return;
+ itemReason("부서진 비행선 수리");
+ for(const [n,c] of AIR_REPAIR.mats)takeItems(n,c);
+ me.gold-=AIR_REPAIR.gold;
+ me.vehicles.push({type:"비행선",name:"비행선",tier:0,fuel:0});
+ bag();try{rideRender()}catch(e){};groundRender();try{opts.save(cp(snap()))}catch(e){}
+ sfx("ok");
+ pop("비행선 수리 완료",`<p>비행선을 다시 띄울 수 있게 되었다. 동행에 추가되었다.</p><p class="dim">이름을 지어 줄 수 있다. 마력석으로 연료를 채운 뒤 대지역·대륙 이동에서 ‘비행선’을 고르면 된다.</p><input id="rnIn" maxlength="10" placeholder="비행선 이름" value="">`,
+  [{t:"이름 짓기",c:"",fn:()=>{const v=(($("rnIn")||{}).value||"").trim();const a=airShip();if(a&&v){a.name=v.slice(0,10);try{rideRender()}catch(e){};try{opts.save(cp(snap()))}catch(e){}}}},{t:"나중에"}]);
+}
 function groundRender(){
  const g=me.ground[gkey()]||[],rows=[];
+ if(atAirWorkshop())rows.push(`<div class="irow"><div class="ihead" style="cursor:default">부서진 비행선 <span class="dim sm">여러 대가 방치되어 있다</span></div><div class="ibtn"><button class="sm2" data-airfix="1">수리하기</button></div></div>`);
  gravesHere().forEach(([gid,gr])=>{
   const trace=Date.now()>+gr.expiresAt, name=esc(gr.ownerName||"무명");
   rows.push(`<div class="grave-row ${trace?"trace":""}">${trace?`<span class="grave-name">[${name}]의 묘비의 흔적</span>`:`<span class="grave-name" data-grave="${esc(gid)}">[${name}]의 묘비</span> 이곳에 잠들다.`}</div>`);
@@ -5057,7 +5086,7 @@ function groundRender(){
  const cf=campfireActive(),cfRow=cf?`<div class="campfire-row"><span class="cf-tag">[모닥불]</span> <b>${esc(cf.name||"무명")}</b>이가 피웠다. <span class="dim">남은 지속시간 <span id="cft">${campfireLeftText(cf)}</span></span></div>`:"";
  $("gl").innerHTML=cfRow+rows.join("")+items||`<span class="dim">아무것도 없다.</span>`;
 }
-$("gl").onclick=e=>{const gv=e.target.closest("[data-grave]");if(gv){openGrave(gv.dataset.grave);return}const b=e.target.closest("[data-g]");if(!b)return;if(me.travel)return toast("이동 중에는 소지품을 만질 수 없습니다.");if(actionLock("휴식 중에는 소지품을 만질 수 없습니다."))return;const k=gkey(),g=me.ground[k]||[],i=+b.dataset.g,x=g[i];if(x==null)return;
+$("gl").onclick=e=>{if(e.target.closest("[data-airfix]")){openAirRepair();return}const gv=e.target.closest("[data-grave]");if(gv){openGrave(gv.dataset.grave);return}const b=e.target.closest("[data-g]");if(!b)return;if(me.travel)return toast("이동 중에는 소지품을 만질 수 없습니다.");if(actionLock("휴식 중에는 소지품을 만질 수 없습니다."))return;const k=gkey(),g=me.ground[k]||[],i=+b.dataset.g,x=g[i];if(x==null)return;
  if(!canAdd(x)){modal("가방이 가득 찼다","더 들 수 없다.");return}g.splice(i,1);if(!g.length)delete me.ground[k];addItem(x);bag();groundRender()};
 function openGrave(gid){
  const gr=graveData[gid];if(!gr)return;
@@ -5211,13 +5240,13 @@ function adoptPet(species,name){
      <div class="pet-actions"><button class="btn alt" data-pa="feed">먹이주기</button><button class="btn outline" data-pa="pet" title="3시간에 한 번">쓰다듬기</button></div>
     </article>`:`<span class="dim">애완동물이 없다.</span>`;
    const vs=me.vehicles.map((v,i)=>{const h=v.type==="말",t=v.tier||0;
-    if(!h){const fuel=Math.max(0,Math.min(3,v.fuel||0));const segs=Array(3).fill(0).map((_,j)=>`<i class="seg ${j<fuel?"on":""}"></i>`).join("");return `<article class="petcard">
+    if(!h){const fuel=Math.max(0,Math.min(AIR_FUEL_MAX,v.fuel||0));const segs=Array(AIR_FUEL_MAX).fill(0).map((_,j)=>`<i class="seg ${j<fuel?"on":""}"></i>`).join("");return `<article class="petcard">
       <div class="petcard-head">
        <span class="pet-icon"><img src="${img(v.type)}" alt=""></span>
        <div class="pet-id"><div class="pet-name-row"><span class="pet-name">${esc(v.name)}</span><button class="pet-rename" data-rn="${i}" title="이름 변경" aria-label="이름 변경">✎</button></div><span class="pet-species">${esc(v.type)}</span></div>
       </div>
       <div class="pet-stats">
-       <div class="pet-stat"><span>연료</span><span class="fuelbar">${segs}</span><span class="pet-num">${fuel}/3</span></div>
+       <div class="pet-stat"><span>연료</span><span class="fuelbar">${segs}</span><span class="pet-num">${fuel}/${AIR_FUEL_MAX}</span></div>
        <div class="pet-row"><span>마법 개조석</span><b>${count("마법 개조석")}</b></div>
        <div class="pet-row"><span>개조 ${t}/3</span><b>${t>=3?"최대":"개조 가능"}</b></div>
       </div>
@@ -5244,7 +5273,7 @@ function adoptPet(species,name){
    else if(t.dataset.pa==="pet"){if(!p)return;const wait=3*36e5-(Date.now()-(+p.petAt||0));
     if(wait>0){modal("아직은 쉬고 싶다",`${p.name}은(는) ${fmtWait(wait)} 후에 쓰다듬을 수 있다.`);return}
     p.affection=Math.min(100,p.affection+10);me.mp[0]=Math.min(me.mp[1],me.mp[0]+10);p.petAt=Date.now();p.affectionAt=Date.now();petAffectionCarry=0;barsRender();rideRender()}
-   else if(t.dataset.va!=null){const v=me.vehicles[+t.dataset.va];if(!v||v.type==="말")return;v.fuel=Math.max(0,Math.min(3,v.fuel||0));if(v.fuel>=3){modal("연료가 가득 차있다","더 이상 채울 수 없다.");return;}if(count("마력석")<1){modal("마력석이 없다","연료가 필요하다.");return;}consume("마력석",1);v.fuel=Math.min(3,(v.fuel||0)+(jobKey()==="마법사"?2:1));bag();rideRender()}
+   else if(t.dataset.va!=null){const v=me.vehicles[+t.dataset.va];if(!v||v.type==="말")return;v.fuel=Math.max(0,Math.min(AIR_FUEL_MAX,v.fuel||0));if(v.fuel>=AIR_FUEL_MAX){modal("연료가 가득 차있다","더 이상 채울 수 없다.");return;}if(count("마력석")<1){modal("마력석이 없다","연료가 필요하다.");return;}itemReason("비행선 연료넣기");consume("마력석",1);v.fuel=Math.min(AIR_FUEL_MAX,(v.fuel||0)+(jobKey()==="마법사"?AIR_FUEL_PER_STONE_MAGE:AIR_FUEL_PER_STONE));bag();rideRender()}
    else if(t.dataset.vt!=null){const v=me.vehicles[+t.dataset.vt];if(!v)return;const tier=v.tier||0;if(tier>=3)return;
     const mat=v.type==="말"?"각설탕":"마법 개조석";
     if(count(mat)<1){modal(mat+"이 없다",`${v.type} ${v.type==="말"?"훈련":"개조"}에는 ${mat} 1개가 필요하다.`);return}
@@ -5259,16 +5288,18 @@ const BASE={sub:10,area:20,cont:40},FOOD={sub:1,area:2,cont:4},MODE={walk:"도�
 const quote=(k,n,m,baseMin)=>{
  const move=Math.max(-.5,Math.min(.7,(calcStats(me).moveSpeed||0)/100));
  const raw=baseMin!=null?baseMin:BASE[k]*n;
- const base=raw*(m==="horse"?.6*(1-.03*vt("말")):m==="air"?.3*(1-.03*vt("비행선")):1);
- const time=base*(1-(JT().speed||0))*(1-Math.max(-.5,Math.min(.7,traitTotal("moveRed")+move)));
- return {min:Math.round(time),food:m==="horse"?FOOD[k]*n:0,fuel:m==="air"?1:0};
+ // 비행선: 말(×0.6)의 3배 속도 = ×0.2, 이륙 1분 + 착륙 1분
+ const base=raw*(m==="horse"?.6*(1-.03*vt("말")):m==="air"?.2*(1-.03*vt("비행선")):1);
+ const time=base*(1-(JT().speed||0))*(1-Math.max(-.5,Math.min(.7,traitTotal("moveRed")+move)))+(m==="air"?AIR_TAKEOFF_LAND_MIN:0);
+ return {min:Math.round(time),food:m==="horse"?FOOD[k]*n:0,fuel:m==="air"?(k==="cont"?2:1):0};
 };
 function plan(kind,id){if(me.travel||me.expedition||me.rest||me.read||me.downed||me.deadPending)return null;const w=W();
  if(kind==="area"){if(id===me.area)return null;
   const is12=x=>{const a=AR(x);return !!(a&&a.diff==="1~2")};
   const dest={cont:me.cont,area:id,sub:id==="cap"?null:entry(AR(id))},label=AR(id).name,baseMin=((me.area==="cap"&&is12(id))||(id==="cap"&&is12(me.area)))?10:undefined;
-  if(adj(w.edges,me.area,id))return{kind,n:1,label,dest,modes:hasV("말")?["walk","horse"]:["walk"],baseMin};
-  const p=hasV("말")&&linePath(w.edges,me.area,id);return p?{kind,n:p.length,label,dest,modes:["horse"],via:p.slice(0,-1).map(i=>AR(i).name),baseMin}:null}
+  const vm=[...(hasV("말")?["horse"]:[]),...(hasV("비행선")?["air"]:[])];
+  if(adj(w.edges,me.area,id))return{kind,n:1,label,dest,modes:["walk",...vm],baseMin};
+  const p=vm.length&&linePath(w.edges,me.area,id);return p?{kind,n:p.length,label,dest,modes:vm,via:p.slice(0,-1).map(i=>AR(i).name),baseMin}:null}
  if(me.area==="cap"||id===me.sub)return null;const a=AR(me.area);
  const dest={cont:me.cont,area:me.area,sub:id},label=a.nodes.find(n=>n.id===id).name;
  if(adj(a.edges,me.sub,id))return{kind,n:1,label,dest,modes:hasV("말")?["walk","horse"]:["walk"]};
@@ -5287,7 +5318,7 @@ $("mvno").onclick=()=>$("mvmodal").hidden=true;
 const consume=(n,c)=>{for(let i=0;i<c;i++)me.inv.splice(me.inv.findIndex(x=>nm(x)===n),1)};
 $("mvgo").onclick=()=>{if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 이동할 수 없습니다.");const q=quote(mv.kind,mv.n,mv.mode,mv.baseMin);if(count("먹이")<q.food||(q.fuel&&airFuel()<q.fuel))return;if(!starvationActionCost())return;
  consume("먹이",q.food);if(q.fuel){const a=airShip();if(a)a.fuel=Math.max(0,airFuel()-q.fuel)}
- wearTool("나침반");me.travel={end:Date.now()+q.min*60000,dest:mv.dest,label:mv.label,min:q.min,mode:mv.mode};$("mvmodal").hidden=true;bag();renderAll();try{render()}catch(e){}};
+ wearTool("나침반");me.travel={end:Date.now()+q.min*60000,dest:mv.dest,label:mv.label,min:q.min,mode:mv.mode};$("mvmodal").hidden=true;try{npcTalkSync()}catch(e){}bag();renderAll();try{render()}catch(e){}};
 const walkDayKey=()=>{try{return new Intl.DateTimeFormat("sv",{timeZone:"Asia/Seoul"}).format(new Date())}catch(e){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}};
 function addWalkMinutes(min){
  const add=Math.max(0,+min||0);if(!add)return;
@@ -7202,8 +7233,8 @@ function npcShopOpen(id){
 function npcTalkSync(){
  for(const id of Object.keys(NPC_TYPE)){
   const card=$(id);if(!card||card.hidden)continue;const tb=card.querySelector(".npc-talk");if(!tb)continue;
-  const open=npcShopOpen(id),off=!!me.downed||!!me.deadPending||!open;
-  tb.disabled=off;tb.title=open?"":"영업시간이 아닙니다.";
+  const open=npcShopOpen(id),moving=!!me.travel,off=!!me.downed||!!me.deadPending||moving||!open;
+  tb.disabled=off;tb.title=moving?"이동 중에는 대화할 수 없습니다.":open?"":"영업시간이 아닙니다.";
   if(off&&npcOpen===id)npcClose();
  }
 }
@@ -7221,7 +7252,7 @@ function npcSync(){
 }
 $("npcGrid").onclick=e=>{
  const talk=e.target.closest(".npc-talk");
- if(talk){if(talk.disabled)return;const id=talk.closest(".npc").id;if(npcOpen===id)npcClose();else npcOpenCard(id);return}
+ if(talk){if(me.travel)return toast("이동 중에는 대화할 수 없습니다.");if(talk.disabled)return;const id=talk.closest(".npc").id;if(npcOpen===id)npcClose();else npcOpenCard(id);return}
  const b=e.target.closest("[data-npcact]");if(!b||b.disabled)return;
  const a=b.dataset.npcact;
  if(a==="close")return npcClose();
