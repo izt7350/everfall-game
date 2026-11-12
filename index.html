@@ -955,6 +955,8 @@ import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, si
 import { getDatabase, ref, get, set, update, remove, runTransaction, onValue, push, onDisconnect, query, limitToLast } from "https://www.gstatic.com/firebasejs/13.1.0/firebase-database.js";
 const firebaseConfig={apiKey:"AIzaSyCnJ3QqWTsakAWYQbkGailni__qIf85V5o",authDomain:"everfall-6da95.firebaseapp.com",databaseURL:"https://everfall-6da95-default-rtdb.asia-southeast1.firebasedatabase.app",projectId:"everfall-6da95",storageBucket:"everfall-6da95.firebasestorage.app",messagingSenderId:"30917507581",appId:"1:30917507581:web:b48ebb3afe065bd5b80194"};
 const firebaseApp=initializeApp(firebaseConfig),auth=getAuth(firebaseApp),realtimeDB=getDatabase(firebaseApp);
+// 로그인 토큰 갱신 (2026-11-12): 휴대폰이 오래 백그라운드에 있다가 돌아오면 만료된 토큰으로 쓰기가 거부되는 경우가 있어, 재시도 전에 토큰을 새로 받는다.
+const freshToken=async force=>{try{if(auth.currentUser)await auth.currentUser.getIdToken(!!force)}catch(e){}};
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt1=v=>{const n=+v;return isFinite(n)?Math.round(n*10)/10:null};
@@ -1930,7 +1932,7 @@ function logOfflineEvent(uid,c,type,text,data){
   S.setLog(uid,cid,seq%200,entry).catch(()=>{});
  }catch(e){}
 }
-async function play(){accountHold=false;syncHold=false;const save=s=>{if(accountHold||syncHold)return;const rev=Math.max(Date.now(),(+((acc.character||{}).rev)||0)+1),data={...s,rev,by:SESSION_ID};acc.character={...acc.character,...data};update(ref(realtimeDB,"accounts/"+me.uid+"/character"),data).catch(()=>{})};
+async function play(){accountHold=false;syncHold=false;const save=s=>{if(accountHold||syncHold)return;const rev=Math.max(Date.now(),(+((acc.character||{}).rev)||0)+1),data={...s,rev,by:SESSION_ID};acc.character={...acc.character,...data};const cref=ref(realtimeDB,"accounts/"+me.uid+"/character");update(cref,data).catch(async err=>{console.warn("char save",err);await freshToken(true);if(((acc.character||{}).rev)!==rev)return;update(cref,data).catch(e=>console.warn("char save retry",e))})};
  try{let c=norm(acc.character),d=null,dOk=false;
   try{d=await S.getDowned(me.uid);dOk=true}catch(e){}
   if(dOk&&d&&d.revive&&+d.revive.at<=+d.until){
@@ -6109,7 +6111,16 @@ function syncPresence(force){
  if(force||moved||Date.now()-presenceAt>30000){
   presenceAt=Date.now();
   const d=Object.fromEntries(Object.entries({name:me.name,cont:me.cont,area:me.area,sub:me.sub||"",day:me.day,at:presenceAt,c:me.color,downed:!!me.downed,downedUntil:me.downed?me.downed.until:0}).filter(([,v])=>v!==undefined));
-  const p=set(presenceRef,d).catch(err=>{console.warn("presence write",err);if(!presenceWarned){presenceWarned=true;try{toast("접속 정보를 저장하지 못했습니다. Firebase presence 규칙을 확인해 주세요.")}catch(e){}}const bare={...d};delete bare.c;return set(presenceRef,bare).catch(e=>console.warn("presence retry",e))});
+  const pref=presenceRef;
+  const p=set(pref,d).catch(async err=>{
+   console.warn("presence write",err);
+   await freshToken(true);if(pref!==presenceRef)return;
+   return set(pref,d).catch(()=>{const bare={...d};delete bare.c;return set(pref,bare)}).catch(e=>{
+    console.warn("presence retry",e);
+    // 토큰 갱신 후에도 계속 실패할 때만, 세션당 한 번 안내
+    if(!presenceWarned){presenceWarned=true;try{toast("접속 정보(현재 위치)를 저장하지 못했습니다. 페이지를 새로고침해 주세요.")}catch(_){}}
+   });
+  });
   onDisconnect(presenceRef).remove().catch(()=>{});
   return p;
  }
@@ -6827,7 +6838,7 @@ T(clock,1000);
 // 접속 정보 하트비트: 화면 갱신이 없어도 30초 안에 presence를 갱신해 '이 장소의 사람들'에서 사라지지 않게 한다.
 T(()=>{if(uid&&!me.deadPending){try{syncPresence()}catch(e){}}},20000);
 // 탭으로 돌아왔을 때 즉시 접속 위치를 다시 쓰고 명단을 새로 구독한다(백그라운드 스로틀 대응).
-document.addEventListener("visibilitychange",()=>{if(document.hidden||!uid)return;try{syncPresence(true)}catch(e){}try{startRoster()}catch(e){}});
+document.addEventListener("visibilitychange",async()=>{if(document.hidden||!uid)return;await freshToken(false);if(document.hidden)return;try{syncPresence(true)}catch(e){}try{startRoster()}catch(e){}});
 // 대장간 상점: 아이템 데이터의 장비를 매일 대륙별로 무작위 8종 (등급 비중은 시장과 같음: 일반 70 / 고급 20 / 희귀 8.5 / 영웅 1.5)
 const SMITH_SLOTS=8,SMITH_GROUP_W=[["무기",40],["방어구",30],["악세사리",20],["가방",10]];
 const smithGroupOf=d=>/무기/.test(d.sub)?"무기":d.sub==="방어구"?"방어구":d.sub==="악세사리"?"악세사리":d.sub==="가방"?"가방":"기타";
