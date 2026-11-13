@@ -2795,8 +2795,9 @@ function beginExp(kind,min,opts={}){
   me.expArchive.unshift({meta:cp(me.expMeta),logs:cp(me.expLogs)});
   if(me.expArchive.length>1)me.expArchive.length=1;
  }
- me.expedition={kind,min,area:me.area,cont:me.cont,end,nextLogAt:now+nextGap(),participants:Array.isArray(opts.participants)?opts.participants:null,runLeader:opts.runLeader||null,proposalId:opts.proposalId||null,sub:me.sub||null,star:(()=>{try{return areaTier()||0}catch(e){return 0}})()};
+ me.expedition={kind,min,area:me.area,cont:me.cont,end,nextLogAt:now+nextGap(),participants:Array.isArray(opts.participants)?opts.participants:null,runLeader:opts.runLeader||null,proposalId:opts.proposalId||null,sim:opts.sim&&opts.sim.members?opts.sim:null,sub:me.sub||null,star:(()=>{try{return areaTier()||0}catch(e){return 0}})()};
  if(kind==="long"&&isNightNow())me.expedition.night=true;
+ if(me.expedition.sim){me.expedition.night=!!me.expedition.sim.night;me.expedition.star=+me.expedition.sim.star||me.expedition.star}
  expInitRT(me.expedition);
  me.expLogs=[];me.expMeta={label:EXPD[kind].label,kind,min,area:(AR(me.area)||{}).name||me.area,start:st,end};
  logAct(`${EXPD[kind].label}를 시작했다.`,st);
@@ -2810,6 +2811,100 @@ function encounterCount(kind,min){
  const key=[30,60,120,180].includes(+min)?+min:30,[lo,hi]=table[key];
  return lo+Math.floor(Math.random()*(hi-lo+1));
 }
+// ---- 파티 공동 탐사 (2026-11-14) ----
+// 출발 순간 참가자 전원의 능력치 스냅샷 + 공동 주사위(seed)를 제안에 저장 → 모든 파티원이 같은 적·같은 전투를 계산.
+// 화면이 꺼진 파티원도 나중에 접속하면 같은 결과를 다시 계산해 자기 몫(HP 변화·전리품)만 받는다. 전리품은 각자 따로 굴림.
+function seededRng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function hashSeed(str){let h=2166136261;for(const c of String(str)){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function withSeed(seed,fn){const orig=Math.random;Math.random=seededRng(seed);try{return fn()}finally{Math.random=orig}}
+const SIM_ST_KEYS=["meleeAtk","meleeAcc","rangedAtk","rangedAcc","magicAtk","magicAcc","meleeWeaponSlot","rangedWeaponSlot","magicWeaponSlot","meleeCritChance","rangedCritChance","magicCritChance","meleeAtkMin","meleeAtkMax","rangedAtkMin","rangedAtkMax","magicAtkMin","magicAtkMax","meleeCritDamage","rangedCritDamage","magicCritDamage","evasion","def","dmgRed","lowHpRed","expDmgRed","dmgTakenPct","hpMax"];
+function simSt(st){const o={};for(const k of SIM_ST_KEYS){const v=st[k];if(typeof v==="number"&&isFinite(v))o[k]=Math.round(v*1000)/1000;else if(typeof v==="string")o[k]=v}return o}
+function buildPartySim(p,participants){
+ const members={};
+ for(const id of participants){
+  try{
+   if(id===uid){const st=calcStats(me),pi=myPotionInfo();members[id]={name:me.name,st:simSt(st),hp:Math.max(1,Math.round(+me.hp[0]||1)),maxHp:Math.round(+me.hp[1]||st.hpMax),potN:pi.n,potHeal:pi.h};continue}
+   const m=partyData&&partyData.members&&partyData.members[id];if(!m)continue;
+   const a=normAlly({...m,uid:id,ai:true});if(!a)continue;const st=calcStats(a);
+   const hp=Array.isArray(m.hp)?+m.hp[0]:st.hpMax;
+   members[id]={name:String(m.name||"파티원").slice(0,16),st:simSt(st),hp:Math.max(1,Math.round(Math.min(hp||st.hpMax,st.hpMax))),maxHp:Math.round(st.hpMax),potN:Math.max(0,Math.floor(+(m.pot&&m.pot.n)||0)),potHeal:Math.max(0,Math.round(+(m.pot&&m.pot.h)||0))};
+  }catch(err){}
+ }
+ let star=1;try{star=areaTier()||parseInt((AR(me.area)||{}).diff||"")||1}catch(e){}
+ return {v:1,seed:hashSeed(p.id),startAt:+p.startAt||Date.now(),kind:p.kind,min:+p.min,cont:me.cont,area:me.area,sub:me.sub||null,star,night:p.kind==="long"&&isNightNow(),members};
+}
+const simCache=new Map();
+function runPartySim(sim){
+ const key=sim.seed+":"+sim.startAt+":"+Object.keys(sim.members||{}).sort().join(",");
+ if(simCache.has(key))return simCache.get(key);
+ const out=withSeed(sim.seed,()=>{
+  const kind=sim.kind,min=+sim.min,star=+sim.star||1,night=!!sim.night,start=+sim.startAt,span=min*60000;
+  const F=Object.keys(sim.members||{}).sort().map(id=>{const m=sim.members[id];return {id,name:m.name,st:m.st||{},hp:+m.hp||1,maxHp:+m.maxHp||1,potN:+m.potN||0,potHeal:+m.potHeal||0}});
+  const fight=(mon,source,isBoss)=>{
+   const alive=F.filter(f=>f.hp>0),before={};F.forEach(f=>before[f.id]=f.hp);
+   const party=alive.map(f=>({self:false,name:f.name,st:f.st,hp:f.hp,maxHp:f.maxHp,potN:f.potN,potHeal:f.potHeal}));
+   const res=autoBattle(mon,party,{expedition:true,star,source,mode:kind,boss:isBoss,night,shared:true});
+   const after={},pot={};
+   res.party.forEach((q,i)=>{const f=alive[i];pot[f.id]=Math.max(0,f.potN-(+q.potN||0));f.hp=Math.max(0,q.hp);f.potN=+q.potN||0});
+   F.forEach(f=>after[f.id]=f.hp);
+   return {mon,source,boss:!!isBoss,win:res.win,rounds:res.rounds,log:res.log.slice(-60),trace:res.trace.slice(0,120),mMax:res.mMax,before,after,pot,alive:alive.map(f=>f.id)};
+  };
+  const n=encounterCount(kind,min)+(night?NIGHT_LONG.extraEnc:0),at=[];
+  for(let i=0;i<n;i++)at.push(start+Math.floor((.05+.9*Math.random())*span));
+  at.sort((a,b)=>a-b);
+  const events=[];
+  for(const t of at){
+   const alive=F.filter(f=>f.hp>0);if(!alive.length)break;
+   const mon=rollShortMonster(star,kind,night?NIGHT_LONG.elite:.10);if(!mon)continue;
+   const ratio=alive.reduce((a,f)=>a+f.hp,0)/Math.max(1,alive.reduce((a,f)=>a+f.maxHp,0));
+   if(mon.role==="정예"&&ratio<.5){events.push({at:t,avoid:true,mon,alive:alive.map(f=>f.id)});continue}
+   const source=kind==="dungeon"?(mon.role==="정예"?"dungeonElite":"dungeonNormal"):(mon.role==="정예"?"fieldElite":"fieldNormal");
+   const ev=fight(mon,source,false);ev.at=t;events.push(ev);
+  }
+  let boss=null,longBoss=null;
+  if(F.some(f=>f.hp>0)){
+   if(kind==="dungeon"){const bm=rollNamedMonster(star)||rollShortMonster(star,kind);if(bm){boss=fight({...bm,role:"보스"},"dungeonBoss",true);boss.at=start+span}}
+   else if(kind==="long"&&star>=9&&Math.random()<LONG_BOSS_CHANCE){const bm=rollBossMonster(star);if(bm){longBoss=fight({...bm,role:"보스"},"dungeonBoss",true);longBoss.at=start+span}}
+  }
+  return {events,boss,longBoss};
+ });
+ simCache.set(key,out);return out;
+}
+// 공동 전투 한 건을 내 캐릭터에 반영
+function expSharedApply(e,ctx,ev){
+ const rt=e.rt,tier=ctx.tier;
+ if(!ev||!Array.isArray(ev.alive)||!ev.alive.includes(uid))return null; // 이미 쓰러진 뒤
+ const mon=ev.mon,tag=mon.role==="정예"?"[정예] ":mon.role==="보스"?"[보스] ":"";
+ if(ev.avoid){logAct("[정예] 회피",ev.at);return null}
+ rt.enc++;
+ const b=+ev.before[uid]||0,a=+ev.after[uid]||0,before=me.hp[0];
+ me.hp[0]=Math.max(0,Math.min(me.hp[1],me.hp[0]-Math.max(0,b-a)));
+ if(a<=0)me.hp[0]=0;
+ const used=+ev.pot[uid]||0;rt.used+=used;
+ for(let i=0;i<used;i++){const ix=me.inv.findIndex(x=>{const k=nm(x);return isHpPotion(k)&&!isPotionAutoLocked(k)});if(ix<0)break;itemReason("전투 중 자동 포션 (파티)",true);me.inv.splice(ix,1)}
+ try{const st=calcStats(me),sk=["melee","ranged","magic"].sort((x,y)=>(st[y+"Atk"]||0)-(st[x+"Atk"]||0))[0],ws=st[sk+"WeaponSlot"];if(ws)wearEquip(ws,Math.min(3,ev.rounds*.15));if(b>a)wearEquip("armor",Math.min(3,.3+(b-a)/Math.max(1,me.hp[1])))}catch(err){}
+ const selfAlive=a>0,partyWin=!!ev.win;
+ rt.battles.push({name:mon.name,role:mon.role,win:partyWin&&selfAlive,rounds:ev.rounds,log:ev.log});if(rt.battles.length>12)rt.battles.shift();
+ rt.dmg+=Math.max(0,before-me.hp[0]);
+ if(partyWin&&(selfAlive||ev.boss)){
+  if(!selfAlive)me.hp[0]=1; // 보스전에서 쓰러졌지만 파티가 이김 → HP 1
+  const xp=Math.max(1,Math.floor(+(mon.xp||40)||0));rt.gain+=xp;gainPlayerXP(xp);
+  try{questKill(mon,tier,ev.source)}catch(err){}
+  const sx=Math.max(1,(mon.killSkillXp||Math.ceil((mon.xp||40)/5))+(mon.finisherXp||20));
+  let sk="melee";try{const st=calcStats(me);sk=["melee","ranged","magic"].sort((x,y)=>(st[y+"Atk"]||0)-(st[x+"Atk"]||0))[0]}catch(err){}
+  gainSkillXP(sk,sx);rt.sxp+=sx;
+  expAddLoot(rt,capBattleLoot(rollLoot(tier,ev.source,mon.grade,ctx.areaObj,e.min),tier),`${ctx.cfg.label} 전투 전리품 · ${mon.name}`);
+  logAct(`전투: ${tag}${mon.name} · ${ev.rounds}턴 파티 승리${selfAlive?"":" (쓰러졌지만 HP 1로 버팀)"}`,ev.at);
+ }else{
+  rt.defeated=true;
+  if(ev.boss){me.hp[0]=Math.max(1,me.hp[0]);rt.bossDefeat=true;logAct(`[보스] ${mon.name} · ${ev.rounds}턴 파티 패배 · HP 1 귀환`,ev.at)}
+  else{me.hp[0]=0;logAct(partyWin?`전투: ${tag}${mon.name} · 파티는 이겼지만 쓰러졌다`:`전투: ${tag}${mon.name} · ${ev.rounds}턴 파티 전멸`,ev.at)}
+  logChar("battle",`파티 탐사 ${partyWin?"쓰러짐":"패배"} · ${tag}${mon.name} (${ev.rounds}턴)`,{monster:mon.name,role:mon.role,rounds:ev.rounds,kind:e.kind,tier,before,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],boss:!!ev.boss,status:"lose",shared:true});
+ }
+ const idx=ev.alive.indexOf(uid);
+ const res={trace:(ev.trace||[]).map(t=>[t[0],t[1],Array.isArray(t[3])&&t[3][idx]!=null?t[3][idx]:t[2]]),mMax:ev.mMax,rounds:ev.rounds,win:partyWin&&(selfAlive||ev.boss)};
+ return {res,before,tag,mon,win:res.win};
+}
 // ---- 실시간 탐사 전투 (2026-11-13) ----
 // 조우 시각을 탐사 시작 때 미리 정해 두고, 그 시각이 되면 전투를 바로 처리한다(HP·전리품 즉시 반영).
 // 30분마다 허기 -2 / 정신력(던전 -1, 장기 1시간마다 -2)과 채집도 그때그때 반영. 화면을 보고 있으면 전투를 한 턴씩 재생.
@@ -2820,7 +2915,9 @@ function expInitRT(e,legacy){
  const start=expStartAt(e),night=!!e.night&&e.kind==="long";
  const n=encounterCount(e.kind,e.min)+(night?NIGHT_LONG.extraEnc:0);
  let encAt=[];
- if(!legacy){for(let i=0;i<n;i++)encAt.push(start+Math.floor((.05+.9*Math.random())*e.min*60000));encAt.sort((a,b)=>a-b)}
+ if(e.sim&&e.sim.members){try{encAt=runPartySim(e.sim).events.map(ev=>ev.at)}catch(err){console.warn("partySim",err);e.sim=null}}
+ if(e.sim&&e.sim.members){}
+ else if(!legacy){for(let i=0;i<n;i++)encAt.push(start+Math.floor((.05+.9*Math.random())*e.min*60000));encAt.sort((a,b)=>a-b)}
  else{const total=Math.max(1,Math.round(e.min/30)),k=legacy.partial?Math.max(0,Math.round(n*(legacy.segs/total))):n;encAt=Array(k).fill(start)}
  e.rt={encAt,encDone:0,segDone:0,found:[],lost:0,enc:0,gain:0,sxp:0,dmg:0,used:0,battles:[],defeated:false,bossDefeat:false,hpBefore:+me.hp[0]||0,hungerBefore:+me.hunger[0]||0,mpBefore:+me.mp[0]||0,allyHp:{}};
  return e.rt;
@@ -2839,7 +2936,7 @@ function expFixRT(rt){
 }
 function expCtx(e){
  const areaObj=(()=>{try{return AR(e.area)}catch(_){return null}})();
- const tier=(+e.star>0)?+e.star:(()=>{const n=parseInt((areaObj&&areaObj.diff)||"");return isFinite(n)?n:1})(); // 출발한 소지역의 ★
+ const tier=(e.sim&&+e.sim.star>0)?+e.sim.star:(+e.star>0)?+e.star:(()=>{const n=parseInt((areaObj&&areaObj.diff)||"");return isFinite(n)?n:1})(); // 출발한 소지역의 ★
  const participants=Array.isArray(e.participants)?e.participants:null,rt=e.rt||{allyHp:{}};
  // 파티 탐사: 실제로 출발(합류 기록)한 파티원만 동료로 계산. 합류 기록을 아직 못 받았으면 참가자 명단 그대로
  const pm=e.proposalId&&partyExpedition&&partyExpedition.members?partyExpedition.members:null;
@@ -2876,6 +2973,7 @@ function expRunBattle(e,ctx,mon,source,isBoss,at){
  return {res,before,tag,mon,win};
 }
 function expEncounter(e,ctx,at){
+ if(e.sim&&e.sim.members){const S=runPartySim(e.sim);return expSharedApply(e,ctx,S.events[e.rt.encDone-1])}
  const rt=e.rt,mon=rollShortMonster(ctx.tier,e.kind,ctx.nightRun?NIGHT_LONG.elite:.10);
  if(!mon)return null;
  rt.enc++;
@@ -2966,7 +3064,16 @@ function resolveExp(partial=false,why){
  const clearProposal=()=>{if(proposalId&&me.partyId&&runLeader===uid){try{remove(ref(realtimeDB,"partyProposals/"+me.partyId)).catch(()=>{})}catch(e){}}};
  let chestData=null;
  const runBattle=(mon,source,isBoss=false)=>expRunBattle(e,ctx,mon,source,isBoss,Date.now()).res;
- if(!partial&&!rt.defeated&&e.kind==="dungeon"){
+ const S=e.sim&&e.sim.members?runPartySim(e.sim):null;
+ if(S&&!partial&&!rt.defeated&&S.boss){
+  const r=expSharedApply(e,ctx,S.boss);
+  if(r&&r.win&&e.kind==="dungeon"){
+   const boxTier=(areaObj&&areaObj.diff==="7~8")?"78":"45",chest={n:"던전 보상 상자",tier:boxTier,area:e.area,min:e.min};
+   if(canAdd(chest)){addItem(chest);box=true}else rt.lost++;
+   chestData={tier:boxTier,area:e.area};
+  }
+ }
+ if(!S&&!partial&&!rt.defeated&&e.kind==="dungeon"){
   const bm=rollNamedMonster(tier)||rollShortMonster(tier,e.kind);
   if(bm){
    const bossMon={...bm,role:"보스"};
@@ -2981,7 +3088,8 @@ function resolveExp(partial=false,why){
  }
  // 장기 탐사 완료 시 보스 (마왕성 ★9 이상 지역, 35%). 보스 19종: 전설 ★9~10 / 신화 ★11~12 — rollBossMonster()
  let longBoss=null;
- if(!partial&&!rt.defeated&&e.kind==="long"&&tier>=9&&Math.random()<LONG_BOSS_CHANCE){
+ if(S&&!partial&&!rt.defeated&&S.longBoss){longBoss=S.longBoss.mon.name;logAct(`[보스] ${S.longBoss.mon.name} 출현!`);expSharedApply(e,ctx,S.longBoss)}
+ if(!S&&!partial&&!rt.defeated&&e.kind==="long"&&tier>=9&&Math.random()<LONG_BOSS_CHANCE){
   const bm=rollBossMonster(tier);
   if(bm){longBoss=bm.name;rt.enc++;logAct(`[보스] ${bm.name} 출현!`);runBattle({...bm,role:"보스"},"dungeonBoss",true)}
  }
@@ -3020,7 +3128,7 @@ function resolveExp(partial=false,why){
  barsRender();renderStatus();bag();renderAll();
  const fxNow=(me.fx||[]).map(f=>f&&(f.label||f.n)),fxAdded=fxNow.filter(x=>x&&!fxBefore.includes(x)),fxRemoved=fxBefore.filter(x=>x&&!fxNow.includes(x));
  logChar("expedition",`${cfg.label} ${partial?"중도 귀환":"완료"} · 계획 ${e.min}분 · 아이템 ${found.length}개 · 조우 ${enc}회 · HP ${hpBefore} → ${me.hp[0]}/${me.hp[1]} · 정신력 ${mpBefore} → ${mpAfter} · 허기 ${hungerBefore} → ${me.hunger[0]}/${me.hunger[1]}`,{kind:e.kind,min:e.min,elapsed:Math.floor(elapsed),partial,area:(areaObj&&areaObj.name)||e.area,found,lost,encounters:enc,battles:battleLogs.length,wins:battleLogs.filter(b=>b.win).length,dmg,mpCost:Math.max(0,mpBefore-mpAfter),mpBefore,mpAfter,box,defeated,before:hpBefore,after:me.hp[0],hp:me.hp.slice(),mp:me.mp.slice(),hungerBefore,hungerAfter:me.hunger[0],hunger:me.hunger.slice(),xp:gain,skillXp:skillGain,fx:fxNow,fxAdded,fxRemoved,expLogs:(me.expLogs||[]).slice(-10)});
- clearProposal();
+ // clearProposal(); — 2026-11-14: 늦게 접속한 파티원이 공동 스냅샷을 읽을 수 있게 제안을 남겨 둔다(끝난 제안은 proposalStale로 숨김)
  if(me.hp[0]<=0||me.hunger[0]<=0){triggerDowned();return}
  const lines=[];
  if(partial)lines.push(`<p class="dim">${Math.floor(elapsed)}분 진행 · 완료한 ${segs*30}분만큼의 보상</p>`);
@@ -5742,23 +5850,25 @@ function isHpPotion(n){const d=ITEM_BY_NAME[n]||{};const fx=info(n).fx||{};retur
 function isPotionAutoLocked(n){return Array.isArray(me.potionLock)&&me.potionLock.includes(String(n))}
 function isItemLocked(n){return Array.isArray(me.itemLock)&&me.itemLock.includes(String(n))}
 function autoBattle(mon,party,opts={}){
- wearTool("은신 도구");
+ const shared=!!opts.shared; // 파티 공동 전투: 내 가방·장비를 건드리지 않고 스냅샷 수치로만 계산 (모든 파티원 화면에서 같은 결과)
+ if(!shared){wearTool("은신 도구");
  const brokenAtStart={};
  for(const k of ["main","sub","armor","acc1","acc2"]){const x=me.equipped[k];if(x&&typeof x==="object"&&x.dur!=null&&+x.dur<=0)brokenAtStart[k]=1}
- battleEquipSnapshot=brokenAtStart;
+ battleEquipSnapshot=brokenAtStart;}
  const pn=Math.max(1,party.length),role=mon.role==="보스"?"boss":mon.role==="정예"?"elite":"normal",mode=opts.mode||"legacy";
  const psc=(mode==="long"||mode==="dungeon")?{hp:1,atk:1,def:1}:(role==="boss"?BOSS_PARTY_SCALE[pn]:(role==="elite"?NORMAL_PARTY_SCALE.elite[pn]:NORMAL_PARTY_SCALE.normal[pn]));
  const scaled=scaleMonster(mon,opts.star||1,{mode,partySize:pn,boss:!!opts.boss});
  const nk=opts.night?NIGHT_LONG.stat:1; // 밤 장기 탐사 보정
  const m={...scaled,maxHp:Math.max(1,Math.floor(scaled.hp*(psc.hp||1)*nk)),hp:0,atk:scaled.atk*(psc.atk||1)*nk,atkMin:scaled.atkMin*(psc.atk||1)*nk,atkMax:scaled.atkMax*(psc.atk||1)*nk,def:scaled.def*(psc.def||1)*nk};m.hp=m.maxHp;
  const fs=party.map(p=>({...p,hp:Math.min(p.hp??p.maxHp,p.maxHp),maxHp:p.maxHp,skill:p.skill||"melee",potionCd:0})),log=[],trace=[];
- const L=t=>{log.push(t);trace.push([t,Math.max(0,Math.round(m.hp)),Math.max(0,Math.round(fs[0].hp))])}; // 실시간 재생용 (문구, 몬스터 HP, 내 HP)
+ const L=t=>{log.push(t);trace.push([t,Math.max(0,Math.round(m.hp)),Math.max(0,Math.round(fs[0].hp)),fs.map(f=>Math.max(0,Math.round(f.hp)))])}; // 실시간 재생용 (문구, 몬스터 HP, 내 HP, 전원 HP)
  let rounds=0,used=0;
  while(m.hp>0&&rounds<80){
   rounds++;
   for(const f of fs)if(f.potionCd>0)f.potionCd--;
   for(const f of fs){
    if(f.hp<=0)continue;
+   if(shared&&(+f.potN||0)>0&&f.hp/f.maxHp<=.3&&!(f.potionCd>0)){const heal=Math.max(0,Math.round(+f.potHeal||0));f.potN--;f.hp=Math.min(f.maxHp,f.hp+heal);f.potionCd=3;L(`${f.name}이(가) 회복 포션을 사용해 HP +${heal}`);continue}
    if(f.self&&f.hp/f.maxHp<=.3&&!(f.potionCd>0)){
     const idxs=[];me.inv.forEach((x,i)=>{const n=nm(x);if(isHpPotion(n)&&!isPotionAutoLocked(n))idxs.push(i)});
     if(idxs.length){itemReason("전투 중 자동 포션",true);const ix=idxs[Math.floor(Math.random()*idxs.length)],x=me.inv.splice(ix,1)[0],n=nm(x),heal=healVal(info(n).fx.hp||0);f.hp=Math.min(f.maxHp,f.hp+heal);me.hp[0]=f.hp;if(heal>0)wearTool("생존 책");f.potionCd=3;used++;applyItemStatus(n,info(n));L(`${f.name}이(가) ${n}을(를) 사용해 HP +${heal} (턴 소모, 쿨타임 2턴)`);continue}
@@ -6500,7 +6610,7 @@ function enterProposalRun(p,participants,o={}){
  if(!p||proposalRunId===p.id)return;
  // 바빠서 합류하지 못하면 알려준다 (예전에는 조용히 빠져서, 다른 파티원 화면에서는 같이 싸운 것처럼 보였음) — 2026-11-13
  const busy=me.expedition?"이미 탐사 중":me.travel?"이동 중":me.rest?"휴식 중":me.read?"독서 중":(me.downed||me.deadPending)?"쓰러진 상태":"";
- if(busy){if(proposalMissedId!==p.id){proposalMissedId=p.id;pop("파티 탐사 불참",`<p>${busy}이라 파티 ${esc(proposalKindLabel(p.kind))}에 합류하지 못했다.</p><p class="dim">다른 파티원들은 당신 없이 출발했다.</p>`,[{t:"확인"}])}return}
+ if(busy){if(proposalMissedId!==p.id){proposalMissedId=p.id;pop("파티 탐사 합류 대기",`<p>${busy}이라 아직 파티 ${esc(proposalKindLabel(p.kind))}에 합류하지 못했다.</p><p class="dim">${me.pendingRun&&me.pendingRun.id===p.id?"지금 하던 일이 끝나면 출발 시각부터 함께한 것으로 자동 합류한다.":"다른 파티원들은 당신 없이 출발했다."}</p>`,[{t:"확인"}])}return}
  proposalRunId=p.id;if(me.pendingRun&&me.pendingRun.id===p.id)me.pendingRun=null;
  const runLeader=p.proposerUid||uid;
  (async()=>{
@@ -6510,7 +6620,8 @@ function enterProposalRun(p,participants,o={}){
  })();
  // 출발 시각보다 1분 넘게 늦었으면 출발 시각으로 거슬러 시작 (밀린 전투·소모는 바로 처리)
  const late=+p.startAt&&Date.now()-(+p.startAt)>60000;
- beginExp(p.kind,p.min,{participants,runLeader,proposalId:p.id,startAt:late?+p.startAt:(o.startAt||null)});
+ const sim=p.sim&&p.sim.members?p.sim:(partyProposal&&partyProposal.id===p.id&&partyProposal.sim&&partyProposal.sim.members?partyProposal.sim:null);
+ beginExp(p.kind,p.min,{participants,runLeader,proposalId:p.id,sim,startAt:sim?+sim.startAt:(late?+p.startAt:(o.startAt||null))});
  renderProposalPanels();
 }
 function maybeStartProposalExp(){
@@ -6530,12 +6641,29 @@ function startProposalRun(){
  if(late<0)return;
  if(p.proposerUid!==uid&&late<4000)return;
  if(late>PROPOSAL_JOIN_WINDOW){
-  if(me.pendingRun&&me.pendingRun.id===p.id){update(ref(realtimeDB,"partyProposals/"+me.partyId),{status:"running",participants,startedAt:+p.startAt,runnerUid:p.proposerUid||uid}).catch(()=>{});enterProposalRun(p,participants);return}
+  if(me.pendingRun&&me.pendingRun.id===p.id){startRunTx(p,participants,+p.startAt);return}
   if(proposalMissedId!==p.id){proposalMissedId=p.id;toast("출발 시간이 지나 참가하지 못했다.");renderProposalPanels()}
   return;
  }
- update(ref(realtimeDB,"partyProposals/"+me.partyId),{status:"running",participants,startedAt:Date.now(),runnerUid:p.proposerUid||uid}).catch(()=>{});
- enterProposalRun(p,participants);
+ startRunTx(p,participants,Date.now());
+}
+// 출발 처리: 트랜잭션으로 한 사람만 running+공동 스냅샷을 쓰고, 모두 그 스냅샷으로 출발
+function startRunTx(p,participants,startedAt){
+ if(proposalRunId===p.id)return;
+ const sim=buildPartySim(p,participants),pid=me.partyId;
+ const fallback=()=>{update(ref(realtimeDB,"partyProposals/"+pid),{status:"running",participants,startedAt,runnerUid:p.proposerUid||uid,sim}).catch(()=>{});enterProposalRun({...p,sim},participants)};
+ try{
+  runTransaction(ref(realtimeDB,"partyProposals/"+pid),cur=>{
+   if(cur===null)return cur;
+   if(!cur||cur.id!==p.id)return;
+   if(cur.status==="open")return {...cur,status:"running",participants,startedAt,runnerUid:p.proposerUid||uid,sim};
+   return;
+  }).then(r=>{
+   const v=r&&r.snapshot&&r.snapshot.val?r.snapshot.val():null;
+   if(v&&v.id===p.id&&v.status==="running")enterProposalRun({...p,...v},Array.isArray(v.participants)?v.participants:participants);
+   else if(!v)fallback();
+  }).catch(err=>{console.warn("startRunTx",err);fallback()});
+ }catch(err){fallback()}
 }
 function onlineAllies(){
  if(!partyData||!partyData.members)return[];
@@ -6571,8 +6699,9 @@ function addMercenary(){
  skills.melee=Math.max(skills.melee,Math.floor(lv/4));skills.survival=Math.max(skills.survival,Math.floor(lv/5));
  addAlly(normAlly({name:`용병 ${job}`,job,lv,stats:jobStats(stats,job),skills,equipped:{},traits:[],hp:[100,100],color:AVATAR_COLORS[Math.floor(Math.random()*AVATAR_COLORS.length)],ai:true}));
 }
+function myPotionInfo(){let n=0,h=0;for(const x of me.inv||[]){const k=nm(x);if(isHpPotion(k)&&!isPotionAutoLocked(k)){n++;h+=healVal(info(k).fx.hp||0)}}return {n,h:n?Math.round(h/n):0}}
 function memberPayload(){
- return {name:me.name,lv:me.lv,job:me.job,color:me.color,stats:me.stats.slice(),skills:{...me.skills},equipped:cp(me.equipped),traits:me.traits.slice(),hp:me.hp.slice(),at:Date.now()};
+ return {name:me.name,lv:me.lv,job:me.job,color:me.color,stats:me.stats.slice(),skills:{...me.skills},equipped:cp(me.equipped),traits:me.traits.slice(),hp:me.hp.slice(),pot:myPotionInfo(),at:Date.now()};
 }
 // 파티 로컬 상태 정리 (해산·추방·잔여 partyId) — 2026-11-11
 function clearPartyLocal(msg){
