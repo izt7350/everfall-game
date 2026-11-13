@@ -6243,8 +6243,12 @@ function syncPresence(force){
    await freshToken(true);if(pref!==presenceRef)return;
    return set(pref,d).catch(()=>{const bare={...d};delete bare.c;return set(pref,bare)}).catch(e=>{
     console.warn("presence retry",e);
-    // 토큰 갱신 후에도 계속 실패할 때만, 세션당 한 번 안내
-    if(!presenceWarned){presenceWarned=true;try{toast("접속 정보(현재 위치)를 저장하지 못했습니다. 페이지를 새로고침해 주세요.")}catch(_){}}
+    // 토큰 갱신 후에도 계속 실패할 때만, 세션당 한 번 안내 + 원인 진단용 기록 (2026-11-13)
+    if(!presenceWarned){presenceWarned=true;
+     const code=String((e&&(e.code||e.message))||err&&(err.code||err.message)||"unknown").slice(0,60);
+     let au="";try{au=auth.currentUser?(auth.currentUser.uid===uid?"same":"diff"):"none"}catch(_){au="?"}
+     try{logChar("event",`접속 정보 저장 실패 · ${code} · auth ${au}`,{code,auth:au,path:`presence/${me.cont}/${me.area}`,keys:Object.keys(d).join(","),nameLen:String(me.name||"").length,cont:String(me.cont),area:String(me.area),sub:String(me.sub||"")})}catch(_){}
+     try{toast(`접속 정보(현재 위치)를 저장하지 못했습니다. [${code} · ${au}]`)}catch(_){}}
    });
   });
   onDisconnect(presenceRef).remove().catch(()=>{});
