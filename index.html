@@ -1815,7 +1815,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.statPts=Math.max(0,Math.floor(+c.statPts||0));
  o.skillPts=Math.max(0,Math.floor(+c.skillPts||0));
  o.crafted=Array.isArray(c.crafted)?c.crafted.filter(x=>typeof x==="string").slice(-600):[];
- o.speedPotionGrant=!!c.speedPotionGrant;o.speedPotionGrant2=!!c.speedPotionGrant2;o.mpGrant50=!!c.mpGrant50;o.partyBattleSeen=typeof c.partyBattleSeen==="string"?c.partyBattleSeen.slice(0,80):"";o.itemLogSeq=Math.max(0,Math.floor(+c.itemLogSeq||0));o.pendingRun=c.pendingRun&&typeof c.pendingRun==="object"&&c.pendingRun.id?{id:String(c.pendingRun.id).slice(0,60),kind:c.pendingRun.kind==="dungeon"?"dungeon":"long",min:+c.pendingRun.min||30,startAt:+c.pendingRun.startAt||0,runLeader:c.pendingRun.runLeader||null,partyId:c.pendingRun.partyId||null,at:+c.pendingRun.at||0}:null;
+ o.speedPotionGrant=!!c.speedPotionGrant;o.speedPotionGrant2=!!c.speedPotionGrant2;o.dunBoxGrant1=!!c.dunBoxGrant1;o.mpGrant50=!!c.mpGrant50;o.partyBattleSeen=typeof c.partyBattleSeen==="string"?c.partyBattleSeen.slice(0,80):"";o.itemLogSeq=Math.max(0,Math.floor(+c.itemLogSeq||0));o.pendingRun=c.pendingRun&&typeof c.pendingRun==="object"&&c.pendingRun.id?{id:String(c.pendingRun.id).slice(0,60),kind:c.pendingRun.kind==="dungeon"?"dungeon":"long",min:+c.pendingRun.min||30,startAt:+c.pendingRun.startAt||0,runLeader:c.pendingRun.runLeader||null,partyId:c.pendingRun.partyId||null,at:+c.pendingRun.at||0}:null;
  o.potionLock=Array.isArray(c.potionLock)?c.potionLock.filter(x=>typeof x==="string").slice(-100):[];
  o.itemLock=Array.isArray(c.itemLock)?c.itemLock.filter(x=>typeof x==="string").slice(-1000):[];
  o.potionGrant=!!c.potionGrant;o.potionGrant20=!!c.potionGrant20||!!o.drosselPotion20;o.mpAt=isFinite(+c.mpAt)?+c.mpAt:Date.now();o.mpCarry=Math.max(0,+c.mpCarry||0);
@@ -2444,7 +2444,7 @@ const initialMageTrait=hasSavedSkills?(char.mageTraitMagic5===2?2:!!char.mageTra
 const initialPriestTrait=hasSavedSkills?(char.priestTraitHeal5===2?2:0):2;
 const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||char.origin,area:char.area||"cap",sub:char.sub||null,travel:char.travel||null,gold:char.gold??100,
  inv:cp(char.items||[]),equipped:cp(char.equipped||{}),vehicles:cp(char.vehicles||[]),pet:cp(char.pet||null),petAdoptLockUntil:Math.max(0,+char.petAdoptLockUntil||0),ground:cp(char.ground||{}),blocked:cp(char.blocked||[]),
- hp:cp(char.hp||[100,100]),mp:cp(char.mp||[100,100]),hunger:cp(char.hunger||[100,100]),isAdmin:!!opts.admin,speedPotionGrant:!!char.speedPotionGrant,speedPotionGrant2:!!char.speedPotionGrant2,mpGrant50:!!char.mpGrant50,partyBattleSeen:typeof char.partyBattleSeen==="string"?char.partyBattleSeen:"",itemLogSeq:Math.max(0,Math.floor(+char.itemLogSeq||0)),pendingRun:char.pendingRun||null,fx:cp(char.fx||[]),
+ hp:cp(char.hp||[100,100]),mp:cp(char.mp||[100,100]),hunger:cp(char.hunger||[100,100]),isAdmin:!!opts.admin,speedPotionGrant:!!char.speedPotionGrant,speedPotionGrant2:!!char.speedPotionGrant2,dunBoxGrant1:!!char.dunBoxGrant1,mpGrant50:!!char.mpGrant50,partyBattleSeen:typeof char.partyBattleSeen==="string"?char.partyBattleSeen:"",itemLogSeq:Math.max(0,Math.floor(+char.itemLogSeq||0)),pendingRun:char.pendingRun||null,fx:cp(char.fx||[]),
  color:/^#[0-9a-fA-F]{6}$/.test(char.color||"")?char.color:"#CB3533",
  photo:okPhoto(char.photo)?char.photo:null,
  traits:cp(Array.isArray(char.traits)?char.traits:(char.trait?[char.trait]:[])),
@@ -2633,7 +2633,10 @@ const LONG_EXCL_TOOLS={"일반":["낡은 지도서"],"고급":["제작 도구","
 const expSel={long:30,dungeon:30};
 const take=a=>a[Math.floor(Math.random()*a.length)];
 const durText=m=>m<60?m+"분":(m/60)+"시간";
-const areaTier=()=>{if(me.area==="cap")return 0;const n=parseInt((AR(me.area).diff||""));return isFinite(n)?n:0};
+// 소지역 표시 난도: 거점은 데이터상 0이라, 실제 전투에 쓰이는 지역 난도(지역 ★ 범위의 아래값)를 표시 (2026-11-13)
+// 실제 난도도 소지역 별을 따른다 (2026-11-13): 지금 있는 소지역의 ★, 없으면(거점 등) 지역 범위의 아래값
+const subStar=(a,s)=>{if(!s)return 0;if(+s.star)return +s.star;if(s.hub&&a&&a.id!=="cap"){const n=parseInt(a.diff||"");return isFinite(n)?n:0}return 0};
+const areaTier=()=>{if(me.area==="cap")return 0;const a=AR(me.area);let s=null;try{s=a.nodes.find(n=>n.id===me.sub)}catch(e){}const st=subStar(a,s);if(st)return st;const n=parseInt((a.diff||""));return isFinite(n)?n:0};
 const dungeonTier=()=>{if(me.area==="cap")return "";const d=AR(me.area).diff||"";return d==="4~5"?"45":d==="7~8"?"78":""};
 const tally=a=>{const m={};a.forEach(x=>m[x]=(m[x]||0)+1);return Object.entries(m).map(([k,v])=>v>1?`${k} ×${v}`:k).join(", ")};
 function drawDurs(){
@@ -2664,7 +2667,7 @@ function expeditionRisk(kind,min,members,tier){
 }
 function renderExpeditionRisk(kind){
  const el=$(kind==="long"?"longrisk":"dunrisk");if(!el)return;
- const members=riskParty(),area=(()=>{try{return AR(me.area)}catch(e){return null}})(),tier=Math.max(1,parseInt((area&&area.diff)||"")||1),diffLabel=String((area&&area.diff)||tier);
+ const members=riskParty(),area=(()=>{try{return AR(me.area)}catch(e){return null}})(),tier=Math.max(1,(()=>{try{return areaTier()}catch(e){return 0}})()||parseInt((area&&area.diff)||"")||1),diffLabel=String(tier);
  const rows=[30,60,120,180].map(m=>{
   const pct=expeditionRisk(kind,m,members,tier),band=riskBand(pct),cls=riskCls(band);
   return `<div class="risk-row${expSel[kind]===m?" on":""}"><span class="risk-time">${durText(m)}</span><span class="risk-step ${cls}">${band}</span><b class="risk-pct ${cls}">${pct}%</b></div>`;
@@ -2790,7 +2793,7 @@ function beginExp(kind,min,opts={}){
   me.expArchive.unshift({meta:cp(me.expMeta),logs:cp(me.expLogs)});
   if(me.expArchive.length>1)me.expArchive.length=1;
  }
- me.expedition={kind,min,area:me.area,cont:me.cont,end,nextLogAt:now+nextGap(),participants:Array.isArray(opts.participants)?opts.participants:null,runLeader:opts.runLeader||null,proposalId:opts.proposalId||null};
+ me.expedition={kind,min,area:me.area,cont:me.cont,end,nextLogAt:now+nextGap(),participants:Array.isArray(opts.participants)?opts.participants:null,runLeader:opts.runLeader||null,proposalId:opts.proposalId||null,sub:me.sub||null,star:(()=>{try{return areaTier()||0}catch(e){return 0}})()};
  if(kind==="long"&&isNightNow())me.expedition.night=true;
  expInitRT(me.expedition);
  me.expLogs=[];me.expMeta={label:EXPD[kind].label,kind,min,area:(AR(me.area)||{}).name||me.area,start:st,end};
@@ -2811,7 +2814,7 @@ function encounterCount(kind,min){
 const EXP_SEG=30*60000;
 function expStartAt(e){return (+e.end||Date.now())-(+e.min||0)*60000}
 function expInitRT(e,legacy){
- if(e.rt)return e.rt;
+ if(e.rt&&typeof e.rt==="object")return expFixRT(e.rt);
  const start=expStartAt(e),night=!!e.night&&e.kind==="long";
  const n=encounterCount(e.kind,e.min)+(night?NIGHT_LONG.extraEnc:0);
  let encAt=[];
@@ -2820,9 +2823,21 @@ function expInitRT(e,legacy){
  e.rt={encAt,encDone:0,segDone:0,found:[],lost:0,enc:0,gain:0,sxp:0,dmg:0,used:0,battles:[],defeated:false,bossDefeat:false,hpBefore:+me.hp[0]||0,hungerBefore:+me.hunger[0]||0,mpBefore:+me.mp[0]||0,allyHp:{}};
  return e.rt;
 }
+// Firebase는 빈 배열·빈 객체를 저장하지 않아서, 다시 불러온 rt에는 found/battles/encAt/allyHp가 빠져 있을 수 있다 → 채워 넣기 (2026-11-13)
+function expFixRT(rt){
+ const arr=v=>Array.isArray(v)?v:(v&&typeof v==="object"?Object.values(v):[]);
+ rt.encAt=arr(rt.encAt).map(Number).filter(isFinite).sort((a,b)=>a-b);
+ rt.found=arr(rt.found).filter(x=>typeof x==="string");
+ rt.battles=arr(rt.battles).filter(b=>b&&typeof b==="object").map(b=>({...b,log:arr(b.log)}));
+ rt.allyHp=rt.allyHp&&typeof rt.allyHp==="object"?rt.allyHp:{};
+ for(const k of ["encDone","segDone","lost","enc","gain","sxp","dmg","used","hpBefore","hungerBefore","mpBefore"])rt[k]=+rt[k]||0;
+ rt.encDone=Math.min(rt.encDone,rt.encAt.length);
+ rt.defeated=!!rt.defeated;rt.bossDefeat=!!rt.bossDefeat;
+ return rt;
+}
 function expCtx(e){
  const areaObj=(()=>{try{return AR(e.area)}catch(_){return null}})();
- const tier=(()=>{const n=parseInt((areaObj&&areaObj.diff)||"");return isFinite(n)?n:1})();
+ const tier=(+e.star>0)?+e.star:(()=>{const n=parseInt((areaObj&&areaObj.diff)||"");return isFinite(n)?n:1})(); // 출발한 소지역의 ★
  const participants=Array.isArray(e.participants)?e.participants:null,rt=e.rt||{allyHp:{}};
  // 파티 탐사: 실제로 출발(합류 기록)한 파티원만 동료로 계산. 합류 기록을 아직 못 받았으면 참가자 명단 그대로
  const pm=e.proposalId&&partyExpedition&&partyExpedition.members?partyExpedition.members:null;
@@ -5506,7 +5521,7 @@ function stage(){const w=W(),d=!!view.area,a=d?AR(view.area):null;
  const here=me.travel?null:(d?(me.area===view.area?me.sub:null):me.area);
  $("stage").innerHTML=`<img src="${d?DAE:MAPS[me.cont]}" alt="" onerror="this.remove()"><svg viewBox="0 0 100 55" preserveAspectRatio="xMidYMid meet">`+
   edges.map(([x,y])=>`<line class="ed" x1="${P(x).x}" y1="${P(x).y}" x2="${P(y).x}" y2="${P(y).y}"/>`).join("")+
-  nodes.map(n=>{const meta=d?(n.hub?"거점":(n.star?`★${n.star}`:"")):[n.tag||"",n.diff?`★${n.diff}`:"",(()=>{try{return "· "+weatherAt(me.cont,n.id).n}catch(e){return ""}})()].filter(Boolean).join(" ");return `<g class="nd ${n.hub?"hub":""} ${n.id===here?"cur":""} ${n.id===view.sel?"sel":""}" data-id="${n.id}"><circle cx="${n.x}" cy="${n.y}" r="1.9"/><text x="${n.x}" y="${n.y+3.9}">${esc(n.name)}</text>${meta?`<text class="meta" x="${n.x}" y="${n.y+6.1}">${esc(meta)}</text>`:""}</g>`}).join("")+`</svg>`;
+  nodes.map(n=>{const meta=d?(n.hub?("거점"+(subStar(a,n)?` ★${subStar(a,n)}`:"")):(n.star?`★${n.star}`:"")):[n.tag||"",n.diff?`★${n.diff}`:"",(()=>{try{return "· "+weatherAt(me.cont,n.id).n}catch(e){return ""}})()].filter(Boolean).join(" ");return `<g class="nd ${n.hub?"hub":""} ${n.id===here?"cur":""} ${n.id===view.sel?"sel":""}" data-id="${n.id}"><circle cx="${n.x}" cy="${n.y}" r="1.9"/><text x="${n.x}" y="${n.y+3.9}">${esc(n.name)}</text>${meta?`<text class="meta" x="${n.x}" y="${n.y+6.1}">${esc(meta)}</text>`:""}</g>`}).join("")+`</svg>`;
  $("back").hidden=!d;$("maptitle").textContent=me.cont+" 지도"+(d?" › "+a.name:"");$("mapsub").textContent="현재 위치: "+locText()}
 function desc(){const w=W(),d=!!view.area,a=d?AR(view.area):AR(view.sel||me.area);
  const rt=(a.id==="cap"&&!a.diff)?"":(()=>{try{return areaDropTag(a)}catch(e){return ""}})(),rtag=rt?`<span class="rtag" title="지역 태그: 이 태그의 아이템이 더 자주 나온다">${esc(rt)}</span>`:"";
@@ -5516,7 +5531,7 @@ function desc(){const w=W(),d=!!view.area,a=d?AR(view.area):AR(view.sel||me.area
  const mb=(k,id,l)=>{const p=plan(k,id);return p?`<button class="btn" data-m="${k}" data-id="${id}"${(me.downed||me.deadPending)?" disabled":""}>${l}(으)로 이동${p.n>1?` · ${p.n}칸`:""}</button>`:""};
  acts+=mb("area",a.id,a.name);if(!d&&a.id===me.area&&a.id!=="cap")acts+=`<button class="btn alt" data-m="enter">소지역 지도 보기</button>`;
  if(d&&view.sel){const s=a.nodes.find(n=>n.id===view.sel);
-  h+=`<p class="sub"><b>${s.name}${s.hub?" (거점)":""}</b>${rtag} — ${s.desc}${s.star?`<br>조사 난이도 : ${"★".repeat(s.star)}`:""}</p>`;
+  h+=`<p class="sub"><b>${s.name}${s.hub?" (거점)":""}</b>${rtag} — ${s.desc}${subStar(a,s)?`<br>조사 난이도 : ${"★".repeat(subStar(a,s))}`:""}</p>`;
   if(me.area===a.id)acts+=mb("sub",s.id,s.name)}
  if(!acts&&!me.travel&&!me.expedition&&!(a.id===me.area&&!view.sel))h+=`<p class="dim">인접한 지역으로만 이동할 수 있어요. 말을 타면 이어진 길을 따라 한 번에 갈 수 있어요.</p>`;
  $("desc").innerHTML=h+(acts?`<div class="acts">${acts}</div>`:"");
@@ -8036,7 +8051,7 @@ if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(u
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
 T(itemLogTick,2000);setTimeout(itemLogTick,0);
 function savePartyBattleSeen(){try{opts.save(cp(snap()))}catch(e){}}
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,dunBoxGrant1:!!me.dunBoxGrant1,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
 // 기존 캐릭터 1회 지급: 이동속도 증가 포션 20개
 const SPEED_POTION_GRANT_CUTOFF=Date.parse("2026-11-07T23:59:59+09:00");
 if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
@@ -8044,6 +8059,15 @@ if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
  me.speedPotionGrant=true;
  try{bag()}catch(e){}
  try{toast("이동속도 증가 포션 20개가 지급되었습니다.")}catch(e){}
+ try{opts.save(cp(snap()))}catch(e){}
+}
+// 지정 캐릭터 1회 지급 (2026-11-13): 레이첼 — 파티 던전 탐사에 합류하지 못한 오류 보상, 던전 보상 상자(★4~5) 1개
+if(!me.dunBoxGrant1&&String(me.name||"").trim()==="레이첼"){
+ try{itemReason("운영 지급 · 파티 던전 미합류 보상")}catch(e){}
+ me.inv.push({n:"던전 보상 상자",tier:"45",area:"hangar",min:30});
+ me.dunBoxGrant1=true;
+ try{bag()}catch(e){}
+ try{toast("던전 보상 상자 1개가 지급되었습니다.")}catch(e){}
  try{opts.save(cp(snap()))}catch(e){}
 }
 // 지정 캐릭터 1회 지급 (2026-11-11): 세드레시아·아서에게 이동속도 증가 포션 20개
