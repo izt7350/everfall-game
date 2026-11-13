@@ -1070,7 +1070,8 @@ const areaGrade=star=>star<=2?"일반":star<=4?"고급":star<=6?"희귀":star<=8
 const AVATAR_COLORS=["#CB3533","#2F6FB0","#1F7A5C","#8A4FB0","#B26B00","#5D5D5D"];
 const okColor=c=>/^#[0-9a-fA-F]{6}$/.test(String(c||""));
 const nameOk=n=>n.length>=2&&n.length<=8&&/^[가-힣A-Za-z0-9]+(?: [가-힣A-Za-z0-9]+)*$/.test(n);
-const fmt=t=>t?new Date(t).toLocaleString("ko-KR",{timeZone:"Asia/Seoul",dateStyle:"short",timeStyle:"short"}):"-";
+// 날짜·시각 표기: 24시간제 "26. 11. 13. 00:57" (예전 "오전 12:57"은 자정 직후인데 낮 12시로 읽히는 문제) — 2026-11-13
+const fmt=t=>{if(!t)return "-";try{const p=Object.fromEntries(new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",year:"2-digit",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).formatToParts(new Date(+t)).map(x=>[x.type,x.value]));return `${p.year}. ${p.month}. ${p.day}. ${p.hour}:${p.minute}`}catch(e){return new Date(+t).toLocaleString("ko-KR")}};
 function toast(t,fn){const e=document.createElement("div");e.className="toast";e.style.zIndex="99999";e.textContent=t;if(fn){e.style.cursor="pointer";e.title="클릭하여 열기";e.onclick=()=>{e.remove();try{fn()}catch(err){console.warn(err)}}}document.body.appendChild(e);setTimeout(()=>e.remove(),fn?6000:2600);return e}
 // ---- 클릭 효과음 ----
 const CLICK_SFX_SRC="sfx/button_press_trimmed.wav";
@@ -1275,7 +1276,7 @@ function adminLogDetail(r){
  if(Array.isArray(d.fxAdded)&&d.fxAdded.length)add("추가된 상태이상",esc(d.fxAdded.join(", ")));
  if(Array.isArray(d.fxRemoved)&&d.fxRemoved.length)add("해제된 상태이상",esc(d.fxRemoved.join(", ")));
  if(loc)add("위치",esc(loc));
- if(d.why)add("쓰러진 원인",esc(whyName(d.why)));
+ if(d.why)add(r&&r.type==="item"?"원인":"쓰러진 원인",esc(whyName(d.why)));
  const combat=[d.monster,d.role?roleName(d.role):null,d.rounds!=null?`${num(d.rounds)}턴`:null,d.boss?"보스전":null].filter(Boolean).join(" · ");
  if(combat)add("전투",esc(combat));
  if(d.status)add("전투 상태",esc(resultName(d.status)));
@@ -1307,7 +1308,8 @@ function adminLogDetail(r){
  if(Array.isArray(d.traits)&&d.traits.length)add("특성",esc(d.traits.join(", ")));
  if(Array.isArray(d.expLogs)&&d.expLogs.length){
   const logs=d.expLogs.slice(-8).map(l=>`<div class="dim sm" style="padding:2px 0">${esc(fmt(l.at))} · ${esc(l.text||"")}</div>`).join("");
-  rows.push(`<div class="ai-row" style="display:block"><span>최근 탐사 행동</span><div style="margin-top:4px">${logs}</div></div>`);
+  const lastAt=+(d.expLogs[d.expLogs.length-1]||{}).at||0;
+  rows.push(`<div class="ai-row" style="display:block"><span>${r&&r.type==="session"?"마지막 탐사 기록":"최근 탐사 행동"}${lastAt&&r&&r.at&&r.at-lastAt>3600000?` <small class="dim">(${esc(fmt(lastAt))})</small>`:""}</span><div style="margin-top:4px">${logs}</div></div>`);
  }
  return rows.length?`<div class="ai-meta" style="margin-top:6px">${rows.join("")}</div>`:"";
 }
@@ -1813,7 +1815,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.statPts=Math.max(0,Math.floor(+c.statPts||0));
  o.skillPts=Math.max(0,Math.floor(+c.skillPts||0));
  o.crafted=Array.isArray(c.crafted)?c.crafted.filter(x=>typeof x==="string").slice(-600):[];
- o.speedPotionGrant=!!c.speedPotionGrant;o.speedPotionGrant2=!!c.speedPotionGrant2;o.mpGrant50=!!c.mpGrant50;o.partyBattleSeen=typeof c.partyBattleSeen==="string"?c.partyBattleSeen.slice(0,80):"";o.itemLogSeq=Math.max(0,Math.floor(+c.itemLogSeq||0));
+ o.speedPotionGrant=!!c.speedPotionGrant;o.speedPotionGrant2=!!c.speedPotionGrant2;o.mpGrant50=!!c.mpGrant50;o.partyBattleSeen=typeof c.partyBattleSeen==="string"?c.partyBattleSeen.slice(0,80):"";o.itemLogSeq=Math.max(0,Math.floor(+c.itemLogSeq||0));o.pendingRun=c.pendingRun&&typeof c.pendingRun==="object"&&c.pendingRun.id?{id:String(c.pendingRun.id).slice(0,60),kind:c.pendingRun.kind==="dungeon"?"dungeon":"long",min:+c.pendingRun.min||30,startAt:+c.pendingRun.startAt||0,runLeader:c.pendingRun.runLeader||null,partyId:c.pendingRun.partyId||null,at:+c.pendingRun.at||0}:null;
  o.potionLock=Array.isArray(c.potionLock)?c.potionLock.filter(x=>typeof x==="string").slice(-100):[];
  o.itemLock=Array.isArray(c.itemLock)?c.itemLock.filter(x=>typeof x==="string").slice(-1000):[];
  o.potionGrant=!!c.potionGrant;o.potionGrant20=!!c.potionGrant20||!!o.drosselPotion20;o.mpAt=isFinite(+c.mpAt)?+c.mpAt:Date.now();o.mpCarry=Math.max(0,+c.mpCarry||0);
@@ -2442,7 +2444,7 @@ const initialMageTrait=hasSavedSkills?(char.mageTraitMagic5===2?2:!!char.mageTra
 const initialPriestTrait=hasSavedSkills?(char.priestTraitHeal5===2?2:0):2;
 const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||char.origin,area:char.area||"cap",sub:char.sub||null,travel:char.travel||null,gold:char.gold??100,
  inv:cp(char.items||[]),equipped:cp(char.equipped||{}),vehicles:cp(char.vehicles||[]),pet:cp(char.pet||null),petAdoptLockUntil:Math.max(0,+char.petAdoptLockUntil||0),ground:cp(char.ground||{}),blocked:cp(char.blocked||[]),
- hp:cp(char.hp||[100,100]),mp:cp(char.mp||[100,100]),hunger:cp(char.hunger||[100,100]),isAdmin:!!opts.admin,speedPotionGrant:!!char.speedPotionGrant,speedPotionGrant2:!!char.speedPotionGrant2,mpGrant50:!!char.mpGrant50,partyBattleSeen:typeof char.partyBattleSeen==="string"?char.partyBattleSeen:"",itemLogSeq:Math.max(0,Math.floor(+char.itemLogSeq||0)),fx:cp(char.fx||[]),
+ hp:cp(char.hp||[100,100]),mp:cp(char.mp||[100,100]),hunger:cp(char.hunger||[100,100]),isAdmin:!!opts.admin,speedPotionGrant:!!char.speedPotionGrant,speedPotionGrant2:!!char.speedPotionGrant2,mpGrant50:!!char.mpGrant50,partyBattleSeen:typeof char.partyBattleSeen==="string"?char.partyBattleSeen:"",itemLogSeq:Math.max(0,Math.floor(+char.itemLogSeq||0)),pendingRun:char.pendingRun||null,fx:cp(char.fx||[]),
  color:/^#[0-9a-fA-F]{6}$/.test(char.color||"")?char.color:"#CB3533",
  photo:okPhoto(char.photo)?char.photo:null,
  traits:cp(Array.isArray(char.traits)?char.traits:(char.trait?[char.trait]:[])),
@@ -2781,7 +2783,8 @@ function startExp(kind){
  pop(`${EXPD[kind].label} 시작`,`<p>${durText(min)} ${EXPD[kind].label}를 시작한다.</p><p>끝나는 시간 ${clockOf(end)}</p>`,[{t:"시작",c:"",fn:()=>beginExp(kind,min)},{t:"취소"}])}
 function beginExp(kind,min,opts={}){
  if(!starvationActionCost())return;
- const now=Date.now(),end=now+min*60000;
+ // opts.startAt: 파티 탐사에 늦게(오프라인·화면 꺼짐) 합류할 때 출발 시각을 제안의 출발 시각으로 맞춘다
+ const now=Date.now(),st=opts.startAt&&+opts.startAt<now?+opts.startAt:now,end=st+min*60000;
  if(me.expLogs.length&&me.expMeta){
   me.expArchive=Array.isArray(me.expArchive)?me.expArchive:[];
   me.expArchive.unshift({meta:cp(me.expMeta),logs:cp(me.expLogs)});
@@ -2790,8 +2793,9 @@ function beginExp(kind,min,opts={}){
  me.expedition={kind,min,area:me.area,cont:me.cont,end,nextLogAt:now+nextGap(),participants:Array.isArray(opts.participants)?opts.participants:null,runLeader:opts.runLeader||null,proposalId:opts.proposalId||null};
  if(kind==="long"&&isNightNow())me.expedition.night=true;
  expInitRT(me.expedition);
- me.expLogs=[];me.expMeta={label:EXPD[kind].label,kind,min,area:(AR(me.area)||{}).name||me.area,start:now,end};
- logAct(`${EXPD[kind].label}를 시작했다.`,now);
+ me.expLogs=[];me.expMeta={label:EXPD[kind].label,kind,min,area:(AR(me.area)||{}).name||me.area,start:st,end};
+ logAct(`${EXPD[kind].label}를 시작했다.`,st);
+ if(st<now-60000)logAct(`(접속하지 않은 동안 파티와 함께 출발한 것으로 처리 · 늦게 합류)`,now);
  if(me.expedition.night){logAct("[밤] 어둠 속 탐사 — 몬스터가 더 강하고 정예가 자주 나타난다.",now);toast("밤 탐사: 몬스터가 더 강하고 정예가 자주 나타납니다.")}
  renderAll();try{bag()}catch(e){};toast(`${EXPD[kind].label} 시작 · ${durText(min)}`);try{closeRisk()}catch(e){};try{openExpRecord(0)}catch(e){}}
 function encounterCount(kind,min){
@@ -2820,11 +2824,14 @@ function expCtx(e){
  const areaObj=(()=>{try{return AR(e.area)}catch(_){return null}})();
  const tier=(()=>{const n=parseInt((areaObj&&areaObj.diff)||"");return isFinite(n)?n:1})();
  const participants=Array.isArray(e.participants)?e.participants:null,rt=e.rt||{allyHp:{}};
- const allyList=(me.partyId?onlineAllies():me.party||[]).filter(a=>!participants||participants.includes(a.uid)).slice(0,4);
+ // 파티 탐사: 실제로 출발(합류 기록)한 파티원만 동료로 계산. 합류 기록을 아직 못 받았으면 참가자 명단 그대로
+ const pm=e.proposalId&&partyExpedition&&partyExpedition.members?partyExpedition.members:null;
+ const joined=id=>{if(!pm)return true;const m=pm[id];return !!m&&(m.proposalId?m.proposalId===e.proposalId:(+m.at||0)>=expStartAt(e)-120000)};
+ const allyList=(me.partyId?onlineAllies():me.party||[]).filter(a=>(!participants||participants.includes(a.uid))&&(!e.proposalId||joined(a.uid))).slice(0,4);
  const party=[{self:true,name:me.name,st:calcStats(me),hp:me.hp[0],maxHp:me.hp[1]},...allyList.map(a=>{const st=calcStats(a),key=a.uid||a.name,h=rt.allyHp?rt.allyHp[key]:null;return{self:false,name:a.name,ally:a,st,hp:h!=null?Math.max(0,Math.min(h,st.hpMax)):st.hpMax,maxHp:st.hpMax,key}})];
  return {areaObj,tier,party,nightRun:!!e.night&&e.kind==="long",cfg:EXPD[e.kind]||EXPD.long};
 }
-function expAddLoot(rt,names){for(const n of names){if(!n)continue;registerItem(n);const d=ITEM_BY_NAME[n],item=lootObj(n);if(canAdd(item)){addItem(item);rt.found.push(n);if(d)awardAction("search",d.grade==="일반"?ACTION_XP.search:ACTION_XP.rareSearch,d.grade,"search")}else rt.lost++}}
+function expAddLoot(rt,names,why){try{itemReason(why||"탐사 전리품",true)}catch(e){}for(const n of names){if(!n)continue;registerItem(n);const d=ITEM_BY_NAME[n],item=lootObj(n);if(canAdd(item)){addItem(item);rt.found.push(n);if(d)awardAction("search",d.grade==="일반"?ACTION_XP.search:ACTION_XP.rareSearch,d.grade,"search")}else rt.lost++}}
 function expRunBattle(e,ctx,mon,source,isBoss,at){
  const rt=e.rt,party=ctx.party,tier=ctx.tier;
  party[0].hp=me.hp[0];party[0].maxHp=me.hp[1];party[0].st=calcStats(me);
@@ -2841,7 +2848,7 @@ function expRunBattle(e,ctx,mon,source,isBoss,at){
   try{questKill(mon,tier,source)}catch(err){}
   const self=res.party[0],sx=Math.max(1,(mon.killSkillXp||Math.ceil((mon.xp||40)/5))+(mon.finisherXp||20));
   gainSkillXP(self.skill||"melee",sx);rt.sxp+=sx;
-  expAddLoot(rt,capBattleLoot(rollLoot(tier,source,mon.grade,ctx.areaObj,e.min),tier));
+  expAddLoot(rt,capBattleLoot(rollLoot(tier,source,mon.grade,ctx.areaObj,e.min),tier),`${ctx.cfg.label} 전투 전리품 · ${mon.name}`);
   logAct(`전투: ${tag}${mon.name} · ${res.rounds}턴 승리`,at);
  }else{
   rt.defeated=true;
@@ -2873,7 +2880,7 @@ function expAdvance(upTo,live){
  let changed=!!ctx;
  while(rt.segDone<segsDue){
   rt.segDone++;changed=true;
-  if(!rt.defeated&&Math.random()<C().cfg.find)expAddLoot(rt,rollLoot(C().tier,"gather",null,C().areaObj));
+  if(!rt.defeated&&Math.random()<C().cfg.find)expAddLoot(rt,rollLoot(C().tier,"gather",null,C().areaObj),`${C().cfg.label} 채집`);
   spendHunger(2);
   const mp=e.kind==="dungeon"?1:(rt.segDone%2===0?2:0);
   if(mp)spendMp(Math.min(+me.mp[0]||0,mp));
@@ -2980,9 +2987,11 @@ function resolveExp(partial=false,why){
  if(me.expMeta&&typeof me.expMeta==="object")me.expMeta.settle=settle;
  if(proposalId&&me.partyId&&participants){
   const runPath="parties/"+me.partyId+"/expedition";
-  set(ref(realtimeDB,runPath+"/members/"+uid),{name:me.name,at:endedAt,minutes:settle.minutes,battles:settle.battles,wins:settle.wins,used:settle.used,loot:found.slice(0,60),lootCount:found.length,chest:!!box,defeated:!!defeated,hpUsed,hungerUsed,mpUsed}).catch(()=>{});
-  if(runLeader===uid){
-   const meta={kind:e.kind,label:"파티 "+((EXPD[e.kind]||{}).label||"탐사"),min:e.min,startAt:startedAt,endAt:endedAt,leaderUid:uid,leaderName:me.name,participants,area:(areaObj&&areaObj.name)||e.area,log:me.expLogs.slice(-200),settle:{minutes:settle.minutes,battles:settle.battles,wins:settle.wins,used:settle.used,chest:!!box,defeated:!!defeated,hpUsed,hungerUsed,mpUsed},at:Date.now()};
+  set(ref(realtimeDB,runPath+"/members/"+uid),{name:me.name,at:endedAt,joined:true,proposalId:proposalId,minutes:settle.minutes,battles:settle.battles,wins:settle.wins,used:settle.used,loot:found.slice(0,60),lootCount:found.length,chest:!!box,defeated:!!defeated,hpUsed,hungerUsed,mpUsed}).catch(()=>{});
+  // 출발시킨 사람이 실제로 출발하지 못했으면, 먼저 끝낸 파티원이 대신 기록(meta)을 남긴다 (2026-11-13)
+  const metaOwner=runLeader===uid||(runLeader&&!(partyExpedition&&partyExpedition.members&&partyExpedition.members[runLeader])&&!(partyExpedition&&partyExpedition.meta));
+  if(metaOwner){
+   const meta={proposalId,kind:e.kind,label:"파티 "+((EXPD[e.kind]||{}).label||"탐사"),min:e.min,startAt:startedAt,endAt:endedAt,leaderUid:uid,leaderName:me.name,participants,area:(areaObj&&areaObj.name)||e.area,log:me.expLogs.slice(-200),settle:{minutes:settle.minutes,battles:settle.battles,wins:settle.wins,used:settle.used,chest:!!box,defeated:!!defeated,hpUsed,hungerUsed,mpUsed},at:Date.now()};
    set(ref(realtimeDB,runPath+"/meta"),meta).catch(()=>{});
   }
  }
@@ -3025,7 +3034,7 @@ function resolveExp(partial=false,why){
  }
  if(newBad.length)lines.push(`<p style="color:var(--bad)">부정 특성 [${newBad.join(", ")}]을(를) 얻게 되었다.</p>`);
  logAct(partial?"중도 귀환했다.":"탐사를 마치고 귀환했다.");
- if(proposalId&&me.partyId&&runLeader===uid)update(ref(realtimeDB,"parties/"+me.partyId+"/expedition/meta"),{log:me.expLogs.slice(-200)}).catch(()=>{});
+ if(proposalId&&me.partyId&&(runLeader===uid||(partyExpedition&&partyExpedition.meta&&partyExpedition.meta.leaderUid===uid)))update(ref(realtimeDB,"parties/"+me.partyId+"/expedition/meta"),{log:me.expLogs.slice(-200)}).catch(()=>{});
  if(!partial&&e.kind==="long")playCompleteSound();
  const btns=[{t:"확인"}];
  if(!partial&&me.expLogs.length)btns.unshift({t:"탐사 기록 보기",fn:()=>openExpRecord(0)});
@@ -6318,10 +6327,10 @@ function subscribePartyProposal(){
  partyProposal=null;proposalMissedId=null;proposalPromptId=null;proposalPromptLabel=null;
  if(!me.partyId){renderProposalPanels();return}
  partyProposalUnsub=onValue(ref(realtimeDB,"partyProposals/"+me.partyId),s=>{
-  partyProposal=s.val()||null;
+  partyProposal=s.val()||null;partyProposalLoaded=true;
   if(!partyProposal)proposalRunId=null;
   if(!partyProposal||partyProposal.status!=="open")dismissProposalPrompt(partyProposal);
-  renderProposalPanels();handleProposalPopup();scheduleProposalStart();maybeStartProposalExp();
+  renderProposalPanels();handleProposalPopup();scheduleProposalStart();maybeStartProposalExp();try{tryPendingRun()}catch(e){}
  },err=>console.warn("partyProposal",err));
 }
 function proposalYesNames(p){
@@ -6394,6 +6403,7 @@ function createProposal(kind,min,offsetMin){
  if(partyProposal&&!proposalStale(partyProposal))return toast("이미 진행 중인 탐사 제안이 있다.");
  const id=uid+"-"+Date.now().toString(36),startAt=Date.now()+Math.max(10,Math.min(60,+offsetMin||10))*60000;
  const p={id,kind,min,proposerUid:uid,proposerName:me.name,startAt,createdAt:Date.now(),status:"open",responses:{[uid]:{yes:true,name:me.name,at:Date.now()}}};
+ setPendingRun(p);
  set(ref(realtimeDB,"partyProposals/"+me.partyId),p).then(()=>toast(`${proposalKindLabel(kind)} 제안을 보냈다.`)).catch(()=>toast("제안을 보내지 못했다. Firebase 규칙을 확인해 주세요."));
 }
 function respondProposal(yes){
@@ -6401,7 +6411,8 @@ function respondProposal(yes){
  if(!me.partyId||!partyProposal){proposalPromptId=null;return toast("제안이 취소되었다.")}
  if(partyProposal.status!=="open")return toast("이미 출발한 제안이다.");
  if(partyProposal.proposerUid===uid&&!yes)return cancelProposal();
- set(ref(realtimeDB,"partyProposals/"+me.partyId+"/responses/"+uid),{yes:!!yes,name:me.name,at:Date.now()}).then(()=>toast(yes?"함께 가기로 했다.":"거절했다.")).catch(()=>{proposalPromptId=null;toast("응답을 저장하지 못했다.")});
+ const pp=partyProposal;
+ set(ref(realtimeDB,"partyProposals/"+me.partyId+"/responses/"+uid),{yes:!!yes,name:me.name,at:Date.now()}).then(()=>{if(yes)setPendingRun(pp);else if(me.pendingRun&&pp&&me.pendingRun.id===pp.id)me.pendingRun=null;toast(yes?"함께 가기로 했다.":"거절했다.")}).catch(()=>{proposalPromptId=null;toast("응답을 저장하지 못했다.")});
 }
 function cancelProposal(){
  if(!me.partyId||!partyProposal)return;
@@ -6432,19 +6443,55 @@ function scheduleProposalStart(){
  const delay=Math.max(0,+p.startAt-Date.now())+grace;
  proposalTimer=setTimeout(startProposalRun,Math.min(delay,2147480000));
 }
-function enterProposalRun(p,participants){
+// ---- 수락한 파티 탐사 놓치지 않기 (2026-11-13) ----
+// 휴대폰 화면이 꺼지거나 앱이 백그라운드면 출발 시각에 스크립트가 멈춰 합류를 못 하고, 10분이 지나면 영영 빠지던 문제.
+// 수락(또는 제안)하면 me.pendingRun에 기억해 두고, 다시 접속했을 때 그 탐사가 실제로 출발했으면 출발 시각으로 거슬러 합류한다.
+let partyExpLoaded=false,partyProposalLoaded=false;
+function setPendingRun(p){if(!p||!p.id)return;me.pendingRun={id:String(p.id),kind:p.kind,min:+p.min,startAt:+p.startAt,runLeader:p.proposerUid||null,partyId:me.partyId||null,at:Date.now()};try{opts.save(cp(snap()))}catch(e){}}
+function pendingRunEvidence(pr){
+ const p=partyProposal;
+ if(p&&p.id===pr.id&&p.status==="running")return {ran:true,participants:Array.isArray(p.participants)?p.participants:null};
+ const pe=partyExpedition;
+ if(pe){const ms=pe.members||{},meta=pe.meta;
+  if((meta&&meta.proposalId===pr.id)||Object.values(ms).some(m=>m&&m.proposalId===pr.id))return {ran:true,participants:meta&&Array.isArray(meta.participants)?meta.participants:null}}
+ return {ran:false,open:!!(p&&p.id===pr.id&&p.status==="open")};
+}
+function tryPendingRun(){
+ const pr=me.pendingRun;if(!pr)return;
+ const now=Date.now();
+ if(!me.partyId||(pr.partyId&&pr.partyId!==me.partyId)){me.pendingRun=null;return}
+ if((me.expedition&&me.expedition.proposalId===pr.id)||proposalRunId===pr.id){me.pendingRun=null;return}
+ if(now<pr.startAt)return;
+ if(now>pr.startAt+pr.min*60000+48*3600000){me.pendingRun=null;return}
+ if(!partyExpLoaded||!partyProposalLoaded)return;
+ const ev=pendingRunEvidence(pr);
+ if(!ev.ran){if(!ev.open)me.pendingRun=null;return} // 취소됐거나 아무도 출발하지 않음
+ if(ev.participants&&!ev.participants.includes(uid)){me.pendingRun=null;return}
+ if(me.expedition||me.travel||me.rest||me.read||me.downed||me.deadPending)return; // 다른 행동이 끝나면 다시 시도하지 않도록 아래에서 정리
+ enterProposalRun({id:pr.id,kind:pr.kind,min:pr.min,proposerUid:pr.runLeader,startAt:pr.startAt},ev.participants||[uid],{startAt:pr.startAt});
+}
+function enterProposalRun(p,participants,o={}){
  if(!p||proposalRunId===p.id)return;
- if(me.expedition||me.travel||me.rest||me.read||me.downed||me.deadPending)return;
- proposalRunId=p.id;
- if(me.partyId){try{remove(ref(realtimeDB,"parties/"+me.partyId+"/expedition")).catch(()=>{})}catch(e){}}
- beginExp(p.kind,p.min,{participants,runLeader:p.proposerUid||uid,proposalId:p.id});
+ // 바빠서 합류하지 못하면 알려준다 (예전에는 조용히 빠져서, 다른 파티원 화면에서는 같이 싸운 것처럼 보였음) — 2026-11-13
+ const busy=me.expedition?"이미 탐사 중":me.travel?"이동 중":me.rest?"휴식 중":me.read?"독서 중":(me.downed||me.deadPending)?"쓰러진 상태":"";
+ if(busy){if(proposalMissedId!==p.id){proposalMissedId=p.id;pop("파티 탐사 불참",`<p>${busy}이라 파티 ${esc(proposalKindLabel(p.kind))}에 합류하지 못했다.</p><p class="dim">다른 파티원들은 당신 없이 출발했다.</p>`,[{t:"확인"}])}return}
+ proposalRunId=p.id;if(me.pendingRun&&me.pendingRun.id===p.id)me.pendingRun=null;
+ const runLeader=p.proposerUid||uid;
+ (async()=>{
+  // 이전 탐사 기록 정리는 출발시키는 사람만 (늦게 합류한 사람이 다른 사람의 합류 기록을 지우지 않도록)
+  if(me.partyId&&runLeader===uid){try{await remove(ref(realtimeDB,"parties/"+me.partyId+"/expedition"))}catch(e){}}
+  if(me.partyId)set(ref(realtimeDB,"parties/"+me.partyId+"/expedition/members/"+uid),{name:me.name,at:Date.now(),joined:true,proposalId:p.id}).catch(()=>{});
+ })();
+ // 출발 시각보다 1분 넘게 늦었으면 출발 시각으로 거슬러 시작 (밀린 전투·소모는 바로 처리)
+ const late=+p.startAt&&Date.now()-(+p.startAt)>60000;
+ beginExp(p.kind,p.min,{participants,runLeader,proposalId:p.id,startAt:late?+p.startAt:(o.startAt||null)});
  renderProposalPanels();
 }
 function maybeStartProposalExp(){
  const p=partyProposal;
  if(!p||p.status!=="running"||proposalRunId===p.id)return;
  if(!Array.isArray(p.participants)||!p.participants.includes(uid))return;
- if(Date.now()>(+p.startAt||0)+PROPOSAL_JOIN_WINDOW)return;
+ if(Date.now()>(+p.startAt||0)+PROPOSAL_JOIN_WINDOW&&!(me.pendingRun&&me.pendingRun.id===p.id))return;
  enterProposalRun(p,p.participants);
 }
 function startProposalRun(){
@@ -6457,6 +6504,7 @@ function startProposalRun(){
  if(late<0)return;
  if(p.proposerUid!==uid&&late<4000)return;
  if(late>PROPOSAL_JOIN_WINDOW){
+  if(me.pendingRun&&me.pendingRun.id===p.id){update(ref(realtimeDB,"partyProposals/"+me.partyId),{status:"running",participants,startedAt:+p.startAt,runnerUid:p.proposerUid||uid}).catch(()=>{});enterProposalRun(p,participants);return}
   if(proposalMissedId!==p.id){proposalMissedId=p.id;toast("출발 시간이 지나 참가하지 못했다.");renderProposalPanels()}
   return;
  }
@@ -6550,7 +6598,7 @@ function subscribePartyExpedition(){
  partyExpedition=null;renderExpLogBtn();
  if(!me.partyId)return;
  partyExpUnsub=onValue(ref(realtimeDB,"parties/"+me.partyId+"/expedition"),s=>{
-  partyExpedition=s.val()||null;
+  partyExpedition=s.val()||null;partyExpLoaded=true;try{tryPendingRun()}catch(e){}
   renderExpLogBtn();
   if(!$("pop").hidden&&expRecordView){try{openExpRecord(expRecordIndex)}catch(e){}}
  },err=>console.warn("partyExpedition",err));
@@ -6906,7 +6954,7 @@ async function send(){const v=$("inp").value.trim();if(!v||$("inp").disabled||se
  finally{sending=false;render()}}
 $("btn").onclick=send;$("inp").onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing)send()};
 render();
-if(uid){syncPresence(true);subscribeChat("world");subscribeChat("notice");subscribeDownedMap();subscribeGraves();subscribeWhisperPing();restoreWhisper();T(()=>{handleProposalPopup();startProposalRun();maybeStartProposalExp()},5000);T(()=>syncPresence(true),60000)}
+if(uid){syncPresence(true);subscribeChat("world");subscribeChat("notice");subscribeDownedMap();subscribeGraves();subscribeWhisperPing();restoreWhisper();T(()=>{handleProposalPopup();startProposalRun();maybeStartProposalExp();try{tryPendingRun()}catch(e){}},5000);T(()=>syncPresence(true),60000)}
 
 // ---- 시간 / 시장 (한국 표준시 기준) ----
 const KST=o=>new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",...o});
@@ -7984,7 +8032,7 @@ if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(u
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
 T(itemLogTick,2000);setTimeout(itemLogTick,0);
 function savePartyBattleSeen(){try{opts.save(cp(snap()))}catch(e){}}
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
 // 기존 캐릭터 1회 지급: 이동속도 증가 포션 20개
 const SPEED_POTION_GRANT_CUTOFF=Date.parse("2026-11-07T23:59:59+09:00");
 if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
