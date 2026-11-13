@@ -8565,6 +8565,30 @@ return{stop(){try{if(_npcResize)window.removeEventListener("resize",_npcResize);
 }
 
 </script>
+<div id="newVerBar" role="status" style="position:fixed;top:0;left:0;right:0;z-index:9999;display:none;justify-content:center;pointer-events:none;padding:6px 12px;padding-top:calc(6px + env(safe-area-inset-top,0px))"><button type="button" id="newVerBtn" style="pointer-events:auto;border:0;border-radius:999px;padding:6px 14px;font:inherit;font-size:13px;background:#2c2c2c;color:#fff;box-shadow:0 2px 10px rgba(0,0,0,.25);cursor:pointer">새 버전이 나왔어요. 페이지를 새로고침해 주세요 ↻</button></div>
+<script>
+// 새 버전 알림 (2026-11-14): index.html이 새로 올라오면 상단에 작게 안내. 5분마다·화면 복귀 시 서버의 파일 표식(ETag/Last-Modified, 없으면 내용 해시)을 비교
+(function(){
+ var base=null,shown=false,busy=false,url=location.origin+location.pathname;
+ function hash(t){var h=2166136261;for(var i=0;i<t.length;i++){h^=t.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0).toString(36)+":"+t.length}
+ function sig(){
+  var u=url+(url.indexOf("?")<0?"?":"&")+"_v="+Date.now();
+  return fetch(u,{method:"HEAD",cache:"no-store"}).then(function(r){
+   var tag=r.headers.get("etag")||r.headers.get("last-modified");
+   if(r.ok&&tag)return "h:"+tag;
+   return fetch(u,{cache:"no-store"}).then(function(r2){return r2.ok?r2.text().then(function(t){return "c:"+hash(t)}):null});
+  }).catch(function(){return null});
+ }
+ function check(){
+  if(shown||busy||location.protocol==="file:")return;busy=true;
+  sig().then(function(v){busy=false;if(!v)return;if(base===null){base=v;return}
+   if(v!==base&&v.charAt(0)===base.charAt(0)){shown=true;var bar=document.getElementById("newVerBar");if(bar)bar.style.display="flex"}});
+ }
+ document.addEventListener("click",function(e){if(e.target&&e.target.id==="newVerBtn")location.reload()});
+ setTimeout(check,3000);setInterval(check,5*60*1000);
+ document.addEventListener("visibilitychange",function(){if(!document.hidden)check()});
+})();
+</script>
 </body>
 </html>
 
