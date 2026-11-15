@@ -2239,7 +2239,7 @@ function calcStats(c){
   magicAcc:clamp(70+1.5*(int)+0.5*S("magic")+mods.accuracyPct,0,95),
   speed:Math.max(1,Math.round((10+agi-weightPenalty+traitSpeed+mods.speedFlat)*(1+(mods.speedPct||0)/100))),
   int,weight,capacity,weightPenalty,
-  evasion:clamp(5+0.8*(agi)+0.5*S("stealth")+traitEva+equipEva+tools.stealth+(mods.stealth||0)+mods.evasionPct,0,80),// 2026-11-15 회피 상한 40→80
+  evasion:clamp(5+1.0*(agi)+1.0*S("stealth")+traitEva+equipEva+tools.stealth+(mods.stealth||0)+mods.evasionPct,0,80),// 2026-11-15 회피 상한 40→80, 민첩 계수 0.8→1.0, 은신 계수 0.5→1.0
   flee:clamp(50+1.0*(agi)+1.0*S("stealth")+traitFlee+tools.fleePct+tools.stealth+(mods.stealth||0)+mods.fleePct,0,90),
   critChance:Math.max(critOf(mw),critOf(rw),critOf(gw)),
   critDamage:Math.max(critDmgOf(mw),critDmgOf(rw),critDmgOf(gw)),
