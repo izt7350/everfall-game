@@ -53,6 +53,13 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .ibtn{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
 #gameRoot .sm2{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:3px;padding:2px 8px;font-size:12px;cursor:pointer}
 #gameRoot .btn.sm2{background:var(--accent);color:#fff;border:0}
+#gameRoot .prof{position:relative}
+#gameRoot .inbox-btn{position:absolute;top:0;right:0;background:var(--panel2);border:1px solid var(--line);color:var(--dim,inherit);border-radius:12px;padding:2px 9px;font-size:12px;cursor:pointer}
+#gameRoot .inbox-btn.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+.ib-row{border-bottom:1px solid var(--line);padding:8px 0}
+.ib-row:last-child{border-bottom:0}
+.ib-row .ib-t{font-size:12px;opacity:.7}
+.ib-row .ib-act{display:flex;gap:6px;margin-top:6px}
 #gameRoot .btn.alt.sm2{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
 #gameRoot .sm2:disabled{opacity:.45;cursor:not-allowed}
 #gameRoot .sm2.lock-on{background:var(--accent-soft);border-color:var(--accent-strong);color:var(--accent-text)}
@@ -828,6 +835,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
     <div class="char-sub" id="charSub"></div>
     <div class="char-guild" id="charGuild"></div>
    </div>
+   <button type="button" class="inbox-btn" id="inboxBtn" title="받은 요청 다시 보기">알림</button>
   </div>
   <div class="meta">
    <div class="row">출신지 <b id="origin"></b></div>
@@ -1817,7 +1825,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.statPts=Math.max(0,Math.floor(+c.statPts||0));
  o.skillPts=Math.max(0,Math.floor(+c.skillPts||0));
  o.crafted=Array.isArray(c.crafted)?c.crafted.filter(x=>typeof x==="string").slice(-600):[];
- o.speedPotionGrant=!!c.speedPotionGrant;o.speedPotionGrant2=!!c.speedPotionGrant2;o.dunBoxGrant1=!!c.dunBoxGrant1;o.mpGrant50=!!c.mpGrant50;o.partyBattleSeen=typeof c.partyBattleSeen==="string"?c.partyBattleSeen.slice(0,80):"";o.itemLogSeq=Math.max(0,Math.floor(+c.itemLogSeq||0));o.pendingRun=c.pendingRun&&typeof c.pendingRun==="object"&&c.pendingRun.id?{id:String(c.pendingRun.id).slice(0,60),kind:c.pendingRun.kind==="dungeon"?"dungeon":"long",min:+c.pendingRun.min||30,startAt:+c.pendingRun.startAt||0,runLeader:c.pendingRun.runLeader||null,partyId:c.pendingRun.partyId||null,at:+c.pendingRun.at||0}:null;
+ o.speedPotionGrant=!!c.speedPotionGrant;o.speedPotionGrant2=!!c.speedPotionGrant2;o.dunBoxGrant1=!!c.dunBoxGrant1;o.mpGrant50=!!c.mpGrant50;o.partyBattleSeen=typeof c.partyBattleSeen==="string"?c.partyBattleSeen.slice(0,80):"";o.itemLogSeq=Math.max(0,Math.floor(+c.itemLogSeq||0));o.rideSeen=typeof c.rideSeen==="string"?c.rideSeen.slice(-600):"";o.inbox=Array.isArray(c.inbox)?c.inbox.filter(x=>x&&typeof x==="object"&&x.k).slice(0,40):[];o.outReqs=Array.isArray(c.outReqs)?c.outReqs.filter(x=>x&&typeof x==="object"&&x.rid).slice(-30):[];o.pendingRun=c.pendingRun&&typeof c.pendingRun==="object"&&c.pendingRun.id?{id:String(c.pendingRun.id).slice(0,60),kind:c.pendingRun.kind==="dungeon"?"dungeon":"long",min:+c.pendingRun.min||30,startAt:+c.pendingRun.startAt||0,runLeader:c.pendingRun.runLeader||null,partyId:c.pendingRun.partyId||null,at:+c.pendingRun.at||0}:null;
  o.potionLock=Array.isArray(c.potionLock)?c.potionLock.filter(x=>typeof x==="string").slice(-100):[];
  o.itemLock=Array.isArray(c.itemLock)?c.itemLock.filter(x=>typeof x==="string").slice(-1000):[];
  o.potionGrant=!!c.potionGrant;o.potionGrant20=!!c.potionGrant20||!!o.drosselPotion20;o.mpAt=isFinite(+c.mpAt)?+c.mpAt:Date.now();o.mpCarry=Math.max(0,+c.mpCarry||0);
@@ -2447,7 +2455,7 @@ const initialMageTrait=hasSavedSkills?(char.mageTraitMagic5===2?2:!!char.mageTra
 const initialPriestTrait=hasSavedSkills?(char.priestTraitHeal5===2?2:0):2;
 const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||char.origin,area:char.area||"cap",sub:char.sub||null,travel:char.travel||null,gold:char.gold??100,
  inv:cp(char.items||[]),equipped:cp(char.equipped||{}),vehicles:cp(char.vehicles||[]),pet:cp(char.pet||null),petAdoptLockUntil:Math.max(0,+char.petAdoptLockUntil||0),ground:cp(char.ground||{}),blocked:cp(char.blocked||[]),
- hp:cp(char.hp||[100,100]),mp:cp(char.mp||[100,100]),hunger:cp(char.hunger||[100,100]),isAdmin:!!opts.admin,speedPotionGrant:!!char.speedPotionGrant,speedPotionGrant2:!!char.speedPotionGrant2,dunBoxGrant1:!!char.dunBoxGrant1,mpGrant50:!!char.mpGrant50,partyBattleSeen:typeof char.partyBattleSeen==="string"?char.partyBattleSeen:"",itemLogSeq:Math.max(0,Math.floor(+char.itemLogSeq||0)),pendingRun:char.pendingRun||null,fx:cp(char.fx||[]),
+ hp:cp(char.hp||[100,100]),mp:cp(char.mp||[100,100]),hunger:cp(char.hunger||[100,100]),isAdmin:!!opts.admin,speedPotionGrant:!!char.speedPotionGrant,speedPotionGrant2:!!char.speedPotionGrant2,dunBoxGrant1:!!char.dunBoxGrant1,mpGrant50:!!char.mpGrant50,partyBattleSeen:typeof char.partyBattleSeen==="string"?char.partyBattleSeen:"",itemLogSeq:Math.max(0,Math.floor(+char.itemLogSeq||0)),pendingRun:char.pendingRun||null,rideSeen:char.rideSeen||"",inbox:Array.isArray(char.inbox)?char.inbox:[],outReqs:Array.isArray(char.outReqs)?char.outReqs:[],fx:cp(char.fx||[]),
  color:/^#[0-9a-fA-F]{6}$/.test(char.color||"")?char.color:"#CB3533",
  photo:okPhoto(char.photo)?char.photo:null,
  traits:cp(Array.isArray(char.traits)?char.traits:(char.trait?[char.trait]:[])),
@@ -4744,11 +4752,13 @@ async function guildInvite(targetUid,name){
   if(ms.exists()&&ms.val())return toast(`${name||"상대"}님은 이미 길드에 가입되어 있습니다.`);
   const gs=await get(guildRef(me.guildId));const g=gs.val();
   if(!g||!g.members||!g.members[uid])return toast("길드 정보를 확인할 수 없습니다.");
-  await set(ref(realtimeDB,"guildInvites/"+targetUid+"/"+me.guildId),{from:uid,fromName:me.name,gid:me.guildId,guildName:String(g.name||me.guild||"길드"),at:Date.now()});
+  const rid=newReqId(),at=Date.now();
+  await set(ref(realtimeDB,"guildInvites/"+targetUid+"/"+me.guildId),{rid,from:uid,fromName:me.name,gid:me.guildId,guildName:String(g.name||me.guild||"길드"),at});
+  outReqAdd({rid,type:"guild",to:targetUid,toName:name||"상대",at});
   toast(`${name||"상대"}님에게 길드 초대를 보냈습니다.`);
  }catch(e){console.warn("guildInvite",e);toast("길드 초대에 실패했습니다.")}
 }
-function guildInviteDrop(gid){guildInviteSeen.delete(gid);return remove(ref(realtimeDB,"guildInvites/"+uid+"/"+gid)).catch(()=>{})}
+function guildInviteDrop(gid){return remove(ref(realtimeDB,"guildInvites/"+uid+"/"+gid)).catch(()=>{})}
 async function guildInviteAccept(gid,inv){
  if(me.guildId){guildInviteDrop(gid);return toast("이미 길드에 가입되어 있습니다.")}
  try{
@@ -4763,7 +4773,7 @@ async function guildInviteAccept(gid,inv){
  }catch(e){console.warn("guildInviteAccept",e);toast("처리에 실패했습니다. 잠시 후 다시 시도해 주세요.")}
  guildInviteDrop(gid);
 }
-async function showGuildInvite(gid,inv){
+async function showGuildInvite(gid,inv,ik){
  if(me.guildId){guildInviteDrop(gid);return}
  let g=null;try{const s=await get(guildRef(gid));g=s.val()}catch(e){}
  if(!g){guildInviteDrop(gid);return}
@@ -4771,8 +4781,8 @@ async function showGuildInvite(gid,inv){
  const gname=String(g.name||inv.guildName||"길드");
  const ro=(()=>{const c=gname.charCodeAt(gname.length-1)-0xAC00;if(c<0||c>11171)return "(으)로";const j=c%28;return j===0||j===8?"로":"으로"})();
  pop("길드 초대",`<p>길드 <b>‘${esc(gname)}’</b>${ro}부터 초대를 받았다.</p><p class="dim">초대한 사람: ${esc(inv.fromName||"길드원")} · 길드원 ${Object.keys(g.members||{}).length}명 · ${esc(GUILD_JOIN_LABEL[mode]||"")}</p>`,[
-  {t:mode==="auto"?"가입하기":"가입 신청하기",c:"",fn:()=>guildInviteAccept(gid,inv)},
-  {t:"거절하기",fn:()=>{guildInviteDrop(gid);toast("길드 초대를 거절했습니다.")}}
+  {t:mode==="auto"?"가입하기":"가입 신청하기",c:"",fn:()=>{if(ik){const x=inboxList().find(y=>y.k===ik);if(x)return inboxAct(x,true)}guildInviteAccept(gid,inv)}},
+  {t:"거절하기",fn:()=>{if(ik){const x=inboxList().find(y=>y.k===ik);if(x)return inboxAct(x,false)}guildInviteDrop(gid);toast("길드 초대를 거절했습니다.")}}
  ]);
 }
 function subscribeGuildInvites(){
@@ -4780,9 +4790,13 @@ function subscribeGuildInvites(){
  guildInviteUnsub=onValue(ref(realtimeDB,"guildInvites/"+uid),s=>{
   const v=s.val()||{};
   Object.entries(v).forEach(([gid,inv])=>{
-   if(!inv||guildInviteSeen.has(gid))return;
-   guildInviteSeen.add(gid);
-   showGuildInvite(gid,inv);
+   const key=gid+":"+(inv&&inv.at||0);
+   if(!inv||guildInviteSeen.has(key))return;
+   guildInviteSeen.add(key);
+   const at=+inv.at||Date.now();
+   const x=inboxAdd({k:"guild:"+key,type:"guild",from:inv.from,fromName:inv.fromName||"길드원",text:`길드 ‘${String(inv.guildName||"길드")}’ 초대를 보냈다.`,at,exp:at+REQ_TTL,data:{gid,inv}});
+   if(inboxLive(x))showGuildInvite(gid,inv,x.k);
+   else guildInviteDrop(gid);
   });
  },err=>console.warn("guildInvites",err));
 }
@@ -5554,9 +5568,209 @@ function drawMove(){const q=quote(mv.kind,mv.n,mv.mode,mv.baseMin);
 $("mvm").onclick=e=>{const b=e.target.closest(".mode");if(b){mv.mode=b.dataset.m;drawMove()}};
 $("mvno").onclick=()=>$("mvmodal").hidden=true;
 const consume=(n,c)=>{for(let i=0;i<c;i++)me.inv.splice(me.inv.findIndex(x=>nm(x)===n),1)};
-$("mvgo").onclick=()=>{if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 이동할 수 없습니다.");const q=quote(mv.kind,mv.n,mv.mode,mv.baseMin);if(count("건초")<q.food||(q.fuel&&airFuel()<q.fuel))return;if(!starvationActionCost())return;
- consume("건초",q.food);if(q.fuel){const a=airShip();if(a)a.fuel=Math.max(0,airFuel()-q.fuel)}
- wearTool("나침반");me.travel={end:Date.now()+q.min*60000,dest:mv.dest,label:mv.label,min:q.min,mode:mv.mode};$("mvmodal").hidden=true;try{npcTalkSync()}catch(e){}bag();renderAll();try{render()}catch(e){}};
+$("mvgo").onclick=()=>{if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 이동할 수 없습니다.");const q=quote(mv.kind,mv.n,mv.mode,mv.baseMin);if(count("건초")<q.food||(q.fuel&&airFuel()<q.fuel))return;
+ const m={...mv};
+ // 말·비행선: 같은 소지역에 파티원이 있으면 동승 여부를 묻는다 (2026-11-15)
+ if(m.mode!=="walk"&&rideCandidates().length){
+  $("mvmodal").hidden=true;
+  pop("동승",`<p>같은 곳에 파티원이 있다. ${MODE[m.mode]}에 함께 태우고 갈까?</p><p class="dim sm">${MODE[m.mode]}은(는) 최대 ${RIDE_SEATS[m.mode]}명까지 탈 수 있다. 파티원은 2분 안에 동승 여부를 정한다.</p>`,[
+   {t:"파티와 함께 간다",c:"",fn:()=>startRide(m)},
+   {t:"혼자 간다",fn:()=>departMove(m)}
+  ]);
+  return;
+ }
+ departMove(m)};
+// ---- 동승 (2026-11-15) ----
+// 운전자: 말(최대 2인)·비행선(최대 5인). 같은 소지역의 파티원에게 partyRides/{파티}/{id}로 요청.
+// 요청하는 순간 운전자는 재료를 쓰고 '출발 예약' 상태(me.travel, start=마감 시각)가 된다 → 운전자가 창을 꺼도 마감 시각에 출발.
+// 출발 시각 S = startAt(운전자가 접속 중이고 전원이 응답하면 앞당김) 또는 deadline(요청 후 2분).
+// 동승자 = S 이전 응답 기준 [수락 순 → 미응답 순] 좌석(운전자 제외) 수만큼. 모든 클라이언트가 같은 규칙으로 계산한다.
+// 동승자는 S부터 운전자의 소요 시간으로 같은 곳에 도착. 화면을 끈 동승자는 다시 접속했을 때 S로 거슬러 적용(me.rideSeen으로 한 번만).
+var REQ_TTL=180000; // 요청 유효 시간 3분 (알림함 공용)
+var RIDE_SEATS={horse:2,air:5},RIDE_WAIT_MS=180000,RIDE_LATE_MS=48*3600000;
+var partyRides={},partyRidesUnsub=null,ridePromptId=null;
+const rideResponding=new Set(),rideDoneLocal=new Set();
+const rideSeenHas=id=>String(me.rideSeen||"").split(",").includes(String(id));
+const rideSeenAdd=id=>{const a=String(me.rideSeen||"").split(",").filter(Boolean).filter(x=>x!==String(id));a.push(String(id));me.rideSeen=a.slice(-20).join(",")};
+const rideBusy=()=>!!(me.travel||me.rest||me.expedition||me.read||me.downed||me.deadPending);
+const rideSameLoc=o=>!!o&&o.cont===me.cont&&o.area===me.area&&(o.sub||"")===(me.sub||"");
+const rideStartOf=r=>+r.startAt||+r.deadline||0;
+const myRideWait=()=>me.travel&&me.travel.ride&&me.travel.driver&&Date.now()<(+me.travel.start||0)?me.travel:null;
+function rideCandidates(){
+ if(!uid||!me.partyId||!partyData||!partyData.members)return[];
+ const now=Date.now();
+ return (presenceList||[]).filter(p=>p&&p.uid!==uid&&partyData.members[p.uid]&&p.cont===me.cont&&p.area===me.area&&(p.sub||"")===(me.sub||"")&&!p.downed&&now-(+p.at||0)<PEOPLE_TTL);
+}
+// 실제 출발 (운전자는 재료 소모, 동승자는 소모 없음)
+function departMove(m,o={}){
+ if(me.downed||me.deadPending){toast("쓰러진 상태에서는 이동할 수 없습니다.");return false}
+ const q=quote(m.kind,m.n,m.mode,m.baseMin);
+ if(!o.passenger){
+  if(count("건초")<q.food||(q.fuel&&airFuel()<q.fuel)){toast("이동 재료가 부족합니다.");return false}
+  if(!starvationActionCost())return false;
+  consume("건초",q.food);if(q.fuel){const a=airShip();if(a)a.fuel=Math.max(0,airFuel()-q.fuel)}
+  wearTool("나침반");
+ }
+ const start=o.startAt||Date.now(),min=o.min!=null?Math.max(0,+o.min||0):q.min;
+ me.travel={end:start+min*60000,dest:m.dest,label:m.label,min,mode:m.mode};
+ if(o.rideId){me.travel.ride=o.rideId;me.travel.start=start}
+ if(o.driver){me.travel.driver=true;me.travel.cost={food:q.food,fuel:q.fuel||0}}
+ $("mvmodal").hidden=true;try{npcTalkSync()}catch(e){}bag();renderAll();try{render()}catch(e){}
+ try{opts.save(cp(snap()))}catch(e){}
+ return true;
+}
+const ridePath=(pid,id)=>"partyRides/"+pid+(id?"/"+id:"");
+function startRide(m){
+ if(!uid||!me.partyId)return departMove(m);
+ if(rideBusy())return toast("지금은 출발할 수 없습니다.");
+ const cands=rideCandidates();if(!cands.length)return departMove(m);
+ const q=quote(m.kind,m.n,m.mode,m.baseMin);
+ if(count("건초")<q.food||(q.fuel&&airFuel()<q.fuel))return toast("이동 재료가 부족합니다.");
+ const now=Date.now(),id="r"+now.toString(36)+Math.random().toString(36).slice(2,6),invited={};
+ cands.forEach((p,i)=>{invited[p.uid]={name:String(p.name||"파티원").slice(0,16),ord:i}});
+ const dest={cont:m.dest.cont,area:m.dest.area};if(m.dest.sub!=null)dest.sub=m.dest.sub;
+ const ride={id,driverUid:uid,driverName:me.name,mode:m.mode,label:m.label,dest,kind:m.kind,n:m.n,min:q.min,seats:RIDE_SEATS[m.mode]||1,invited,createdAt:now,deadline:now+RIDE_WAIT_MS,origin:{cont:me.cont,area:me.area,sub:me.sub||""},status:"open"};
+ if(m.baseMin!=null)ride.baseMin=m.baseMin;
+ const pid=me.partyId;
+ try{for(const r of Object.values(partyRides||{}))if(r&&r.driverUid===uid&&now-(+r.createdAt||0)>6*3600000)remove(ref(realtimeDB,ridePath(pid,r.id))).catch(()=>{})}catch(e){}
+ set(ref(realtimeDB,ridePath(pid,id)),ride).then(()=>{
+  partyRides[id]=partyRides[id]||ride;
+  // 재료를 쓰고 마감 시각 출발로 예약 → 창을 꺼도 출발한다
+  if(!departMove(m,{driver:true,rideId:id,startAt:ride.deadline,min:q.min})){update(ref(realtimeDB,ridePath(pid,id)),{status:"cancelled"}).catch(()=>{});return}
+  rideWaitRender(true);
+ }).catch(err=>{console.warn("ride",err);toast("동승 요청을 보내지 못해 혼자 출발합니다. (Firebase 규칙 확인 필요)");departMove(m)});
+}
+// S 이전 응답만 인정. 동승자 = 수락 순 → 미응답 순, 좌석(운전자 제외)만큼
+function rideOrder(r){
+ const S=rideStartOf(r),res=r.responses||{},inv=Object.entries(r.invited||{}).sort((a,b)=>(+a[1].ord||0)-(+b[1].ord||0)).map(x=>x[0]);
+ const ok=id=>res[id]&&(+res[id].at||0)<=S+5000;
+ const yes=inv.filter(id=>ok(id)&&res[id].yes).sort((a,b)=>(+res[a].at||0)-(+res[b].at||0));
+ const silent=inv.filter(id=>!ok(id));
+ const all=[...yes,...silent],riders=all.slice(0,Math.max(0,(+r.seats||1)-1));
+ return {inv,yes,silent,no:inv.filter(id=>ok(id)&&!res[id].yes),riders,over:all.slice(riders.length)};
+}
+const rideName=(r,id)=>((r.invited||{})[id]||{}).name||"파티원";
+function rideWaitRender(open){
+ const t=myRideWait();if(!t)return;
+ const r=partyRides[t.ride];if(!r)return;
+ const o=rideOrder(r),res=r.responses||{};
+ const left=Math.max(0,Math.ceil((rideStartOf(r)-Date.now())/1000));
+ const rows=o.inv.map(id=>{const x=res[id];return `<div class="row" style="justify-content:space-between"><span>${esc(rideName(r,id))}</span><b class="${x&&x.yes?"q-ok":"dim"}">${x?(x.yes?"동승":"거절"):"대기 중"}</b></div>`}).join("");
+ const html=`<p>‘${esc(r.label)}’까지 ${MODE[r.mode]}(으)로 함께 갈 파티원을 기다리는 중이다.</p><div style="margin:6px 0">${rows}</div><p class="dim sm">좌석 ${r.seats}명(나 포함) · ${left}초 뒤 출발 · 거절하지 않은 파티원은 함께 간다. 창을 닫거나 접속을 끊어도 시간이 되면 출발한다.</p>`;
+ if(open){pop("동승 대기",html,[{t:"동승 취소",fn:cancelRide},{t:"닫기"}]);return}
+ if(!$("pop").hidden&&$("pt").textContent==="동승 대기")$("pb").innerHTML=html;
+}
+function cancelRide(){
+ const t=myRideWait();if(!t)return toast("이미 출발했다.");
+ const c=t.cost||{};
+ for(let i=0;i<(+c.food||0);i++)me.inv.push("건초");
+ if(c.fuel){const a=airShip();if(a)a.fuel=Math.min(AIR_FUEL_MAX||6,(+a.fuel||0)+(+c.fuel||0))}
+ const pid=me.partyId,id=t.ride;me.travel=null;
+ if(pid)update(ref(realtimeDB,ridePath(pid,id)),{status:"cancelled"}).catch(()=>{});
+ bag();renderAll();try{render()}catch(e){}try{opts.save(cp(snap()))}catch(e){}
+ toast("동승을 취소했다. 재료를 돌려받았다.");
+}
+// 운전자가 접속 중일 때: 전원이 응답하면 바로 출발(출발 시각 앞당김), 출발 시각이 되면 기록·안내
+function driverRideCheck(){
+ const t=me.travel;if(!t||!t.ride||!t.driver||!me.partyId)return;
+ const r=partyRides[t.ride];if(!r)return;
+ if(r.status==="cancelled"&&Date.now()<(+t.start||0)){cancelRide();return}
+ const now=Date.now(),S=rideStartOf(r);
+ if(r.status==="open"&&!r.startAt&&now<S&&!rideOrder(r).silent.length){
+  r.startAt=now;t.start=now;t.end=now+(+t.min||0)*60000;
+  update(ref(realtimeDB,ridePath(me.partyId,r.id)),{startAt:now}).catch(()=>{});
+  try{opts.save(cp(snap()))}catch(e){}
+ }
+ if(now>=rideStartOf(r)&&r.status==="open"&&!rideDoneLocal.has(r.id)){
+  rideDoneLocal.add(r.id);const o=rideOrder(r),ro={};o.riders.forEach(id=>ro[id]=true);
+  update(ref(realtimeDB,ridePath(me.partyId,r.id)),{status:"go",riders:ro}).catch(()=>{});
+  if(!$("pop").hidden&&$("pt").textContent==="동승 대기")closePop();
+  toast(o.riders.length?`${o.riders.map(id=>rideName(r,id)).join(", ")}와(과) 함께 ${MODE[r.mode]}(으)로 출발했다.`:`함께 가는 파티원이 없어 혼자 출발했다.`);
+  if(o.over.length)setTimeout(()=>toast(`자리가 부족해 ${o.over.map(id=>rideName(r,id)).join(", ")}은(는) 타지 못했다.`),1200);
+  if(o.silent.length)setTimeout(()=>toast(`${o.silent.map(id=>rideName(r,id)).join(", ")}이(가) 응답이 없다.${o.silent.some(id=>o.riders.includes(id))?" (거절하지 않아 함께 출발)":""}`),2400);
+ }
+}
+function respondRide(r,yes){
+ if(!me.partyId||rideResponding.has(r.id))return;
+ if(Date.now()>rideStartOf(r)){toast("이미 출발했다.");return}
+ rideResponding.add(r.id);try{inboxSet("ride:"+r.id,yes?"accepted":"declined")}catch(e){}
+ if(ridePromptId===r.id)ridePromptId=null;
+ set(ref(realtimeDB,ridePath(me.partyId,r.id)+"/responses/"+uid),{yes:!!yes,name:me.name,at:Date.now()})
+  .then(()=>{if(yes)toast(`동승하기로 했다. ${r.driverName}의 출발을 기다린다.`)})
+  .catch(err=>{console.warn("ride resp",err);rideResponding.delete(r.id);toast("응답을 보내지 못했다.")});
+}
+function joinRide(r){
+ rideSeenAdd(r.id);
+ const start=rideStartOf(r),end=start+(+r.min||0)*60000;
+ if(me.travel&&me.travel.ride===r.id)return;
+ if(!start||Date.now()>end+RIDE_LATE_MS){try{opts.save(cp(snap()))}catch(e){}return}
+ if(rideBusy()||!rideSameLoc(r.origin)){toast(`${r.driverName}의 ${MODE[r.mode]}에 타지 못했다. (다른 행동 중)`);try{opts.save(cp(snap()))}catch(e){}return}
+ if(ridePromptId===r.id){ridePromptId=null;if(!$("pop").hidden&&$("pt").textContent==="동승 제안")closePop()}
+ departMove({kind:r.kind,n:r.n,mode:r.mode,dest:r.dest,label:r.label,baseMin:r.baseMin},{passenger:true,startAt:start,min:+r.min||0,rideId:r.id});
+ toast(`${r.driverName}의 ${MODE[r.mode]}에 동승해 ‘${r.label}’(으)로 출발했다.`);
+}
+function showRidePrompt(r){
+ if(ridePromptId===r.id&&!$("pop").hidden&&$("pt").textContent==="동승 제안")return;
+ const busy=["modal","cmodal","rmodal","tmodal","mvmodal"].some(id=>{const el=$(id);return el&&!el.hidden})||!$("pop").hidden||!!document.querySelector(".adm-pop:not([hidden])");
+ if(busy)return; // 다른 창이 닫히면 1초 틱에서 다시 띄운다
+ ridePromptId=r.id;
+ pop("동승 제안",`<p>‘${esc(r.driverName)}’가 ‘${esc(r.label)}’까지 ${MODE[r.mode]}(으)로 함께 가자고 한다. 동승할까?</p><p class="dim sm" id="rideLeft"></p>`,[
+  {t:"동승하기",c:"",fn:()=>respondRide(r,true)},
+  {t:"거절",fn:()=>respondRide(r,false)}
+ ],true);
+ rideTickUI();
+}
+function rideTickUI(){
+ const el=$("rideLeft");if(!el||!ridePromptId)return;const r=partyRides[ridePromptId];if(!r)return;
+ el.textContent=`${Math.max(0,Math.ceil((rideStartOf(r)-Date.now())/1000))}초 안에 거절하지 않으면 함께 출발한다.`;
+}
+function handleRides(){
+ if(!uid||!me.partyId)return;
+ const now=Date.now();
+ for(const r of Object.values(partyRides||{})){
+  if(!r||!r.id||r.driverUid===uid)continue;
+  if(!(r.invited&&r.invited[uid]))continue;
+  if(now-(+r.createdAt||0)>RIDE_LATE_MS)continue;
+  const S=rideStartOf(r),my=r.responses&&r.responses[uid];
+  try{const ix=inboxAdd({k:"ride:"+r.id,type:"ride",from:r.driverUid,fromName:r.driverName,text:`‘${r.label}’까지 ${MODE[r.mode]}(으)로 함께 가자고 했다.`,at:+r.createdAt||now,exp:S,data:{id:r.id}});if(my&&ix.st==="pending")inboxSet(ix.k,my.yes?"accepted":"declined");if(r.status==="cancelled"&&ix.st==="pending")inboxSet(ix.k,"cancelled")}catch(e){}
+  if(r.status==="cancelled"){
+   if(ridePromptId===r.id){ridePromptId=null;if(!$("pop").hidden&&$("pt").textContent==="동승 제안")closePop()}
+   if(!rideSeenHas(r.id)){rideSeenAdd(r.id);try{opts.save(cp(snap()))}catch(e){}if(my&&my.yes)toast(`${r.driverName}이(가) 동승을 취소했다.`)}
+   continue;
+  }
+  if(now<S){
+   if(!my&&!rideResponding.has(r.id)){
+    if(rideBusy()||!rideSameLoc(r.origin))respondRide(r,false);
+    else showRidePrompt(r);
+   }
+   continue;
+  }
+  // 출발 시각이 지남 → 운전자 접속 여부와 상관없이 같은 규칙으로 동승 여부 결정
+  if(ridePromptId===r.id){ridePromptId=null;if(!$("pop").hidden&&$("pt").textContent==="동승 제안")closePop()}
+  if(rideSeenHas(r.id))continue;
+  const o=rideOrder(r);
+  if(o.riders.includes(uid))joinRide(r);
+  else{rideSeenAdd(r.id);try{opts.save(cp(snap()))}catch(e){}if(my&&my.yes)toast(`자리가 부족해 ${r.driverName}의 ${MODE[r.mode]}에 타지 못했다.`)}
+ }
+}
+function subscribePartyRides(){
+ if(partyRidesUnsub){try{partyRidesUnsub()}catch(e){}partyRidesUnsub=null}
+ partyRides={};ridePromptId=null;
+ if(!uid||!me.partyId)return;
+ const pid=me.partyId;
+ partyRidesUnsub=onValue(ref(realtimeDB,ridePath(pid)),s=>{
+  if(pid!==me.partyId)return;
+  partyRides=s.val()||{};
+  try{handleRides()}catch(e){console.warn(e)}
+  try{driverRideCheck();rideWaitRender()}catch(e){console.warn(e)}
+ },err=>console.warn("partyRides",err));
+}
+T(()=>{
+ try{driverRideCheck();rideWaitRender()}catch(e){}
+ try{handleRides()}catch(e){}
+ rideTickUI();
+},1000);
+$("btxt").onclick=()=>{if(myRideWait())rideWaitRender(true)};
 const walkDayKey=()=>{try{return new Intl.DateTimeFormat("sv",{timeZone:"Asia/Seoul"}).format(new Date())}catch(e){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")}};
 function addWalkMinutes(min){
  const add=Math.max(0,+min||0);if(!add)return;
@@ -5686,7 +5900,7 @@ function desc(){const w=W(),d=!!view.area,a=d?AR(view.area):AR(view.sel||me.area
  try{refreshRisk()}catch(e){};try{renderProposalPanels()}catch(e){}}
 function renderAll(){stage();desc();groundRender();$("loc").textContent=locText();try{$("loc").textContent+=" · "+curWeather().n;weatherSync()}catch(e){}
  const b=$("banner");b.hidden=!me.travel;
- if(me.travel){const s=Math.max(0,Math.ceil((me.travel.end-Date.now())/1000));$("btxt").textContent=`${me.travel.label}(으)로 이동 중… ${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`}
+ if(me.travel){const now=Date.now(),wait=me.travel.start&&now<me.travel.start,s=Math.max(0,Math.ceil(((wait?me.travel.start:me.travel.end)-now)/1000)),mmss=`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;$("btxt").textContent=wait?`${me.travel.label}(으)로 ${MODE[me.travel.mode]||""} 출발 대기 중 (동승 응답 대기)… ${mmss}`+(me.travel.driver?" · 눌러서 보기":""):`${me.travel.label}(으)로 이동 중… ${mmss}`}
  const eb=$("expb");eb.hidden=!me.expedition;if(me.expedition)updateExpText();
  const rb=$("restb");if(rb){rb.hidden=!me.rest;if(me.rest)updateRestText()}
  const rb2=$("readb");if(rb2){rb2.hidden=!me.read;if(me.read)updateReadText()}
@@ -6722,6 +6936,7 @@ function clearPartyLocal(msg){
  if(partyUnsub){try{partyUnsub()}catch(e){}partyUnsub=null}
  if(partyProposalUnsub){try{partyProposalUnsub()}catch(e){}partyProposalUnsub=null}
  if(partyExpUnsub){try{partyExpUnsub()}catch(e){}partyExpUnsub=null}
+ if(partyRidesUnsub){try{partyRidesUnsub()}catch(e){}partyRidesUnsub=null}partyRides={};
  if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null}
  partyProposal=null;proposalRunId=null;proposalPromptId=null;proposalPromptLabel=null;partyExpedition=null;
  me.partyId=null;me.partyLeader=null;partyData=null;partyAppliedBattle=null;
@@ -6774,8 +6989,8 @@ function subscribePartyExpedition(){
 }
 function subscribeParty(){
  if(partyUnsub){partyUnsub();partyUnsub=null}
- if(!me.partyId){subscribePartyProposal();subscribePartyExpedition();return}
- subscribePartyProposal();subscribePartyExpedition();
+ if(!me.partyId){subscribePartyProposal();subscribePartyExpedition();try{subscribePartyRides()}catch(e){}return}
+ subscribePartyProposal();subscribePartyExpedition();try{subscribePartyRides()}catch(e){}
  partyUnsub=onValue(ref(realtimeDB,"parties/"+me.partyId),s=>{
   const v=s.val();
   if(!v){clearPartyLocal(partyData&&partyData.leader!==uid?"파티가 해산되었다.":"");return}
@@ -6804,7 +7019,7 @@ async function invitePlayer(target){
  if(partyData&&partyData.leader!==uid)return toast("파티장만 초대할 수 있다.");
  if(partyData&&partyData.members&&Object.keys(partyData.members).length>=5)return toast("파티가 가득 찼다.");
  if(partyData&&partyData.members&&partyData.members[target])return toast("이미 파티에 있다.");
- try{await set(ref(realtimeDB,"partyInvites/"+target+"/"+me.partyId),{from:uid,fromName:me.name,partyId:me.partyId,at:Date.now()});toast("파티 초대를 보냈다.")}
+ try{const rid=newReqId(),at=Date.now(),tn=((people||[]).find(p=>p.uid===target)||{}).name||"상대";await set(ref(realtimeDB,"partyInvites/"+target+"/"+me.partyId),{rid,from:uid,fromName:me.name,partyId:me.partyId,at});outReqAdd({rid,type:"party",to:target,toName:tn,at});toast("파티 초대를 보냈다.")}
  catch(e){toast("초대 실패 · Firebase 규칙을 확인해 주세요.")}
 }
 async function joinParty(pid,inv){
@@ -6868,10 +7083,10 @@ function subscribePartyInvites(){
    if(!inv||partyInviteSeen.has(key))return;
    partyInviteSeen.add(key);
    if(me.partyId&&me.partyId===pid){remove(ref(realtimeDB,"partyInvites/"+uid+"/"+pid)).catch(()=>{});return}
-   pop("파티 초대",`<p><b>${esc(inv.fromName||"생존자")}</b>이(가) 파티 초대를 보냈다.</p>`,[
-    {t:"수락",c:"",fn:()=>joinParty(pid,inv)},
-    {t:"거절",fn:()=>{remove(ref(realtimeDB,"partyInvites/"+uid+"/"+pid)).catch(()=>{})}}
-   ],true);
+   const at=+inv.at||Date.now();
+   const x=inboxAdd({k:"party:"+key,type:"party",from:inv.from,fromName:inv.fromName||"생존자",text:"파티 초대를 보냈다.",at,exp:at+REQ_TTL,data:{pid,inv}});
+   if(inboxLive(x))inboxPrompt(x);
+   else remove(ref(realtimeDB,"partyInvites/"+uid+"/"+pid)).catch(()=>{});
   });
  },err=>console.warn("partyInvites",err));
 }
@@ -7923,7 +8138,7 @@ $("cl").onclick=async e=>{
  let remain=entry.remain;if(!cureCtx.target){const f=me.fx.find(f=>f&&(f.id===d.id||f.n===d.n));if(f)remain=fxRemainMs(f)}
  const self=!cureCtx.target,chance=cureChance(d,self,remain),success=Math.random()*100<chance,heal=success?cureHealRoll(d.id):0;
  if(cureCtx.target){
-  const sent=await requestHeal(cureCtx.target,d.n,chance,success,heal);
+  const sent=await requestHeal(cureCtx.target,d.n,chance,success,heal,tr.item||"");
   if(sent){if(tr.item&&count(tr.item)>0)consume(tr.item,1);bag();}
   return;
  }
@@ -7936,34 +8151,38 @@ $("cl").onclick=async e=>{
  let said="";if(free&&success){try{const t=npcSay("clinic","cure");if(t)said=`\n\n${npcInfo(npcOpen)[1]}: “${t}”`}catch(e){}}
  modal(success?"치료 성공":"치료 실패",`‘${d.n}’ 치료 ${success?"성공":"실패"}! 성공률 ${chance}% · ${free?"진료소 무료 치료":`${tr.item} 1개 소모`}${healed?` · HP +${healed}`:""}${said}`);
 };
-async function requestHeal(target,name,chance,success,heal=0){
+async function requestHeal(target,name,chance,success,heal=0,item=""){
  if(!uid||!target||!target.uid){toast("치료 요청을 보낼 수 없습니다.");return false}
  if(!sameSubArea(target)){toast("같은 소지역에 있어야 치료할 수 있습니다.");return false}
  try{
-  await push(ref(realtimeDB,"healRequests/"+target.uid),{from:uid,fromName:me.name,debuff:String(name||""),chance:Math.round(chance),success:!!success,heal:Math.max(0,Math.round(+heal||0)),at:Date.now()});
+  // 2026-11-15: 받는 사람이 수락해야 적용. 거절·3분 무응답이면 아이템을 돌려받는다.
+  const rid=newReqId(),at=Date.now();
+  await set(ref(realtimeDB,"healRequests/"+target.uid+"/"+rid),{rid,from:uid,fromName:me.name,debuff:String(name||""),chance:Math.round(chance),success:!!success,heal:Math.max(0,Math.round(+heal||0)),at});
+  outReqAdd({rid,type:"heal",to:target.uid,toName:target.name||"상대",at,item:item||"",label:String(name||"")});
   $("cmodal").hidden=true;
-  modal(success?"치료 성공":"치료 실패",`${target.name||"상대"} 님에게 ‘${name}’ 치료를 시도했습니다. 성공률 ${chance}% → ${success?"성공":"실패"} · 아이템 1개 소모`);
+  modal("치료 요청",`${target.name||"상대"} 님에게 ‘${name}’ 치료를 제안했습니다. (성공률 ${chance}%)\n상대가 3분 안에 받아들이면 결과가 적용됩니다. 거절하거나 응답이 없으면 ${item||"아이템"}을(를) 돌려받습니다.`);
   return true;
  }catch(e){console.warn(e);toast("치료 요청을 보내지 못했어요. Firebase 규칙을 확인해 주세요.");return false}
 }
 let healUnsub=null;const healSeen=new Set();
+function applyHealReq(d){
+ const name=String(d.debuff||""),success=d.success!==false,chance=d.chance?` (성공률 ${Math.round(d.chance)}%)`:"",heal=Math.max(0,Math.min(35,Math.round(+d.heal||0)));
+ if(!success){toast(`${d.fromName||"누군가"}님이 ‘${name}’ 치료에 실패했습니다.${chance}`);return}
+ const i=me.fx.findIndex(f=>f&&f.t==="debuff"&&String(f.n||"")===name);
+ if(i>=0){if(name==="공황")me.panicCureAt=Date.now();removeStatus(name,{silent:true});const healed=applyCureHeal(heal);if(healed)barsRender();toast(`${d.fromName||"누군가"}님이 ‘${name}’을(를) 치료했습니다.${chance}${healed?` · HP +${healed}`:""}`)}
+ else toast(`${d.fromName||"누군가"}님이 ‘${name}’ 치료를 시도했지만 해당 상태이상이 없습니다.`);
+}
 function subscribeHeals(){
  if(!uid)return;
  if(healUnsub){healUnsub();healUnsub=null}
  healUnsub=onValue(ref(realtimeDB,"healRequests/"+uid),s=>{
   const v=s.val()||{};
-  Object.entries(v).forEach(async ([rid,r])=>{
+  Object.entries(v).forEach(([rid,r])=>{
    if(!r||healSeen.has(rid))return;healSeen.add(rid);
-   const sp=await S.getProfile(r.from).catch(()=>null);
-   if(!sameSubArea(sp)){toast(`${r.fromName||"누군가"}님과 같은 소지역이 아니어서 치료가 적용되지 않았습니다.`);remove(ref(realtimeDB,"healRequests/"+uid+"/"+rid)).catch(()=>{});return}
-   const name=String(r.debuff||""),success=r.success!==false,chance=r.chance?` (성공률 ${r.chance}%)`:"",heal=Math.max(0,Math.min(35,Math.round(+r.heal||0)));
-   if(!success){toast(`${r.fromName||"누군가"}님이 ‘${name}’ 치료에 실패했습니다.${chance}`)}
-   else{
-    const i=me.fx.findIndex(f=>f&&f.t==="debuff"&&String(f.n||"")===name);
-    if(i>=0){if(name==="공황")me.panicCureAt=Date.now();removeStatus(name,{silent:true});const healed=applyCureHeal(heal);if(healed)barsRender();toast(`${r.fromName||"누군가"}님이 ‘${name}’을(를) 치료했습니다.${chance}${healed?` · HP +${healed}`:""}`)}
-    else toast(`${r.fromName||"누군가"}님이 ‘${name}’ 치료를 시도했지만 해당 상태이상이 없습니다.`);
-   }
+   const at=+r.at||Date.now(),k="heal:"+rid;
+   const x=inboxAdd({k,type:"heal",from:r.from,fromName:r.fromName||"누군가",text:`‘${String(r.debuff||"")}’ 치료를 해 주려 한다. (성공률 ${Math.round(+r.chance||0)}%)`,at,exp:at+REQ_TTL,data:{rid:r.rid||rid,from:r.from,fromName:r.fromName,debuff:String(r.debuff||""),chance:+r.chance||0,success:r.success!==false,heal:+r.heal||0}});
    remove(ref(realtimeDB,"healRequests/"+uid+"/"+rid)).catch(()=>{});
+   if(inboxLive(x))inboxPrompt(x);
   });
  },err=>console.warn("heal",err));
 }
@@ -8164,12 +8383,15 @@ async function cancelTrade(){
  if(ok){returnTradeOffer(st);tradeFinish()}
 }
 function declineTradeInvite(pair,inv){
+ try{inboxSet("trade:"+pair+":"+(+(inv&&inv.at)||0),"declined")}catch(e){}
  remove(ref(realtimeDB,"tradeInvites/"+uid+"/"+pair)).catch(()=>{});
  update(ref(realtimeDB,"trades/"+pair),{status:"declined",declinedBy:uid}).catch(()=>{});
  tradeInviteKey="";pendingInvite=null;
 }
 async function acceptTradeInvite(pair,inv){
  if(actionLock("휴식 중에는 거래할 수 없습니다."))return;
+ if(Date.now()>(+(inv&&inv.at)||0)+REQ_TTL){tradeInviteKey="";return toast("요청 시간이 지났다.")}
+ try{inboxSet("trade:"+pair+":"+(+(inv&&inv.at)||0),"accepted")}catch(e){}
  try{await remove(ref(realtimeDB,"tradeInvites/"+uid+"/"+pair))}catch(e){}
  tradeInviteKey="";pendingInvite=null;
  if(tradePair||tradeState)return;
@@ -8203,13 +8425,102 @@ function subscribeTradeInvites(){
   const v=s.val()||{},now=Date.now();
   Object.entries(v).forEach(([pair,inv])=>{
    if(!inv)return;
-   if(now-(+inv.at||0)>120000){remove(ref(realtimeDB,"tradeInvites/"+uid+"/"+pair)).catch(()=>{});return}
+   const ik="trade:"+pair+":"+(+inv.at||0);try{inboxAdd({k:ik,type:"trade",from:inv.from,fromName:inv.fromName||"플레이어",text:"거래를 요청했다.",at:+inv.at||now,exp:(+inv.at||now)+REQ_TTL,data:{pair,inv}})}catch(e){}
+   if(now-(+inv.at||0)>REQ_TTL){remove(ref(realtimeDB,"tradeInvites/"+uid+"/"+pair)).catch(()=>{});return}
+   if(tradeInviteKey&&tradeInviteKey!==pair&&!($("pop").hidden===false&&$("pt").textContent==="거래 요청"))tradeInviteKey="";
    if(tradePair||(tradeInviteKey&&tradeInviteKey!==pair)){remove(ref(realtimeDB,"tradeInvites/"+uid+"/"+pair)).catch(()=>{});return}
    showTradeInvite(pair,inv);
   });
  },err=>console.warn("tradeInvites",err));
 }
-if(uid){subscribeHeals();subscribeTradeInvites()}
+
+// ---- 알림함 (2026-11-15) ----
+// 거래·치료·파티 초대·길드 초대·동승 요청은 3분간 유효. 받은 요청은 me.inbox에 남아 알림함에서 다시 보고 수락/거절할 수 있다.
+// 3분이 지나면 기록만 보이고 버튼은 없다. 보낸 사람은 me.outReqs로 추적 → reqStatus/{보낸 사람}/{rid}에 답이 없으면 '상대가 응답이 없다.'
+var reqStatusUnsub=null,reqStatusLoaded=false;
+var newReqId=()=>"q"+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+function inboxList(){if(!Array.isArray(me.inbox))me.inbox=[];return me.inbox}
+const inboxLive=x=>!!x&&x.st==="pending"&&Date.now()<(+x.exp||0);
+function inboxSave(){try{opts.save(cp(snap()))}catch(e){}}
+function inboxAdd(e){
+ const L=inboxList();let x=L.find(y=>y.k===e.k);if(x)return x;
+ x={st:"pending",...e};L.unshift(x);L.sort((a,b)=>(+b.at||0)-(+a.at||0));if(L.length>40)L.length=40;
+ inboxSave();inboxBadge();return x;
+}
+function inboxSet(k,st){const x=inboxList().find(y=>y.k===k);if(x&&x.st==="pending"){x.st=st;inboxSave();inboxBadge();if(inboxOpen&&!$("pop").hidden&&$("pt").textContent==="알림함")openInbox()}}
+function inboxBadge(){const n=inboxList().filter(inboxLive).length,b=$("inboxBtn");if(b){b.textContent=n?`알림 ${n}`:"알림";b.classList.toggle("on",!!n)}}
+var REQ_LABEL={trade:"거래 요청",heal:"치료 요청",party:"파티 초대",guild:"길드 초대",ride:"동승 요청"};
+var inboxOpen=false;
+function reqReply(from,rid,st){if(!uid||!from||!rid)return;set(ref(realtimeDB,"reqStatus/"+from+"/"+rid),{by:uid,name:me.name,st,at:Date.now()}).catch(e=>console.warn("reqStatus",e))}
+// 받자마자 뜨는 안내창 (창을 그냥 닫아도 알림함에 남는다)
+function inboxPrompt(x){
+ if(x.type==="party"){
+  pop("파티 초대",`<p><b>${esc(x.fromName)}</b>이(가) 파티 초대를 보냈다.</p><p class="dim sm">3분 안에 응답하지 않으면 초대가 사라진다. 알림함에서도 응답할 수 있다.</p>`,[{t:"수락",c:"",fn:()=>inboxAct(x,true)},{t:"거절",fn:()=>inboxAct(x,false)}]);return}
+ if(x.type==="heal"){
+  const busy=!$("pop").hidden||["modal","cmodal","rmodal","tmodal","mvmodal"].some(id=>{const el=$(id);return el&&!el.hidden});
+  if(busy){toast(`${x.fromName}님이 치료를 제안했다. 알림함에서 확인할 수 있다.`);return}
+  pop("치료 요청",`<p><b>${esc(x.fromName)}</b>님이 ${esc(x.text)}</p><p class="dim sm">받아들이면 바로 적용된다. 3분 안에 응답하지 않으면 사라진다.</p>`,[{t:"치료 받기",c:"",fn:()=>inboxAct(x,true)},{t:"거절",fn:()=>inboxAct(x,false)}]);return}
+}
+async function inboxAct(x,yes){
+ if(!inboxLive(x)){toast("요청 시간이 지났다.");if(inboxOpen)openInbox();return}
+ const d=x.data||{};
+ if(x.type==="trade"){if(yes)acceptTradeInvite(d.pair,d.inv);else declineTradeInvite(d.pair,d.inv);if(!$("pop").hidden&&$("pt").textContent==="거래 요청")closePop();return}
+ if(x.type==="ride"){const r=partyRides[d.id];if(!r){inboxSet(x.k,"cancelled");return toast("동승 요청이 사라졌다.")}respondRide(r,yes);if(ridePromptId===r.id){ridePromptId=null;if(!$("pop").hidden&&$("pt").textContent==="동승 제안")closePop()}return}
+ if(x.type==="heal"){
+  inboxSet(x.k,yes?"accepted":"declined");reqReply(d.from,d.rid,yes?"accepted":"declined");
+  if(!yes)return toast("치료 요청을 거절했다.");
+  applyHealReq(d);return}
+ if(x.type==="party"){
+  inboxSet(x.k,yes?"accepted":"declined");reqReply(d.inv&&d.inv.from,d.inv&&d.inv.rid,yes?"accepted":"declined");
+  if(yes)return joinParty(d.pid,d.inv);
+  remove(ref(realtimeDB,"partyInvites/"+uid+"/"+d.pid)).catch(()=>{});return toast("파티 초대를 거절했다.")}
+ if(x.type==="guild"){
+  inboxSet(x.k,yes?"accepted":"declined");reqReply(d.inv&&d.inv.from,d.inv&&d.inv.rid,yes?"accepted":"declined");
+  if(yes)return guildInviteAccept(d.gid,d.inv);
+  guildInviteDrop(d.gid);return toast("길드 초대를 거절했습니다.")}
+}
+function openInbox(){
+ const L=inboxList(),now=Date.now();
+ const stTxt=x=>inboxLive(x)?"":x.st==="accepted"?"수락함":x.st==="declined"?"거절함":x.st==="cancelled"?"취소됨":"응답 시간이 지남";
+ const rows=L.length?L.map((x,i)=>{const live=inboxLive(x),left=Math.max(0,Math.ceil(((+x.exp||0)-now)/1000));
+  return `<div class="ib-row"><div><b>${esc(REQ_LABEL[x.type]||"요청")}</b> · ‘${esc(x.fromName||"")}’이(가) ${esc(x.text||"")}</div><div class="ib-t">${clockOf(+x.at||0)}${live?` · ${Math.floor(left/60)}분 ${left%60}초 남음`:` · ${stTxt(x)}`}</div>${live?`<div class="ib-act"><button type="button" class="btn sm2" data-ib="${i}" data-yes="1">수락</button><button type="button" class="btn alt sm2" data-ib="${i}" data-yes="0">거절</button></div>`:""}</div>`}).join(""):`<p class="dim">받은 요청이 없다.</p>`;
+ pop("알림함",`<div id="ibList">${rows}</div><p class="dim sm" style="margin-top:8px">요청은 3분간 유효하다. 최근 40개까지 보관한다.</p>`,[{t:"닫기"}],false,true);
+ inboxOpen=true;
+ $("pb").onclick=e=>{const b=e.target.closest("[data-ib]");if(!b)return;const x=inboxList()[+b.dataset.ib];if(!x)return;closePop();inboxOpen=false;inboxAct(x,b.dataset.yes==="1")};
+}
+$("inboxBtn").onclick=()=>openInbox();
+// 보낸 요청 추적
+function outReqAdd(o){if(!Array.isArray(me.outReqs))me.outReqs=[];me.outReqs.push(o);if(me.outReqs.length>30)me.outReqs.shift();inboxSave()}
+function outReqDone(rid){const L=me.outReqs||[];const i=L.findIndex(x=>x.rid===rid);if(i<0)return null;const o=L.splice(i,1)[0];inboxSave();return o}
+function healRefund(o){if(o&&o.type==="heal"&&o.item){me.inv.push(o.item);try{bag()}catch(e){}return ` ${o.item} 1개를 돌려받았다.`}return ""}
+function subscribeReqStatus(){
+ if(!uid)return;
+ if(reqStatusUnsub){try{reqStatusUnsub()}catch(e){}reqStatusUnsub=null}
+ reqStatusUnsub=onValue(ref(realtimeDB,"reqStatus/"+uid),s=>{
+  reqStatusLoaded=true;
+  Object.entries(s.val()||{}).forEach(([rid,v])=>{
+   const o=outReqDone(rid);remove(ref(realtimeDB,"reqStatus/"+uid+"/"+rid)).catch(()=>{});
+   if(!o||!v)return;const nm2=v.name||o.toName||"상대",ok=v.st==="accepted";
+   if(o.type==="heal")toast(ok?`${nm2}님이 ‘${o.label||""}’ 치료를 받아들였다.`:`${nm2}님이 치료를 거절했다.${healRefund(o)}`);
+   else if(!ok)toast(`${nm2}님이 ${REQ_LABEL[o.type]||"요청"}를 거절했다.`);
+  });
+ },err=>{console.warn("reqStatus",err);reqStatusLoaded=true});
+}
+T(()=>{
+ if(!uid)return;
+ // 보낸 요청: 3분 + 여유 5초가 지나도 답이 없으면 '상대가 응답이 없다.'
+ if(reqStatusLoaded&&Array.isArray(me.outReqs)&&me.outReqs.length){
+  const now=Date.now(),late=me.outReqs.filter(o=>now>(+o.at||0)+REQ_TTL+5000);
+  late.forEach(o=>{outReqDone(o.rid);toast(`${o.toName||"상대"}이(가) 응답이 없다.${healRefund(o)}`)});
+ }
+ // 거래 요청을 보낸 쪽: 3분 동안 수락이 없으면 자동 취소
+ if(tradeState&&tradeState.status==="invite"&&tradeState.a===uid&&Date.now()-(+tradeState.at||0)>REQ_TTL){const nm2=(tradeOther&&tradeOther.name)||"상대";cancelTrade().then(()=>toast(`${nm2}이(가) 응답이 없다.`)).catch(()=>{})}
+ inboxBadge();
+ if(inboxOpen&&!$("pop").hidden&&$("pt").textContent==="알림함"){const now=Date.now();document.querySelectorAll("#ibList .ib-row").forEach((el,i)=>{const x=inboxList()[i];if(!x)return;const t=el.querySelector(".ib-t");if(inboxLive(x)){const left=Math.max(0,Math.ceil(((+x.exp||0)-now)/1000));if(t)t.textContent=`${clockOf(+x.at||0)} · ${Math.floor(left/60)}분 ${left%60}초 남음`}else if(el.querySelector(".ib-act")){openInbox()}})}
+ else inboxOpen=false;
+},1000);
+setTimeout(inboxBadge,0);
+if(uid){subscribeHeals();subscribeTradeInvites();subscribeReqStatus()}
 
 const pubProfile=()=>{
  const p={name:me.name,job:me.job,origin:me.origin,day:me.day,color:me.color,avatarColor:okColor(char.avatarColor)?char.avatarColor:null,photo:okPhoto(me.photo)?me.photo:null,hp:me.hp.slice(),mp:me.mp.slice(),hunger:me.hunger.slice(),gold:me.gold,lv:me.lv,xp:me.xp,traits:me.traits.slice(),stats:me.stats.slice(),skills:{...me.skills},equipped:cp(me.equipped),partyId:me.partyId,partyLeader:me.partyLeader,guild:me.guild,intro:me.intro,debuffs:me.fx.filter(f=>f&&f.t==="debuff").map(f=>String(f.n||"")),debuffInfo:me.fx.filter(f=>f&&f.t==="debuff").map(f=>({n:String(f.n||""),label:f.label||f.n,remain:fxRemainMs(f)})),cont:me.cont,area:me.area,sub:me.sub,place:locText()};
@@ -8220,7 +8531,7 @@ if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(u
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
 T(itemLogTick,2000);setTimeout(itemLogTick,0);
 function savePartyBattleSeen(){try{opts.save(cp(snap()))}catch(e){}}
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,dunBoxGrant1:!!me.dunBoxGrant1,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,speedPotionGrant:me.speedPotionGrant,dunBoxGrant1:!!me.dunBoxGrant1,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,rideSeen:me.rideSeen||"",inbox:me.inbox||[],outReqs:me.outReqs||[],party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
 // 기존 캐릭터 1회 지급: 이동속도 증가 포션 20개
 const SPEED_POTION_GRANT_CUTOFF=Date.parse("2026-11-07T23:59:59+09:00");
 if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
