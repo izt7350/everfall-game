@@ -2220,26 +2220,27 @@ function calcStats(c){
  const weightPenalty=over<=0?0:(over<20?1:2);
  const skillMax=Math.max(S("melee"),S("ranged"),S("magic"));
  const pct=(v,p)=>Math.max(0,v*(1+(p||0)/100)),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
- const baseCrit=5+1.0*(luck-5)+traitCrit+mods.critPct+nonWeaponCrit;
- const baseCritDmg=150+1.0*(luck-5)+skillMax+mods.critDmgPct+nonWeaponCd;
- const critOf=w=>clamp(baseCrit+(w?w.crit:0),0,50);
+// 2026-11-15: 능력치 기본값(5)을 빼지 않음 — 공격·명중·회피·도주·치명·독서시간은 능력치 그대로 곱함 (HP·MP·허기만 기존대로 −5 기준)
+ const baseCrit=5+1.0*(luck)+traitCrit+mods.critPct+nonWeaponCrit;
+ const baseCritDmg=150+1.0*(luck)+skillMax+mods.critDmgPct+nonWeaponCd;
+ const critOf=w=>Math.max(0,baseCrit+(w?w.crit:0));// 2026-11-15 치명타 상한 50% 제거 (100% 이상이면 매번 치명타)
  const critDmgOf=w=>Math.min(250,baseCritDmg+(w?w.cd:0));
  const atkRoll=v=>[Math.max(1,v*ATK_ROLL_MIN),Math.max(1,v*ATK_ROLL_MAX)];
- const meleeAvg=pct(10+2*(str-5)+1.5*S("melee")+(mw?mw.atk:0)+equipAllAtk+mods.atkFlat,mods.atkPct+mods.meleePct);
- const rangedAvg=pct(10+2*(per-5)+1.5*S("ranged")+(rw?rw.atk:0)+equipAllAtk+mods.atkFlat+mods.rangedFlat,mods.atkPct+mods.rangedPct+(jt.ranged||0)*100);
- const magicAvg=pct(10+2*(int-5)+1.5*S("magic")+(gw?gw.atk:0)+equipAllAtk+mods.atkFlat+mods.magicFlat,mods.atkPct+mods.magicPct);
+ const meleeAvg=pct(10+2*(str)+1.5*S("melee")+(mw?mw.atk:0)+equipAllAtk+mods.atkFlat,mods.atkPct+mods.meleePct);
+ const rangedAvg=pct(10+2*(per)+1.5*S("ranged")+(rw?rw.atk:0)+equipAllAtk+mods.atkFlat+mods.rangedFlat,mods.atkPct+mods.rangedPct+(jt.ranged||0)*100);
+ const magicAvg=pct(10+2*(int)+1.5*S("magic")+(gw?gw.atk:0)+equipAllAtk+mods.atkFlat+mods.magicFlat,mods.atkPct+mods.magicPct);
  const [meleeLo,meleeHi]=atkRoll(meleeAvg),[rangedLo,rangedHi]=atkRoll(rangedAvg),[magicLo,magicHi]=atkRoll(magicAvg);
  return {
   meleeAtkMin:meleeLo,meleeAtkMax:meleeHi,meleeAtk:meleeAvg,
   rangedAtkMin:rangedLo,rangedAtkMax:rangedHi,rangedAtk:rangedAvg,
   magicAtkMin:magicLo,magicAtkMax:magicHi,magicAtk:magicAvg,
-  meleeAcc:clamp(70+1.5*(str-5)+0.5*S("melee")+mods.accuracyPct,0,95),
-  rangedAcc:clamp(70+1.5*(per-5)+0.5*S("ranged")+mods.accuracyPct,0,95),
-  magicAcc:clamp(70+1.5*(int-5)+0.5*S("magic")+mods.accuracyPct,0,95),
+  meleeAcc:clamp(70+1.5*(str)+0.5*S("melee")+mods.accuracyPct,0,95),
+  rangedAcc:clamp(70+1.5*(per)+0.5*S("ranged")+mods.accuracyPct,0,95),
+  magicAcc:clamp(70+1.5*(int)+0.5*S("magic")+mods.accuracyPct,0,95),
   speed:Math.max(1,Math.round((10+agi-weightPenalty+traitSpeed+mods.speedFlat)*(1+(mods.speedPct||0)/100))),
   int,weight,capacity,weightPenalty,
-  evasion:clamp(5+0.8*(agi-5)+0.5*S("stealth")+traitEva+equipEva+tools.stealth+(mods.stealth||0)+mods.evasionPct,0,40),
-  flee:clamp(50+1.0*(agi-5)+1.0*S("stealth")+traitFlee+tools.fleePct+tools.stealth+(mods.stealth||0)+mods.fleePct,0,90),
+  evasion:clamp(5+0.8*(agi)+0.5*S("stealth")+traitEva+equipEva+tools.stealth+(mods.stealth||0)+mods.evasionPct,0,80),// 2026-11-15 회피 상한 40→80
+  flee:clamp(50+1.0*(agi)+1.0*S("stealth")+traitFlee+tools.fleePct+tools.stealth+(mods.stealth||0)+mods.fleePct,0,90),
   critChance:Math.max(critOf(mw),critOf(rw),critOf(gw)),
   critDamage:Math.max(critDmgOf(mw),critDmgOf(rw),critDmgOf(gw)),
   meleeCritChance:critOf(mw),rangedCritChance:critOf(rw),magicCritChance:critOf(gw),
@@ -4405,7 +4406,7 @@ const READ_HOURS={"초급":1,"중급":2,"고급":3,"전문":4};
 function readTimePct(){
  const int=calcStats().int;
  const readBonus=((JT().readExp||0)+traitTotal("readExp"))*100;
- return Math.max(50,Math.min(100,100-2*(int-5)-readBonus));
+ return Math.max(50,Math.min(100,100-2*(int)-readBonus));
 }
 function readLeftText(){
  if(!me.read)return "";
