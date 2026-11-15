@@ -5493,7 +5493,7 @@ function adoptPet(species,name){
        <div class="pet-id"><div class="pet-name-row"><span class="pet-name">${esc(v.name)}</span><button class="pet-rename" data-rn="${i}" title="이름 변경" aria-label="이름 변경">✎</button></div><span class="pet-species">${esc(v.type)}</span></div>
       </div>
       <div class="pet-stats">
-       <div class="pet-row"><span>남은 먹이</span><b>${count("먹이")}</b></div>
+       <div class="pet-row"><span>남은 건초</span><b>${count("건초")}</b></div>
        <div class="pet-row"><span>각설탕</span><b>${count("각설탕")}</b></div>
        <div class="pet-row"><span>훈련 ${t}/3</span><b>${t>=3?"최대":"훈련 가능"}</b></div>
       </div>
@@ -6161,7 +6161,7 @@ function exploreUsed(){
  if(me.exploreDay!==k){me.exploreDay=k;me.exploreCount=0}
  return Math.max(0,Math.min(EXPLORE_DAILY_LIMIT,Math.floor(+me.exploreCount||0)));
 }
-$("explore").onclick=()=>{if(actionLock("휴식 중에는 탐사할 수 없습니다."))return;const used=exploreUsed();if(used>=EXPLORE_DAILY_LIMIT)return toast(`오늘의 단기 탐사 한도를 모두 사용했습니다. (${EXPLORE_DAILY_LIMIT}/${EXPLORE_DAILY_LIMIT})`);const left=EXPLORE_COOLDOWN-(Date.now()-(me.lastExplore||0));if(left>0)return toast(`탐사 쿨타임 ${Math.ceil(left/1000)}초`);if(!starvationActionCost())return;me.lastExplore=Date.now();me.exploreDay=exploreDayKey();me.exploreCount=used+1;spendHunger(1);if(me.hunger[0]<=0){checkVitals();return}if(!me.pet&&Date.now()>=(+me.petAdoptLockUntil||0)&&Math.random()<.001){showPetDiscovery();return}let metMonster=false;const tier=battleStars(),areaObj=(()=>{try{return AR(me.area)}catch(e){return null}})(),r=Math.random(),encRed=Math.min(.8,calcStats(me).encounterRed);
+$("explore").onclick=()=>{if(actionLock("휴식 중에는 탐사할 수 없습니다."))return;const used=exploreUsed();if(used>=EXPLORE_DAILY_LIMIT)return toast(`오늘의 단기 탐사 한도를 모두 사용했습니다. (${EXPLORE_DAILY_LIMIT}/${EXPLORE_DAILY_LIMIT})`);const left=EXPLORE_COOLDOWN-(Date.now()-(me.lastExplore||0));if(left>0)return toast(`탐사 쿨타임 ${Math.ceil(left/1000)}초`);if(!starvationActionCost())return;me.lastExplore=Date.now();me.exploreDay=exploreDayKey();me.exploreCount=used+1;spendHunger(1);if(me.hunger[0]<=0){checkVitals();return}if(!me.pet&&Date.now()>=(+me.petAdoptLockUntil||0)&&Math.random()<.005){showPetDiscovery();return}let metMonster=false;const tier=battleStars(),areaObj=(()=>{try{return AR(me.area)}catch(e){return null}})(),r=Math.random(),encRed=Math.min(.8,calcStats(me).encounterRed);
  // 함정도 아이템 획득·전투처럼 탐사 결과 중 하나로 출력한다.
  const trapChance=.05;
  wearTools(["낡은 지도서","은신 도구"]);
