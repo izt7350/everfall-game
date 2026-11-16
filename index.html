@@ -7752,7 +7752,7 @@ function clock(){const n=new Date();
   $("smstat").textContent=me.cont==="카르도르"?(mOpen()?" · 영업 중":" · 영업 종료"):me.cont==="아르케인"?(ark?" · 오늘 열림":" · 오늘은 열리지 않음"):me.cont==="솔레니아"?(soleShopOpen()?" · 영업 중":" · 영업 종료"):es;
  if($("merchantTrade"))$("merchantTrade").disabled=tv||!!me.expedition||!!me.rest;
  ["cure","traitCure"].forEach(i=>$(i).disabled=tv||!sole);$("clstat").textContent=sole?" · 오늘 열림":" · 오늘은 쉬는 날";
-  const sOpen=stableOpen();["buyHorse","buyFeed"].forEach(i=>$(i).disabled=tv||!sOpen);
+  const sOpen=stableOpen();["buyHorse","buyHay","buyFeed"].forEach(i=>$(i).disabled=tv||!sOpen);
   $("ststat").textContent=sOpen?" · 영업 중":" · 영업 종료";
   $("stdesc").textContent="영업시간: 오전 9시~오후 9시 · 말 700G · 건초 15G · 먹이 15G";
  const busy=tv||!!me.expedition||!!me.rest,rh=isRestZone(),rl=restLeft();
