@@ -1667,10 +1667,10 @@ function adminLogin(){let keepPref=true;try{keepPref=localStorage.getItem("everf
    me={uid:c.user.uid,name:id,admin:true};acc=null;go("admin")}
   catch(x){e.textContent="아이디 또는 비밀번호가 올바르지 않습니다.";$("doAdmin").disabled=false}}
 async function openAdminNote(accounts){
- const names=[...new Set(ITEM_DATA.map(d=>d.name))].sort((a,b)=>a.localeCompare(b,"ko"));
+ const names=[...new Set([...ITEM_DATA.map(d=>d.name),"이동속도 증가 포션","건초"])].sort((a,b)=>a.localeCompare(b,"ko"));
  const opts=names.map(n=>{const it=ITEM_BY_NAME[n]||{};return `<option value="${esc(n)}">${esc(n)}${it.grade?` · ${esc(it.grade)}`:""}</option>`}).join("");
  const recipients=(accounts||[]).filter(a=>a&&a.id).length;
- admPop("모두에게 쪽지",`<div class="note-compose"><p class="dim">전체 ${recipients}명에게 발송합니다. 첨부 아이템은 각자 메세지함에서 받을 수 있습니다.</p><textarea id="anText" maxlength="300" placeholder="쪽지 내용을 입력하세요"></textarea><div class="note-row"><select id="anItem"><option value="">첨부 안 함</option>${opts}</select><input type="number" id="anQty" min="1" value="1" inputmode="numeric" aria-label="첨부 수량"></div><div class="note-actions"><button type="button" class="btn" id="anSend">보내기</button></div></div>`,[{t:"닫기"}],true);
+ admPop("모두에게 쪽지",`<div class="note-compose"><p class="dim">전체 ${recipients}명에게 발송합니다. 첨부 아이템은 각자 메세지함에서 받을 수 있습니다.</p><textarea id="anText" maxlength="300" placeholder="쪽지 내용을 입력하세요"></textarea><div class="note-row"><select id="anItem"><option value="">첨부 안 함</option>${opts}</select><input type="number" id="anQty" min="1" value="1" inputmode="numeric" aria-label="첨부 수량"></div><div class="note-row"><span class="dim">골드</span><input type="number" id="anGold" min="0" max="1000000" value="0" inputmode="numeric" aria-label="첨부 골드"><span class="dim">G · 받는 사람마다 지급</span></div><div class="note-actions"><button type="button" class="btn" id="anSend">보내기</button></div></div>`,[{t:"닫기"}],true);
  const q=$("anQty"),sel=$("anItem"),btn=$("anSend");
  if(q)q.disabled=true;
  if(sel)sel.onchange=()=>{if(q)q.disabled=!sel.value};
@@ -1682,10 +1682,11 @@ async function sendAdminNote(accounts){
  const itemName=($("anItem")||{}).value||"";
  let qty=Math.max(1,Math.floor(+($("anQty")||{}).value||1));
  if(itemName)qty=Math.min(999,qty);else qty=0;
+ const gold=Math.max(0,Math.min(1000000,Math.floor(+($("anGold")||{}).value||0)));
  const ids=[...new Set((accounts||[]).map(a=>a&&a.id).filter(Boolean))];
  if(!ids.length)return toast("발송할 계정이 없습니다.");
  const btn=$("anSend");if(btn)btn.disabled=true;
- const base={from:me.uid,fromName:"운영자",text,read:false,admin:true,item:itemName?{n:itemName,q:qty}:null};
+ const base={from:me.uid,fromName:"운영자",text,read:false,admin:true,item:itemName?{n:itemName,q:qty}:null,gold};
  let ok=0,fail=0;
  for(const id of ids){
   const mid=push(ref(realtimeDB,"mail/"+id)).key;
@@ -8403,6 +8404,7 @@ function showCModal(title,who,html){
 }
 // clinic=true: 진료소 치료 — 골드·재료 없이 무료 (성공률 규칙은 동일)
 function openCure(debuffs,target,clinic){
+ if(me.travel)return toast("이동 중에는 치료할 수 없습니다.");
  if(actionLock("휴식 중에는 치료할 수 없습니다."))return;
  if(target&&!sameSubArea(target))return toast("같은 소지역에 있어야 치료할 수 있습니다.");
  const self=!target;
@@ -8435,6 +8437,7 @@ function openCure(debuffs,target,clinic){
  showCModal("치료할 상태이상을 선택하세요",target&&target.name?`대상: ${target.name}`:"",cards||"<p class='dim'>치료할 상태이상이 없다.</p>");
 }
 function openTraitCure(){
+ if(me.travel)return toast("이동 중에는 치료할 수 없습니다.");
  if(actionLock("휴식 중에는 치료할 수 없습니다."))return;
  const list=me.traits.filter(t=>TRAITS[t]&&TRAITS[t].kind==="negative");
  cureCtx={mode:"trait",list,target:null};
@@ -8455,7 +8458,7 @@ $("cure").onclick=()=>openCure(null,null,true);
 $("traitCure").onclick=openTraitCure;
 $("cclose").onclick=()=>$("cmodal").hidden=true;
 $("cl").onclick=async e=>{
- const b=e.target.closest("button[data-i]");if(!b||b.disabled)return;if(actionLock("휴식 중에는 치료할 수 없습니다."))return;const idx=+b.dataset.i;
+ const b=e.target.closest("button[data-i]");if(!b||b.disabled)return;if(me.travel)return toast("이동 중에는 치료할 수 없습니다.");if(actionLock("휴식 중에는 치료할 수 없습니다."))return;const idx=+b.dataset.i;
  if(cureCtx.mode==="trait"){const trait=cureCtx.list[idx];if(trait){if(!starvationActionCost())return;removeBadTrait(trait)}return}
  const entry=cureCtx.list[idx];if(!entry)return;const d=entry.d,tr=statusTreatment(d);
  if(!tr.item&&!tr.noItem)return toast(tr.action||"치료할 수 없습니다.");
@@ -8878,6 +8881,7 @@ async function inboxAct(x,yes){
  if(x.type==="trade"){if(yes)acceptTradeInvite(d.pair,d.inv);else declineTradeInvite(d.pair,d.inv);if(!$("pop").hidden&&$("pt").textContent==="거래 요청")closePop();return}
  if(x.type==="ride"){const r=partyRides[d.id];if(!r){inboxSet(x.k,"cancelled");return toast("동승 요청이 사라졌다.")}respondRide(r,yes);if(ridePromptId===r.id){ridePromptId=null;if(!$("pop").hidden&&$("pt").textContent==="동승 제안")closePop()}return}
  if(x.type==="heal"){
+  if(me.travel){inboxSet(x.k,"declined");reqReply(d.from,d.rid,"declined");return toast("이동 중에는 치료를 받을 수 없습니다.")}
   inboxSet(x.k,yes?"accepted":"declined");reqReply(d.from,d.rid,yes?"accepted":"declined");
   if(!yes)return toast("치료 요청을 거절했다.");
   applyHealReq(d);return}
@@ -8935,12 +8939,14 @@ function openMailbox(){
  let body="";
  if(detail){
   const q=detail.item&&detail.item.n?Math.max(1,Math.floor(+detail.item.q||1)):0;
+  const g=Math.max(0,Math.floor(+detail.gold||0));
   const item=q?`<div class="mail-item"><span>첨부 : <b>${esc(detail.item.n)}</b>${q>1?` ×${q}`:""}</span><button type="button" class="btn sm2" data-mclaim="${esc(mailSelected)}">받기</button></div>`:"";
-  body=`<div class="mail-detail"><div class="mail-head"><b>${esc(detail.admin?"GM":(detail.fromName||"상대"))}</b><span class="dim">${clockOf(+detail.at||0)}</span></div><div class="mail-text">${esc(detail.text||"")}</div>${item}<div class="mail-act"><button type="button" class="btn alt sm2" data-mback>← 목록</button><button type="button" class="btn alt sm2" data-mdel="${esc(mailSelected)}">삭제</button></div></div>`;
+  const gold=g?`<div class="mail-item"><span>골드 : <b>${g} G</b></span><button type="button" class="btn sm2" data-mgold="${esc(mailSelected)}">받기</button></div>`:"";
+  body=`<div class="mail-detail"><div class="mail-head"><b>${esc(detail.admin?"GM":(detail.fromName||"상대"))}</b><span class="dim">${clockOf(+detail.at||0)}</span></div><div class="mail-text">${esc(detail.text||"")}</div>${item}${gold}<div class="mail-act"><button type="button" class="btn alt sm2" data-mback>← 목록</button><button type="button" class="btn alt sm2" data-mdel="${esc(mailSelected)}">삭제</button></div></div>`;
  }else{
   const rows=entries.length?entries.map(m=>{
-   const q=m.item&&m.item.n?1:0,who=m.admin?"GM":(m.fromName||"상대");
-   return `<button type="button" class="mail-row-btn" data-mopen="${esc(m.id)}"><span class="mail-ico">✉</span><span class="mail-row-name">${esc(who)}의 쪽지</span>${q?`<span class="mail-att">첨부</span>`:""}${m.read?"":`<span class="mail-dot"></span>`}<span class="mail-row-date">${clockOf(+m.at||0)}</span></button>`;
+   const q=m.item&&m.item.n?1:0,g=Math.max(0,Math.floor(+m.gold||0)),who=m.admin?"GM":(m.fromName||"상대"),att=[q?"첨부":"",g?"골드":""].filter(Boolean).join(" · ");
+   return `<button type="button" class="mail-row-btn" data-mopen="${esc(m.id)}"><span class="mail-ico">✉</span><span class="mail-row-name">${esc(who)}의 쪽지</span>${att?`<span class="mail-att">${att}</span>`:""}${m.read?"":`<span class="mail-dot"></span>`}<span class="mail-row-date">${clockOf(+m.at||0)}</span></button>`;
   }).join(""):`<p class="dim">받은 쪽지가 없습니다.</p>`;
   body=`<div class="mail-list">${rows}</div><p class="dim sm" style="margin-top:8px">쪽지를 선택하면 내용을 볼 수 있습니다.</p>`;
  }
@@ -8948,10 +8954,11 @@ function openMailbox(){
  pop("메세지함",body,[{t:"닫기"}],false,true);
  const pb=$("pb");
  if(pb)pb.onclick=e=>{
-  const cl=e.target.closest("[data-mopen],[data-mback],[data-mclaim],[data-mdel]");if(!cl)return;
+  const cl=e.target.closest("[data-mopen],[data-mback],[data-mclaim],[data-mgold],[data-mdel]");if(!cl)return;
   if(cl.dataset.mopen!=null)return openMailDetail(cl.dataset.mopen);
   if(cl.hasAttribute("data-mback")){mailSelected=null;return openMailbox()}
   if(cl.dataset.mclaim!=null)return claimMailItem(cl.dataset.mclaim);
+  if(cl.dataset.mgold!=null)return claimMailGold(cl.dataset.mgold);
   if(cl.dataset.mdel!=null)return deleteMail(cl.dataset.mdel);
  };
 }
@@ -8978,15 +8985,29 @@ async function claimMailItem(mid){
  }else toast(`${claimed.n}${claimed.q>1?` ×${claimed.q}`:""}을(를) 받았습니다.`);
  bag();mailBadge();
 }
+async function claimMailGold(mid){
+ const m=mailData[mid];if(!m||!(+m.gold>0))return;
+ let claimed=0;
+ try{
+  const res=await runTransaction(ref(realtimeDB,"mail/"+uid+"/"+mid),x=>{
+   if(!x||!(+x.gold>0))return;
+   claimed=Math.max(0,Math.floor(+x.gold));x.gold=0;x.goldClaimedAt=Date.now();return x;
+  });
+  if(!res.committed||!claimed)return toast("이미 받았거나 골드가 없습니다.");
+ }catch(e){console.warn("mail gold",e);return toast("골드를 받지 못했습니다.")}
+ me.gold=Math.max(0,(+me.gold||0)+claimed);bag();try{opts.save(cp(snap()))}catch(e){};mailBadge();toast(`${claimed} G를 받았습니다.`);
+}
 async function deleteMail(mid){
  const m=mailData[mid];if(!m)return;
  const doDel=async()=>{
   try{await remove(ref(realtimeDB,"mail/"+uid+"/"+mid));delete mailData[mid];mailSelected=null;mailBadge();openMailbox();toast("쪽지를 삭제했습니다.")}
   catch(e){console.warn("mail delete",e);toast("쪽지를 삭제하지 못했습니다.");openMailbox()}
  };
- if(m.item&&m.item.n){
-  const q=Math.max(1,Math.floor(+m.item.q||1));
-  pop("쪽지 삭제",`<p>첨부된 <b>${esc(m.item.n)}</b>${q>1?` ×${q}`:""}도 함께 사라집니다. 삭제할까요?</p>`,[{t:"삭제",c:"bad",fn:doDel},{t:"취소",fn:()=>openMailbox()}]);
+ const extras=[];
+ if(m.item&&m.item.n){const q=Math.max(1,Math.floor(+m.item.q||1));extras.push(`<b>${esc(m.item.n)}</b>${q>1?` ×${q}`:""}`)}
+ if(+m.gold>0)extras.push(`<b>${Math.floor(+m.gold)} G</b>`);
+ if(extras.length){
+  pop("쪽지 삭제",`<p>첨부된 ${extras.join(" · ")}도 함께 사라집니다. 삭제할까요?</p>`,[{t:"삭제",c:"bad",fn:doDel},{t:"취소",fn:()=>openMailbox()}]);
   return;
  }
  doDel();
@@ -8995,7 +9016,7 @@ function openComposeNote(toUid,toName){
  if(!toUid||toUid===uid)return;
  const rows=invGroupedRows().filter(r=>typeof r.x==="string"&&r.q>0&&!isItemLocked(r.x)&&!info(r.x).bound);
  const opts=rows.map(r=>`<option value="${esc(r.x)}">${esc(r.x)} (보유 ${r.q})</option>`).join("");
- pop("쪽지 보내기",`<div class="note-compose"><div class="dim">받는 사람 : <b>${esc(toName||"상대")}</b></div><textarea id="noteText" maxlength="300" placeholder="쪽지 내용을 입력하세요"></textarea><div class="note-row"><select id="noteItem"><option value="">첨부 안 함</option>${opts}</select><input type="number" id="noteQty" min="1" value="1" inputmode="numeric" aria-label="첨부 수량"></div><div class="note-actions"><button type="button" class="btn" id="noteSend">보내기</button></div></div>`,[{t:"닫기"}]);
+ pop("쪽지 보내기",`<div class="note-compose"><div class="dim">받는 사람 : <b>${esc(toName||"상대")}</b></div><textarea id="noteText" maxlength="300" placeholder="쪽지 내용을 입력하세요"></textarea><div class="note-row"><select id="noteItem"><option value="">첨부 안 함</option>${opts}</select><input type="number" id="noteQty" min="1" value="1" inputmode="numeric" aria-label="첨부 수량"></div><div class="note-row"><span class="dim">골드</span><input type="number" id="noteGold" min="0" max="${me.gold}" value="0" inputmode="numeric" aria-label="첨부 골드"><span class="dim">G · 보유 ${me.gold} G</span></div><div class="note-actions"><button type="button" class="btn" id="noteSend">보내기</button></div></div>`,[{t:"닫기"}]);
  const q=$("noteQty"),sel=$("noteItem");
  if(q)q.disabled=true;
  if(sel)sel.onchange=()=>{
@@ -9013,16 +9034,18 @@ async function sendNote(toUid,toName){
  const itemName=($("noteItem")||{}).value||"";
  let qty=Math.max(1,Math.floor(+($("noteQty")||{}).value||1));
  if(itemName){qty=Math.min(qty,count(itemName));if(qty<1)return toast("첨부할 아이템이 없습니다.")}
+ const gold=Math.max(0,Math.min(+me.gold||0,Math.floor(+($("noteGold")||{}).value||0)));
  const btn=$("noteSend");if(btn)btn.disabled=true;
  const removed=itemName?takeItems(itemName,qty):[];
  if(itemName&&!removed.length){if(btn)btn.disabled=false;return toast("첨부할 아이템이 없습니다.")}
- const payload={from:uid,fromName:me.name||"나",text,at:Date.now(),read:false,item:removed.length?{n:itemName,q:removed.length}:null};
+ if(gold>0){me.gold=Math.max(0,(+me.gold||0)-gold);bag()}
+ const payload={from:uid,fromName:me.name||"나",text,at:Date.now(),read:false,item:removed.length?{n:itemName,q:removed.length}:null,gold};
  const mid=push(ref(realtimeDB,"mail/"+toUid)).key;
  try{
   await set(ref(realtimeDB,"mail/"+toUid+"/"+mid),payload);
-  bag();closePop();toast(`${toName||"상대"}에게 쪽지를 보냈습니다.`);
+  bag();try{opts.save(cp(snap()))}catch(e){}closePop();toast(`${toName||"상대"}에게 쪽지를 보냈습니다.`);
  }catch(e){
-  console.warn("note send",e);removed.forEach(x=>{if(!addItem(x))me.inv.push(x)});bag();
+  console.warn("note send",e);removed.forEach(x=>{if(!addItem(x))me.inv.push(x)});if(gold>0)me.gold=(+me.gold||0)+gold;bag();
   if(btn)btn.disabled=false;toast("쪽지를 보내지 못했습니다.");
  }
 }
