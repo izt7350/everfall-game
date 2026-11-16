@@ -53,9 +53,10 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .ibtn{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
 #gameRoot .sm2{background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:3px;padding:2px 8px;font-size:12px;cursor:pointer}
 #gameRoot .btn.sm2{background:var(--accent);color:#fff;border:0}
-#gameRoot .prof{position:relative}
-#gameRoot .inbox-btn{position:absolute;top:0;right:0;background:var(--panel2);border:1px solid var(--line);color:var(--dim,inherit);border-radius:12px;padding:2px 9px;font-size:12px;cursor:pointer}
-#gameRoot .inbox-btn.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+#gameRoot .inbox-btn{position:relative;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;background:transparent;border:1px solid var(--line);color:var(--text);border-radius:50%;cursor:pointer;flex:none}
+#gameRoot .inbox-btn:hover{background:var(--panel2)}
+#gameRoot .inbox-btn.on{color:var(--accent);border-color:var(--accent)}
+#gameRoot .inbox-btn b{position:absolute;top:-5px;right:-6px;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:9px;background:var(--fg-danger,#d33);color:#fff;font-size:10.5px;line-height:17px;text-align:center;font-weight:700}
 .ib-row{border-bottom:1px solid var(--line);padding:8px 0}
 .ib-row:last-child{border-bottom:0}
 .ib-row .ib-t{font-size:12px;opacity:.7}
@@ -63,6 +64,8 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .btn.alt.sm2{background:var(--panel2);color:var(--text);border:1px solid var(--line)}
 #gameRoot .sm2:disabled{opacity:.45;cursor:not-allowed}
 #gameRoot .sm2.lock-on{background:var(--accent-soft);border-color:var(--accent-strong);color:var(--accent-text)}
+#gameRoot .item-actions{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+#gameRoot .item-actions .sm2{height:30px;padding:0 10px}
 #gameRoot .bd{font-size:10px;color:var(--accent);border:1px solid var(--accent);border-radius:8px;padding:0 5px;margin-left:4px}
 #gameRoot .fuelrow{align-items:center}
 #gameRoot .fuelbar{display:flex;gap:4px;flex:1;min-width:60px}
@@ -557,6 +560,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 .trade-item small{color:var(--dim);white-space:nowrap}
 .trade-item button{flex:none;height:24px;padding:0 7px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--text);font:inherit;font-size:11px;cursor:pointer}
 .trade-item button:disabled{opacity:.4;cursor:not-allowed}
+.trade-item .trade-qty{width:52px;height:24px;padding:0 4px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--text);font:inherit;font-size:11px;text-align:right}
 .trade-gold{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 0 8px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:12px;line-height:18px}
 .trade-gold b{color:var(--accent-text);font-weight:600}
 .trade-gold input{width:90px;height:26px;padding:0 6px;border:1px solid var(--line);border-radius:6px;background:var(--panel2);color:var(--text);font:inherit;font-size:12px;text-align:right}
@@ -695,6 +699,8 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .g-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px;line-height:18px}
 #gameRoot .g-item:last-child{border-bottom:0}
 #gameRoot .g-item>.g-nm{flex:1;min-width:0;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#gameRoot button.g-nm{flex:1;min-width:0;font:inherit;font-weight:500;color:var(--text);text-align:left;background:none;border:0;padding:0;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:2px}
+#gameRoot button.g-nm:hover{color:var(--accent-text);text-decoration-color:var(--accent-text)}
 #gameRoot .g-form label{display:block;font-size:12px;color:var(--dim);margin:10px 0 4px}
 #gameRoot .g-form input,#gameRoot .g-form select,#gameRoot .g-set select{width:100%;box-sizing:border-box;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:9px 10px;border-radius:8px;font:inherit}
 #gameRoot .g-err{min-height:18px;margin-top:8px;font-size:12px;color:var(--bad)}
@@ -823,7 +829,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 <body>
 <div class="wrap" id="authRoot"><button class="themebtn">다크 모드</button><div id="app" style="width:100%;display:flex;justify-content:center"><div class="card center"><div class="dim">불러오는 중…</div></div></div></div>
 <div id="gameRoot" hidden>
-<div class="topbar"><button class="back" id="exitGame">← 로비로</button><div class="tbr"><span id="cd"></span><div class="theme-toggle" role="group" aria-label="화면 모드"><button type="button" data-thbtn="light" aria-pressed="false" title="라이트 모드"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button><button type="button" data-thbtn="dark" aria-pressed="false" title="다크 모드"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg></button></div><span id="ck"></span><button class="back" id="tutBtn" title="튜토리얼">튜토리얼</button><button class="gear" id="setBtn" title="설정" aria-label="설정"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div></div>
+<div class="topbar"><button class="back" id="exitGame">← 로비로</button><div class="tbr"><span id="cd"></span><div class="theme-toggle" role="group" aria-label="화면 모드"><button type="button" data-thbtn="light" aria-pressed="false" title="라이트 모드"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button><button type="button" data-thbtn="dark" aria-pressed="false" title="다크 모드"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg></button></div><span id="ck"></span><button type="button" class="inbox-btn" id="inboxBtn" title="알림함" aria-label="알림함"><svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><b id="inboxCnt" hidden></b></button><button class="back" id="tutBtn" title="튜토리얼">튜토리얼</button><button class="gear" id="setBtn" title="설정" aria-label="설정"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div></div>
 <div class="downed-bar" id="downedBar" hidden><b>쓰러졌다…</b><span id="downedTime"></span><button class="btn bad" id="selfRevive" hidden>소생약으로 소생</button></div>
 <div class="game">
 <div class="col">
@@ -835,7 +841,6 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
     <div class="char-sub" id="charSub"></div>
     <div class="char-guild" id="charGuild"></div>
    </div>
-   <button type="button" class="inbox-btn" id="inboxBtn" title="받은 요청 다시 보기">알림</button>
   </div>
   <div class="meta">
    <div class="row">출신지 <b id="origin"></b></div>
@@ -4345,7 +4350,19 @@ const INV_CATS=["장비","소모품","음식","재료","도구","특수","귀중
 function isFoodItem(n){const it=info(n),d=ITEM_BY_NAME[n]||{};return !it.petOnly&&(it.sub==="요리"||d.sub==="요리"||+((it.fx||{}).hunger)>0)}
 function invCat(n){if(isFoodItem(n))return "음식";const d=ITEM_BY_NAME[n];return d&&d.category?d.category:"기타"}
 function invGroupedRows(){
- const rows=[],seen={};me.inv.forEach((x,i)=>{if(typeof x==="string"){const key=nm(x);if(seen[key]!=null)rows[seen[key]].q++;else{seen[key]=rows.length;rows.push({x,q:1,i})}}else rows.push({x,q:1,i})});
+ const rows=[],seen={};
+ // 표시 순서는 '가장 최근에 얻은 위치(last)' 기준 내림차순.
+ // 새 아이템은 me.inv 끝에 추가되므로 last가 가장 큰 그룹이 맨 위에 온다.
+ // 같은 이름이 여러 칸에 흩어져 있어도 마지막으로 얻은 칸을 기준으로 고정해,
+ // 아이템을 쓰거나 넣고 뺄 때 목록이 위아래로 섞이지 않는다.
+ me.inv.forEach((x,i)=>{
+  if(typeof x==="string"){
+   const key=nm(x);
+   if(seen[key]!=null){const r=rows[seen[key]];r.q++;r.last=i}
+   else{seen[key]=rows.length;rows.push({x,q:1,i,last:i})}
+  }else rows.push({x,q:1,i,last:i});
+ });
+ rows.sort((a,b)=>b.last-a.last);
  return rows;
 }
 function invTabsHtml(rows){
@@ -4388,7 +4405,21 @@ function invRender(){
  }
  const sc=$("invSearchClear");
  if(sc)sc.onclick=()=>{invQuery="";if(si){si.value="";si.focus()}invRefreshList()};
-}function showItem(x){const n=nm(x),it=info(n);pop(n,`<p>${esc(it.d||"")}</p><p><b>효과 :</b> ${effText(n)}</p>${it.bound?`<p class="dim">귀속 아이템 (선물·버리기·파기 불가)</p>`:""}${typeof x==="object"&&x.dur!=null?`<p class="dim">내구도 ${fmt1(x.dur)}/${safeNum(x.max,0)}${+x.dur<=0?" · 부서짐":(+x.dur<=x.max*0.2?" · 곧 부서짐":"")}</p>`:""}`,[{t:"닫기"}])}
+}function showItem(x,i){
+ const n=nm(x),it=info(n),meta=ITEM_BY_NAME[n]||{};
+ const cat=meta.category||invCat(n),sub=meta.sub||"",grade=meta.grade||"";
+ const inInv=i!=null&&me.inv[i]!=null&&nm(me.inv[i])===n;
+ const acts=inInv?btns(x,i):"";
+ const body=`<p class="dim">분류 : ${esc(cat)}${sub?` · ${esc(sub)}`:""}${grade?` · ${esc(grade)}`:""}</p><p>${esc(it.d||"")}</p><p><b>효과 :</b> ${effText(n)}</p>${it.bound?`<p class="dim">귀속 아이템 (선물·버리기·파기 불가)</p>`:""}${typeof x==="object"&&x.dur!=null?`<p class="dim">내구도 ${fmt1(x.dur)}/${safeNum(x.max,0)}${+x.dur<=0?" · 부서짐":(+x.dur<=x.max*0.2?" · 곧 부서짐":"")}</p>`:""}${acts?`<div class="item-actions">${acts}</div>`:""}`;
+ pop(n,body,[{t:"닫기"}]);
+ const pb=$("pb");
+ if(acts&&pb)pb.onclick=e=>{
+  const b=e.target.closest("[data-a]");if(!b||b.disabled)return;
+  const idx=+b.dataset.i;
+  if(!me.inv[idx]||nm(me.inv[idx])!==n){closePop();return toast("아이템이 없습니다.")}
+  closePop();invAct(b.dataset.a,idx);
+ };
+}
 function doEquip(i,slot){if(!starvationActionCost())return;const x=me.inv.splice(i,1)[0],old=me.equipped[slot];me.equipped[slot]=x;if(old)me.inv.push(old);
  if(usedSlots()>cap()){me.equipped[slot]=old||null;if(old)me.inv.pop();me.inv.splice(i,0,x);modal("공간 부족","소지품 칸이 부족해서 교체할 수 없다.");return}bag();syncVitals()}
 function unequip(k){if(me.travel)return toast("이동 중에는 장비를 해제할 수 없습니다.");if(actionLock("휴식 중에는 장비를 해제할 수 없습니다."))return;const x=me.equipped[k];if(!x)return;if(!starvationActionCost())return;me.equipped[k]=null;
@@ -4603,8 +4634,8 @@ function recipes(focus,msg,query=""){
 $("v-inv").onclick=e=>{const t=e.target;let b;
  if(b=t.closest("#invTabs .tab")){if(b.dataset.cat&&b.dataset.cat!==invTab){invTab=b.dataset.cat;invRefreshTabs();invRefreshList()}return}
  if(b=t.closest("[data-a]"))invAct(b.dataset.a,+b.dataset.i);
- else if(b=t.closest(".ihead"))showItem(me.inv[+b.dataset.i]);
- else if(b=t.closest("[data-eq]")){const x=me.equipped[b.dataset.eq];if(x)pop(nm(x),`<p>${esc(info(nm(x)).d||"")}</p><p><b>효과 :</b> ${effText(nm(x))}</p>${dura(x)}`,[{t:"해제하기",c:"",fn:()=>unequip(b.dataset.eq)},{t:"닫기"}])}
+ else if(b=t.closest(".ihead"))showItem(me.inv[+b.dataset.i],+b.dataset.i);
+ else if(b=t.closest("[data-eq]")){const x=me.equipped[b.dataset.eq];if(x){const n=nm(x),meta=ITEM_BY_NAME[n]||{},cat=meta.category||invCat(n),sub=meta.sub||"",grade=meta.grade||"";pop(n,`<p class="dim">분류 : ${esc(cat)}${sub?` · ${esc(sub)}`:""}${grade?` · ${esc(grade)}`:""}</p><p>${esc(info(n).d||"")}</p><p><b>효과 :</b> ${effText(n)}</p>${dura(x)}`,[{t:"해제하기",c:"",fn:()=>unequip(b.dataset.eq)},{t:"닫기"}])}}
  else if(t.closest("#rcpOpen")){if(me.travel)return toast("이동 중에는 제작할 수 없습니다.");if(actionLock("휴식 중에는 제작할 수 없습니다."))return;recipes(null)}};
 // ---- 설정 / 효과음 / 장비 비교 ----
 let sfxOn=true;try{sfxOn=localStorage.getItem("alive_sfx")!=="0"}catch(e){}
@@ -4986,12 +5017,12 @@ function guildWarehouseHtml(g){
  <div class="g-sec">
   <div class="g-sech">길드 창고 <span class="dim">${items.length} / ${cap}칸 · 빼기 ${esc(guildRankName(g,minTake))} 이상</span></div>
   <div class="g-wtabs">${Array.from({length:pages},(_,i)=>`<button class="g-wtab" data-gwh="${i}" aria-selected="${i===page}">창고${i+1}</button>`).join("")}</div>
-  <div>${groups.length?groups.map(x=>`<div class="g-item"><span class="g-nm">${esc(x.n)}${x.q>1?` ×${x.q}`:""}</span><button class="sm2" data-gwit="${esc(encodeURIComponent(x.n))}" ${canTake?"":"disabled"}>꺼내기</button></div>`).join(""):`<div class="g-empty">창고가 비어 있습니다.</div>`}</div>
+  <div>${groups.length?groups.map(x=>`<div class="g-item"><button type="button" class="g-nm" data-gwinfo="${esc(encodeURIComponent(x.n))}">${esc(x.n)}${x.q>1?` ×${x.q}`:""}</button><button class="sm2" data-gwit="${esc(encodeURIComponent(x.n))}" ${canTake?"":"disabled"}>꺼내기</button></div>`).join(""):`<div class="g-empty">창고가 비어 있습니다.</div>`}</div>
   <div class="g-nav"><span class="g-cost">창고 증설 · 단단한 나무 2 · 고철 3 · 노끈 2</span><button class="sm2" data-gwexpand ${canExpand?"":"disabled"}>창고 증설</button></div>
  </div>
  <div class="g-sec">
   <div class="g-sech">내 소지품 <span class="dim">넣기 ${esc(guildRankName(g,minPut))} 이상</span></div>
-  <div>${ig.length||objs.length?ig.map(x=>`<div class="g-item"><span class="g-nm">${esc(x.n)}${x.q>1?` ×${x.q}`:""}</span><button class="sm2" data-gdep="${esc(encodeURIComponent(x.n))}" ${canPut?"":"disabled"}>넣기</button></div>`).join("")+objs.map(x=>`<div class="g-item"><span class="g-nm">${esc(nm(x.it))}${dura(x.it)}</span><button class="sm2" data-gdepi="${x.idx}" ${canPut?"":"disabled"}>넣기</button></div>`).join(""):`<div class="g-empty">넣을 아이템이 없습니다.</div>`}</div>
+  <div>${ig.length||objs.length?ig.map(x=>`<div class="g-item"><button type="button" class="g-nm" data-giinfo="${esc(encodeURIComponent(x.n))}">${esc(x.n)}${x.q>1?` ×${x.q}`:""}</button><button class="sm2" data-gdep="${esc(encodeURIComponent(x.n))}" ${canPut?"":"disabled"}>넣기</button></div>`).join("")+objs.map(x=>`<div class="g-item"><button type="button" class="g-nm" data-giinfoidx="${x.idx}">${esc(nm(x.it))}${dura(x.it)}</button><button class="sm2" data-gdepi="${x.idx}" ${canPut?"":"disabled"}>넣기</button></div>`).join(""):`<div class="g-empty">넣을 아이템이 없습니다.</div>`}</div>
  </div>`;
 }
 function guildPermRow(g,key,options=GUILD_ROLE_KEYS){
@@ -5044,7 +5075,7 @@ async function refreshGuildOnline(members){
  if(gHost())gHost().querySelectorAll("[data-gdot]").forEach(d=>{const on=set.has(d.dataset.gdot);d.classList.toggle("on",on);d.classList.toggle("off",!on)});
 }
 function guildClick(e){
- const b=e.target.closest("[data-gtab],[data-gnmode],[data-gnpage],[data-gnprev],[data-gnnext],[data-gnview],[data-gncancel],[data-gnotice],[data-gpmode],[data-gppage],[data-gpprev],[data-gpnext],[data-gpview],[data-gpcancel],[data-gpost],[data-gvaultin],[data-gvaultout],[data-gwh],[data-gdep],[data-gdepi],[data-gwit],[data-gwexpand],[data-gaccept],[data-greject],[data-gkick],[data-gdetails],[data-gsettings],[data-gleave],[data-gdisband]");
+ const b=e.target.closest("[data-gtab],[data-gnmode],[data-gnpage],[data-gnprev],[data-gnnext],[data-gnview],[data-gncancel],[data-gnotice],[data-gpmode],[data-gppage],[data-gpprev],[data-gpnext],[data-gpview],[data-gpcancel],[data-gpost],[data-gvaultin],[data-gvaultout],[data-gwh],[data-gwinfo],[data-giinfo],[data-giinfoidx],[data-gdep],[data-gdepi],[data-gwit],[data-gwexpand],[data-gaccept],[data-greject],[data-gkick],[data-gdetails],[data-gsettings],[data-gleave],[data-gdisband]");
  if(!b)return;const g=guildView.data;if(!g)return;
  if(b.dataset.gtab){guildView.tab=b.dataset.gtab;guildView.page=0;guildView.noticeMode="view";guildView.noticeIndex=0;guildView.noticePage=0;guildView.postMode="list";guildView.postIndex=0;guildView.postPage=0;guildRender();return}
  if(b.dataset.gnmode){guildView.noticeMode=b.dataset.gnmode;if(guildView.noticeMode==="view")guildView.noticeIndex=0;guildRender();return}
@@ -5064,6 +5095,9 @@ function guildClick(e){
  if(b.hasAttribute("data-gvaultin")){guildVaultIn();return}
  if(b.hasAttribute("data-gvaultout")){guildVaultOut();return}
  if(b.dataset.gwh!=null){guildView.page=Math.max(0,+b.dataset.gwh||0);guildRender();return}
+ if(b.dataset.gwinfo!=null){const n=decodeURIComponent(b.dataset.gwinfo);const list=gArr((g.warehouse||{}).items);const it=list.find(v=>nm(v)===n);showItem(it!=null?it:n);return}
+ if(b.dataset.giinfo!=null){const n=decodeURIComponent(b.dataset.giinfo);const idx=me.inv.findIndex(x=>nm(x)===n);if(idx>=0)showItem(me.inv[idx],idx);else showItem(n);return}
+ if(b.dataset.giinfoidx!=null){const idx=+b.dataset.giinfoidx;if(me.inv[idx]!=null)showItem(me.inv[idx],idx);return}
  if(b.dataset.gdep!=null){guildDeposit(decodeURIComponent(b.dataset.gdep));return}
  if(b.dataset.gdepi!=null){guildDepositIndex(+b.dataset.gdepi);return}
  if(b.dataset.gwit!=null){guildWithdraw(decodeURIComponent(b.dataset.gwit));return}
@@ -5101,30 +5135,51 @@ async function guildDepositIndex(idx){
  if(!Number.isInteger(idx)||idx<0||idx>=me.inv.length)return toast("아이템이 없습니다.");
  await depositGuildItem(idx);
 }
+let guildDepositBusy=false;
 async function depositGuildItem(idx){
  if(!guildView.data)return;
  if(!guildPerm(guildView.data,"warehouseDeposit"))return toast("창고에 물건을 넣을 권한이 없습니다.");
+ if(guildDepositBusy)return toast("처리 중입니다. 잠시만 기다려 주세요.");
  const cur=me.inv[idx];if(cur==null)return toast("아이템이 없습니다.");
- const name=nm(cur),item=cp(cur),wh=guildView.data.warehouse||{},cap=30*(Math.max(0,Math.floor(+wh.level||0))+1);
- let ok=false;
- try{const r=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/items"),arr=>{const list=gArr(arr);if(list.length>=cap)return;list.push(item);return list});ok=!!r.committed}catch(e){ok=false}
- if(!ok)return toast("창고가 가득 찼습니다.");
- const now=me.inv[idx]&&nm(me.inv[idx])===name?idx:me.inv.findIndex(x=>nm(x)===name);
- if(now>=0)me.inv.splice(now,1);
- bag();try{opts.save(cp(snap()))}catch(e){}
- toast(`${name}을(를) 창고에 넣었습니다.`);
+ guildDepositBusy=true;
+ try{
+  const name=nm(cur),item=cp(cur),wh=guildView.data.warehouse||{},cap=30*(Math.max(0,Math.floor(+wh.level||0))+1);
+  let ok=false,nextItems=null;
+  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/items"),arr=>{const list=gArr(arr);if(list.length>=cap)return;list.push(item);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v)}}catch(e){ok=false}
+  if(!ok)return toast("창고가 가득 찼습니다.");
+  // 같은 이름의 다른 인스턴스가 아니라, 클릭한 바로 그 아이템을 우선 제거한다.
+  let now=me.inv[idx]===cur?idx:me.inv.indexOf(cur);
+  if(now<0)now=me.inv.findIndex(x=>nm(x)===name);
+  if(now>=0)me.inv.splice(now,1);
+  // 길드 탭의 '내 소지품'과 창고 목록을 즉시 갱신 (구독 반영을 기다리지 않음)
+  if(guildView.data&&nextItems){
+   const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};
+   gd.warehouse.items=nextItems;
+  }
+  bag();
+  if(guildView.open)try{guildRender()}catch(e){}
+  try{opts.save(cp(snap()))}catch(e){}
+  toast(`${name}을(를) 창고에 넣었습니다.`);
+ }finally{guildDepositBusy=false}
 }
 async function guildWithdraw(name){
  if(!name||!guildView.data)return;
  if(!guildPerm(guildView.data,"warehouseWithdraw"))return toast("창고에서 물건을 꺼낼 권한이 없습니다.");
- const gid=guildView.gid;let out=null;
- try{const r=await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse/items"),arr=>{const list=gArr(arr),i=list.findIndex(x=>nm(x)===name);if(i<0)return;out=list[i];list.splice(i,1);return list});if(!r.committed)out=null}catch(e){out=null}
+ const gid=guildView.gid;let out=null,nextItems=null;
+ try{const res=await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse/items"),arr=>{const list=gArr(arr),i=list.findIndex(x=>nm(x)===name);if(i<0)return;out=list[i];list.splice(i,1);nextItems=list;return list});if(!res.committed)out=null;else{const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v)}}catch(e){out=null}
  if(!out)return toast("아이템을 꺼내지 못했습니다.");
  if(!canAdd(out)){
   try{await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse/items"),arr=>{const list=gArr(arr);list.push(out);return list})}catch(e){}
   return toast("소지품 칸이 부족합니다.");
  }
- addItem(out);bag();try{opts.save(cp(snap()))}catch(e){}
+ addItem(out);
+ if(guildView.data&&nextItems){
+  const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};
+  gd.warehouse.items=nextItems;
+ }
+ bag();
+ if(guildView.open)try{guildRender()}catch(e){}
+ try{opts.save(cp(snap()))}catch(e){}
  toast(`${name}을(를) 꺼냈습니다.`);
 }
 async function guildVaultIn(){
@@ -5135,7 +5190,11 @@ async function guildVaultIn(){
  let ok=false;
  try{const r=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/gold"),v=>Math.max(0,Math.floor(+v||0))+amt);ok=!!r.committed}catch(e){ok=false}
  if(!ok)return toast("입금에 실패했습니다.");
- me.gold-=amt;guildDraft.vault="";const el=$("gVaultAmt");if(el)el.value="";bag();try{opts.save(cp(snap()))}catch(e){}
+ me.gold-=amt;guildDraft.vault="";const el=$("gVaultAmt");if(el)el.value="";
+ if(guildView.data){const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};gd.warehouse.gold=Math.max(0,Math.floor(+gd.warehouse.gold||0))+amt}
+ bag();
+ if(guildView.open)try{guildRender()}catch(e){}
+ try{opts.save(cp(snap()))}catch(e){}
  toast(`${amt} G를 길드 금고에 입금했습니다.`);
 }
 async function guildVaultOut(){
@@ -5145,7 +5204,11 @@ async function guildVaultOut(){
  let ok=false;
  try{const r=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/gold"),v=>{const cur=Math.max(0,Math.floor(+v||0));return cur>=amt?cur-amt:undefined});ok=!!r.committed}catch(e){ok=false}
  if(!ok)return toast("길드 자금이 부족합니다.");
- me.gold+=amt;guildDraft.vault="";const el=$("gVaultAmt");if(el)el.value="";bag();try{opts.save(cp(snap()))}catch(e){}
+ me.gold+=amt;guildDraft.vault="";const el=$("gVaultAmt");if(el)el.value="";
+ if(guildView.data){const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};gd.warehouse.gold=Math.max(0,Math.floor(+gd.warehouse.gold||0)-amt)}
+ bag();
+ if(guildView.open)try{guildRender()}catch(e){}
+ try{opts.save(cp(snap()))}catch(e){}
  toast(`${amt} G를 길드 금고에서 출금했습니다.`);
 }
 function parseGuildAmount(){
@@ -5163,7 +5226,10 @@ async function guildExpand(){
  const level=Math.max(0,Math.floor(+((guildView.data.warehouse||{}).level||0)));
  try{await update(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse"),{level:level+1})}catch(e){return toast("창고 증설에 실패했습니다.")}
  for(const [n,c] of need)for(let k=0;k<c;k++){const i=me.inv.findIndex(x=>nm(x)===n);if(i>=0)me.inv.splice(i,1)}
- bag();try{opts.save(cp(snap()))}catch(e){}
+ if(guildView.data){const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};gd.warehouse.level=level+1}
+ bag();
+ if(guildView.open)try{guildRender()}catch(e){}
+ try{opts.save(cp(snap()))}catch(e){}
  toast("길드 창고를 증설했습니다.");
 }
 async function guildAccept(appUid){
@@ -8198,6 +8264,9 @@ function tradeDom(){
    if(b.hasAttribute("data-tready"))return tradeToggleReady();
    if(b.hasAttribute("data-tfinal"))return finalizeTrade();
     if(b.hasAttribute("data-tgold"))return tradeSetGold();
+   if(b.dataset.taddn!=null){const name=decodeURIComponent(b.dataset.taddn),row=b.closest(".trade-item"),inp=row&&row.querySelector("[data-tinq]");return tradeAddName(name,inp?inp.value:1)}
+   if(b.dataset.tqset!=null)return tradeSetQty(decodeURIComponent(b.dataset.tqset));
+   if(b.dataset.trmn!=null)return tradeRemoveName(decodeURIComponent(b.dataset.trmn));
    if(b.dataset.tadd!=null)return tradeAdd(+b.dataset.tadd);
    if(b.dataset.trm!=null)return tradeRemove(+b.dataset.trm)}}
  return tradeEl;
@@ -8268,6 +8337,73 @@ function tradeItemHtml(x,action){
  const n=nm(x),d=typeof x==="object"&&x.dur!=null?`<small>${fmt1(x.dur)}/${safeNum(x.max,0)}</small>`:"";
  return `<div class="trade-item"><b>${esc(n)}</b>${d}${action||""}</div>`;
 }
+// 같은 이름의 문자열 아이템은 한 줄로 묶고, 장비/도구는 내구도가 달라 개별 표시한다.
+function tradeGroups(arr){
+ const groups=[],map=new Map();
+ arr.forEach((x,idx)=>{
+  if(typeof x==="string"){
+   const key=nm(x);
+   if(map.has(key)){const g=map.get(key);g.q++;g.idx.push(idx)}
+   else{const g={n:key,q:1,idx:[idx],str:true};map.set(key,g);groups.push(g)}
+  }else groups.push({n:nm(x),q:1,idx:[idx],str:false,item:x});
+ });
+ return groups;
+}
+async function tradeAddName(name,qty=1){
+ if(!tradeState||tradeState.status!=="open"||tradeBusy)return;
+ if(tradeState.ready&&tradeState.ready[uid])return toast("확정을 취소한 뒤 아이템을 올릴 수 있습니다.");
+ name=String(name);qty=Math.max(1,Math.floor(+qty||1));
+ const idxs=[];
+ me.inv.forEach((x,i)=>{if(idxs.length<qty&&typeof x==="string"&&nm(x)===name)idxs.push(i)});
+ if(!idxs.length)return toast(`${name}이(가) 없습니다.`);
+ tradeBusy=true;
+ const prev=tradeOffer(tradeState,uid).slice(),prevInv=me.inv.slice(),removed=[];
+ for(let k=idxs.length-1;k>=0;k--)removed.unshift(me.inv.splice(idxs[k],1)[0]);
+ const mine=prev.concat(removed.map(x=>cp(x)));
+ tradeState.offers=tradeState.offers||{};tradeState.offers[uid]=mine;
+ bag();renderTradePop();
+ try{await set(ref(realtimeDB,"trades/"+tradePair+"/offers/"+uid),mine)}
+ catch(e){console.warn(e);me.inv=prevInv;tradeState.offers[uid]=prev;bag();renderTradePop();toast("아이템을 올리지 못했어요.")}
+ finally{tradeBusy=false}
+}
+async function tradeAdjustName(name,delta){
+ if(!tradeState||tradeState.status!=="open"||tradeBusy||!delta)return;
+ if(tradeState.ready&&tradeState.ready[uid])return toast("확정을 취소한 뒤 수량을 수정할 수 있습니다.");
+ name=String(name);delta=Math.floor(+delta||0);if(!delta)return;
+ if(delta>0)return tradeAddName(name,delta);
+ const prev=tradeOffer(tradeState,uid).slice(),prevInv=me.inv.slice();
+ let remove=Math.min(-delta,prev.filter(x=>typeof x==="string"&&nm(x)===name).length);
+ if(!remove)return;
+ tradeBusy=true;
+ const next=[],removed=[];
+ for(const x of prev){
+  if(remove>0&&typeof x==="string"&&nm(x)===name){removed.push(x);remove--}
+  else next.push(x);
+ }
+ tradeState.offers=tradeState.offers||{};tradeState.offers[uid]=next;
+ removed.forEach(x=>{if(!addItem(x))me.inv.push(x)});
+ bag();renderTradePop();
+ try{await set(ref(realtimeDB,"trades/"+tradePair+"/offers/"+uid),next)}
+ catch(e){console.warn(e);me.inv=prevInv;tradeState.offers[uid]=prev;bag();renderTradePop();toast("수량을 수정하지 못했어요.")}
+ finally{tradeBusy=false}
+}
+function tradeSetQty(name){
+ if(!tradeState||tradeState.status!=="open"||tradeBusy)return;
+ if(tradeState.ready&&tradeState.ready[uid])return toast("확정을 취소한 뒤 수량을 수정할 수 있습니다.");
+ const el=[...tradeDom().querySelectorAll("[data-toq]")].find(x=>decodeURIComponent(x.dataset.toq)===name);
+ if(!el)return;
+ const cur=tradeOffer(tradeState,uid).filter(x=>typeof x==="string"&&nm(x)===name).length;
+ let want=Math.floor(+el.value||0);
+ if(!isFinite(want)||want<0)want=0;
+ want=Math.min(want,cur+count(name));
+ if(want===cur)return;
+ tradeAdjustName(name,want-cur);
+}
+function tradeRemoveName(name){
+ if(!tradeState)return;
+ const cur=tradeOffer(tradeState,uid).filter(x=>typeof x==="string"&&nm(x)===name).length;
+ if(cur)tradeAdjustName(name,-cur);
+}
 function renderTradePop(){
  const box=tradeDom(),st=tradeState;
  if(!st){box.hidden=true;return}
@@ -8276,16 +8412,30 @@ function renderTradePop(){
  const myGold=tradeGold(st,uid),theirGold=tradeGold(st,otherId);
  const myReady=!!(st.ready&&st.ready[uid]),theirReady=!!(st.ready&&st.ready[otherId]);
  const waiting=st.status==="invite",canEdit=st.status==="open"&&!myReady;
- const offerRows=arr=>arr.length?arr.map((x,i)=>tradeItemHtml(x,canEdit?`<button type="button" data-trm="${i}">내리기</button>`:"")).join(""):`<div class="trade-empty">올린 아이템이 없습니다.</div>`;
- const invRows=me.inv.length?me.inv.map((x,i)=>tradeItemHtml(x,`<button type="button" data-tadd="${i}">올리기</button>`)).join(""):`<div class="trade-empty">소지품이 없습니다.</div>`;
+ const offerGroups=arr=>tradeGroups(arr);
+ const offerRows=(arr,editable)=>{const gs=offerGroups(arr);return gs.length?gs.map(g=>{
+  if(g.str){
+   const enc=esc(encodeURIComponent(g.n)),max=g.q+count(g.n);
+   return `<div class="trade-item"><b>${esc(g.n)}</b><small>×${g.q}</small>${editable?`<input type="number" class="trade-qty" min="0" max="${max}" value="${g.q}" data-toq="${enc}" aria-label="${esc(g.n)} 수량"><button type="button" data-tqset="${enc}">적용</button><button type="button" data-trmn="${enc}">내리기</button>`:""}</div>`;
+  }
+  return tradeItemHtml(g.item,editable?`<button type="button" data-trm="${g.idx[0]}">내리기</button>`:"");
+ }).join(""):`<div class="trade-empty">올린 아이템이 없습니다.</div>`};
+ const invGroups=tradeGroups(me.inv);
+ const invRows=invGroups.length?invGroups.map(g=>{
+  if(g.str){
+   const enc=esc(encodeURIComponent(g.n));
+   return `<div class="trade-item"><b>${esc(g.n)}</b><small>×${g.q}</small><input type="number" class="trade-qty" min="1" max="${g.q}" value="1" data-tinq="${enc}" aria-label="${esc(g.n)} 수량"><button type="button" data-taddn="${enc}">올리기</button></div>`;
+  }
+  return tradeItemHtml(g.item,`<button type="button" data-tadd="${g.idx[0]}">올리기</button>`);
+ }).join(""):`<div class="trade-empty">소지품이 없습니다.</div>`;
  const goldMine=`<div class="trade-gold"><span>골드</span><b>${myGold} G</b>${canEdit?`<input type="number" id="tradeGold" min="0" max="${me.gold}" value="${myGold}"><button type="button" data-tgold>적용</button>`:""}<small class="dim">보유 ${me.gold} G</small></div>`;
  const goldTheirs=`<div class="trade-gold"><span>골드</span><b>${theirGold} G</b></div>`;
  const goldEl=$("tradeGold"),typedGold=goldEl&&document.activeElement===goldEl?goldEl.value:null;
  box.innerHTML=`<div class="trade-box"><h3>거래</h3><p class="trade-sub">${esc(me.name)} ↔ ${esc(otherName)}</p>
   <div class="trade-cols">
-   <section class="trade-col"><h4>내 제안 <span>${mine.length}개 · ${myGold} G</span></h4>${goldMine}<div class="trade-offer">${offerRows(mine)}</div>
+   <section class="trade-col"><h4>내 제안 <span>${mine.length}개 · ${myGold} G</span></h4>${goldMine}<div class="trade-offer">${offerRows(mine,canEdit)}</div>
     ${canEdit?`<div class="trade-inv-title">소지품에서 올리기</div><div class="trade-inv">${invRows}</div>`:`<div class="trade-inv-title">${myReady?"확정했습니다. 수정하려면 확정을 취소하세요.":""}</div>`}</section>
-   <section class="trade-col"><h4>상대의 제안 <span>${theirs.length}개 · ${theirGold} G</span></h4>${goldTheirs}<div class="trade-offer">${theirs.length?theirs.map(x=>tradeItemHtml(x,"")).join(""):`<div class="trade-empty">올린 아이템이 없습니다.</div>`}</div>
+   <section class="trade-col"><h4>상대의 제안 <span>${theirs.length}개 · ${theirGold} G</span></h4>${goldTheirs}<div class="trade-offer">${offerRows(theirs,false)}</div>
     <div class="trade-inv-title">${theirReady?'<span class="trade-badge">확정함</span>':'아직 확정하지 않았습니다.'}</div></section>
   </div>
   <div class="trade-foot"><button type="button" class="btn alt left" data-tcancel>${waiting?"요청 취소":"나가기"}</button>
@@ -8448,7 +8598,7 @@ function inboxAdd(e){
  inboxSave();inboxBadge();return x;
 }
 function inboxSet(k,st){const x=inboxList().find(y=>y.k===k);if(x&&x.st==="pending"){x.st=st;inboxSave();inboxBadge();if(inboxOpen&&!$("pop").hidden&&$("pt").textContent==="알림함")openInbox()}}
-function inboxBadge(){const n=inboxList().filter(inboxLive).length,b=$("inboxBtn");if(b){b.textContent=n?`알림 ${n}`:"알림";b.classList.toggle("on",!!n)}}
+function inboxBadge(){const n=inboxList().filter(inboxLive).length,b=$("inboxBtn"),c=$("inboxCnt");if(b){b.classList.toggle("on",!!n);b.title=n?`알림함 · 응답할 요청 ${n}개`:"알림함"}if(c){c.hidden=!n;c.textContent=n>9?"9+":String(n)}}
 var REQ_LABEL={trade:"거래 요청",heal:"치료 요청",party:"파티 초대",guild:"길드 초대",ride:"동승 요청"};
 var inboxOpen=false;
 function reqReply(from,rid,st){if(!uid||!from||!rid)return;set(ref(realtimeDB,"reqStatus/"+from+"/"+rid),{by:uid,name:me.name,st,at:Date.now()}).catch(e=>console.warn("reqStatus",e))}
