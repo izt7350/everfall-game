@@ -71,6 +71,17 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 .mail-item{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:8px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);font-size:12px}
 .mail-item b{color:var(--accent-text)}
 .mail-act{display:flex;gap:6px;margin-top:6px}
+.mail-list{display:flex;flex-direction:column}
+.mail-row-btn{display:flex;align-items:center;gap:8px;width:100%;padding:10px 4px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--text);font:inherit;font-size:13px;text-align:left;cursor:pointer}
+.mail-row-btn:last-child{border-bottom:0}
+.mail-row-btn:hover{background:var(--panel2)}
+.mail-ico{flex:none;width:18px;text-align:center;color:var(--accent-text)}
+.mail-row-name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mail-row-date{font-size:11px;color:var(--dim);white-space:nowrap}
+.mail-att{font-size:11px;color:var(--dim);white-space:nowrap}
+.mail-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.mail-detail .mail-text{margin-top:8px;font-size:14px;line-height:21px}
+.mail-detail .mail-act{margin-top:12px}
 .note-compose{display:flex;flex-direction:column;gap:8px}
 .note-compose textarea{box-sizing:border-box;width:100%;min-height:96px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font:inherit;font-size:13px;line-height:19px;resize:vertical}
 .note-compose .note-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -1895,7 +1906,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.skillPts=Math.max(0,Math.floor(+c.skillPts||0));
  o.crafted=Array.isArray(c.crafted)?c.crafted.filter(x=>typeof x==="string").slice(-600):[];
  o.speedPotionGrant=!!c.speedPotionGrant;o.speedPotionGrant2=!!c.speedPotionGrant2;o.dunBoxGrant1=!!c.dunBoxGrant1;o.mpGrant50=!!c.mpGrant50;o.partyBattleSeen=typeof c.partyBattleSeen==="string"?c.partyBattleSeen.slice(0,80):"";o.itemLogSeq=Math.max(0,Math.floor(+c.itemLogSeq||0));o.rideSeen=typeof c.rideSeen==="string"?c.rideSeen.slice(-600):"";o.inbox=Array.isArray(c.inbox)?c.inbox.filter(x=>x&&typeof x==="object"&&x.k).slice(0,40):[];o.outReqs=Array.isArray(c.outReqs)?c.outReqs.filter(x=>x&&typeof x==="object"&&x.rid).slice(-30):[];o.pendingRun=c.pendingRun&&typeof c.pendingRun==="object"&&c.pendingRun.id?{id:String(c.pendingRun.id).slice(0,60),kind:c.pendingRun.kind==="dungeon"?"dungeon":"long",min:+c.pendingRun.min||30,startAt:+c.pendingRun.startAt||0,runLeader:c.pendingRun.runLeader||null,partyId:c.pendingRun.partyId||null,at:+c.pendingRun.at||0}:null;
- o.friends=c.friends&&typeof c.friends==="object"?Object.fromEntries(Object.entries(c.friends).filter(([id,f])=>id&&f&&typeof f==="object").slice(0,120).map(([id,f])=>[String(id),{name:String(f.name||"").slice(0,16),nick:String(f.nick||"").slice(0,16),rel:String(f.rel||"").slice(0,12),at:+f.at||0}])):{};
+ o.friends=c.friends&&typeof c.friends==="object"?Object.fromEntries(Object.entries(c.friends).filter(([id,f])=>id&&f&&typeof f==="object").slice(0,120).map(([id,f])=>[String(id),{name:String(f.name||"").slice(0,16),nick:String(f.nick||"").slice(0,16),rel:String(f.rel||"").slice(0,12),at:+f.at||0,pending:!!f.pending}])):{};
  o.potionLock=Array.isArray(c.potionLock)?c.potionLock.filter(x=>typeof x==="string").slice(-100):[];
  o.itemLock=Array.isArray(c.itemLock)?c.itemLock.filter(x=>typeof x==="string").slice(-1000):[];
  o.potionGrant=!!c.potionGrant;o.potionGrant20=!!c.potionGrant20||!!o.drosselPotion20;o.mpAt=isFinite(+c.mpAt)?+c.mpAt:Date.now();o.mpCarry=Math.max(0,+c.mpCarry||0);
@@ -4964,7 +4975,7 @@ function startGuildTab(){
  },err=>{if(guildView.open)gHost().innerHTML=`<div class="g-empty">길드 정보를 불러오지 못했습니다.</div>`});
 }
 function stopGuildTab(){guildView.open=false;if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}}
-const friendView={open:false,profiles:{},links:{},reqs:{},profilesUnsub:null,linksUnsub:null,reqsUnsub:null};
+const friendView={open:false,profiles:{},links:{},reqs:{},linkError:false,reqError:false,profilesUnsub:null,linksUnsub:null,reqsUnsub:null};
 function friendPair(a,b){return [String(a),String(b)].sort().join("~")}
 function friendLink(id){if(!id)return null;const l=friendView.links[friendPair(uid,id)];return l&&(l.a===id||l.b===id)?l:null}
 function isFriend(id){return !!friendLink(id)}
@@ -4994,29 +5005,33 @@ function syncFriendLinks(){
   if(!me.friends)me.friends={};
   if(!me.friends[other]){me.friends[other]={name,nick:"",rel:"",at:+l.at||0};changed=true}
   else if(!me.friends[other].name){me.friends[other].name=name;changed=true}
+  if(me.friends[other].pending){me.friends[other].pending=false;changed=true}
  });
- Object.keys(me.friends||{}).forEach(id=>{if(!ids.has(id)){delete me.friends[id];changed=true}});
+ Object.keys(me.friends||{}).forEach(id=>{if(!ids.has(id)){const f=me.friends[id];if(f&&f.pending&&Date.now()-(+f.at||0)<7*864e5)return;delete me.friends[id];changed=true}});
  if(changed)friendSave();
  refreshFriendNames();if(friendView.open)friendRender();
 }
 function subscribeFriendLinks(){
  if(!uid)return;
  if(friendView.linksUnsub){try{friendView.linksUnsub()}catch(e){}friendView.linksUnsub=null}
- friendView.linksUnsub=onValue(ref(realtimeDB,"friendships"),s=>{friendView.links=s.val()||{};syncFriendLinks()},err=>console.warn("friendships",err));
+ friendView.linksUnsub=onValue(ref(realtimeDB,"friendships"),s=>{friendView.linkError=false;friendView.links=s.val()||{};syncFriendLinks()},err=>{console.warn("friendships",err);friendView.linkError=true;if(friendView.open)friendRender()});
 }
 function subscribeFriendReqs(){
  if(!uid)return;
  if(friendView.reqsUnsub){try{friendView.reqsUnsub()}catch(e){}friendView.reqsUnsub=null}
- friendView.reqsUnsub=onValue(ref(realtimeDB,"friendReqs/"+uid),s=>{friendView.reqs=s.val()||{};if(friendView.open)friendRender()},err=>console.warn("friendReqs",err));
+ friendView.reqsUnsub=onValue(ref(realtimeDB,"friendReqs/"+uid),s=>{friendView.reqError=false;friendView.reqs=s.val()||{};if(friendView.open)friendRender()},err=>{console.warn("friendReqs",err);friendView.reqError=true;if(friendView.open)friendRender()});
 }
 function friendRender(){
  const host=$("ftabBody");if(!host)return;
  const list=friendList(),online=list.filter(f=>friendOnline(f.uid)).length,reqs=Object.entries(friendView.reqs||{}).map(([from,r])=>({from,...(r||{})})).filter(r=>r.from);
+ const sent=Object.entries(me.friends||{}).map(([id,f])=>({uid:id,...(f||{})})).filter(f=>f.pending&&!isFriend(f.uid));
  const reqRows=reqs.length?`<div class="g-sec"><div class="g-sech">받은 친구 요청 <span class="dim">${reqs.length}건</span></div>${reqs.map(r=>`<div class="g-item"><span class="g-dot on"></span><b class="g-nm" style="font-weight:500">${esc(r.fromName||"상대")}</b><button type="button" class="sm2" data-facc="${esc(r.from)}">수락</button><button type="button" class="sm2" data-fdec="${esc(r.from)}">거절</button></div>`).join("")}</div>`:"";
+ const sentRows=sent.length?`<div class="g-sec"><div class="g-sech">보낸 친구 요청 <span class="dim">${sent.length}건</span></div>${sent.map(f=>`<div class="g-item"><span class="g-dot off"></span><b class="g-nm" style="font-weight:500">${esc(f.nick||f.name||"상대")}</b><small class="dim">수락 대기 중</small></div>`).join("")}</div>`:"";
  const rows=list.length?list.map(f=>{
   return `<div class="g-item"><span class="g-dot ${friendOnline(f.uid)?"on":"off"}"></span><button type="button" class="g-nm" data-fopen="${esc(f.uid)}">${friendLabel(f)}</button><button type="button" class="sm2" data-frel="${esc(f.uid)}">관계 설정</button><button type="button" class="sm2" data-fdel="${esc(f.uid)}">삭제</button></div>`;
  }).join(""):`<div class="g-empty">친구가 없습니다. 친구 추가로 요청을 보내 보세요.</div>`;
- host.innerHTML=`<div class="g-sec"><div class="g-sech">친구 <span class="dim">${list.length}명 · 접속 ${online}명</span></div><div class="g-nav"><span class="g-cost">친구 요청은 상대가 수락해야 성립합니다.</span><button class="sm2" data-faddbtn>친구 추가</button></div><div>${rows}</div></div>${reqRows}`;
+ const warn=(friendView.linkError||friendView.reqError)?`<div class="g-empty" style="color:var(--bad)">친구 관계를 불러오지 못했습니다. Firebase 규칙(friendReqs·friendships) 게시를 확인해 주세요.</div>`:"";
+ host.innerHTML=warn+`<div class="g-sec"><div class="g-sech">친구 <span class="dim">${list.length}명 · 접속 ${online}명</span></div><div class="g-nav"><span class="g-cost">친구 요청은 상대가 수락해야 성립합니다.</span><button class="sm2" data-faddbtn>친구 추가</button></div><div>${rows}</div></div>${reqRows}${sentRows}`;
 }
 function friendCandidates(q=""){
  const map={},query=String(q||"").trim().toLowerCase();
@@ -5038,16 +5053,30 @@ function openFriendAdd(){
  }
 }
 function openFriendSetup(id,name){
- pop("친구 요청",`<p><b>${esc(name||"상대")}</b>에게 친구 요청을 보낼까요?</p><p class="dim">상대가 수락하면 서로 친구가 됩니다. 별명·관계는 친구가 된 뒤 설정할 수 있습니다.</p>`,[{t:"요청 보내기",c:"",fn:()=>sendFriendRequest(id,name)},{t:"취소"}]);
+ pop("친구 요청",`<div class="note-compose"><p><b>${esc(name||"상대")}</b>에게 친구 요청을 보냅니다.</p><input id="fNick" maxlength="16" placeholder="별명 (선택)"><p class="dim sm">별명은 나에게만 보입니다. 상대가 수락하면 친구 목록과 채팅 등에 표시됩니다.</p><div class="note-actions"><button type="button" class="btn" id="fReqOk">요청 보내기</button></div></div>`,[{t:"취소"}]);
+ const pb=$("pb");
+ if(pb)pb.onclick=e=>{
+  if(!e.target.closest("#fReqOk"))return;
+  const nick=String(($("fNick")||{}).value||"").trim().slice(0,16);
+  closePop();sendFriendRequest(id,name,nick);
+ };
 }
-async function sendFriendRequest(id,name){
+async function sendFriendRequest(id,name,nick=""){
  if(!id||id===uid)return;
  if(isFriend(id))return toast("이미 친구입니다.");
  if(friendView.reqs&&friendView.reqs[id])return acceptFriendReq(id);
+ const old=me.friends&&me.friends[id];
+ if(!me.friends)me.friends={};
+ me.friends[id]={name:String(name||"상대").slice(0,16),nick:String(nick||"").slice(0,16),rel:(old&&old.rel)||"",at:Date.now(),pending:true};
+ friendSave();friendRender();
  try{
   await set(ref(realtimeDB,"friendReqs/"+id+"/"+uid),{from:uid,fromName:me.name,toName:name||"",at:Date.now()});
   toast(`${name||"상대"}에게 친구 요청을 보냈습니다.`);
- }catch(e){console.warn("friend request",e);toast("친구 요청을 보내지 못했습니다.")}
+ }catch(e){
+  console.warn("friend request",e);
+  if(!old)delete me.friends[id];else me.friends[id]=old;
+  friendSave();friendRender();toast("친구 요청을 보내지 못했습니다.");
+ }
 }
 async function acceptFriendReq(from){
  const r=friendView.reqs&&friendView.reqs[from];if(!r)return toast("친구 요청이 사라졌습니다.");
@@ -5056,7 +5085,7 @@ async function acceptFriendReq(from){
  try{
   await set(ref(realtimeDB,"friendships/"+pair),payload);
   friendView.links[pair]=payload;
-  if(!me.friends)me.friends={};if(!me.friends[from])me.friends[from]={name:otherName,nick:"",rel:"",at:Date.now()};
+  if(!me.friends)me.friends={};if(!me.friends[from])me.friends[from]={name:otherName,nick:"",rel:"",at:Date.now(),pending:false};else me.friends[from].pending=false;
   await remove(ref(realtimeDB,"friendReqs/"+uid+"/"+from)).catch(()=>{});
   delete friendView.reqs[from];
   friendSave();friendRender();refreshFriendNames();toast(`${otherName}님과 친구가 되었습니다.`);
@@ -8867,8 +8896,8 @@ function openInbox(){
  $("pb").onclick=e=>{const b=e.target.closest("[data-ib]");if(!b)return;const x=inboxList()[+b.dataset.ib];if(!x)return;closePop();inboxOpen=false;inboxAct(x,b.dataset.yes==="1")};
 }
 $("inboxBtn").onclick=()=>openInbox();
-$("mailBtn").onclick=()=>openMailbox();
-var mailUnsub=null,mailData={},mailOpen=false;
+$("mailBtn").onclick=()=>{mailSelected=null;openMailbox()};
+var mailUnsub=null,mailData={},mailOpen=false,mailSelected=null;
 function mailEntries(){
  const out=[];
  Object.entries(mailData||{}).forEach(([id,m])=>{if(m&&typeof m==="object")out.push({id,...m})});
@@ -8888,25 +8917,38 @@ function subscribeMail(){
   if(mailOpen&&!$("pop").hidden&&$("pt").textContent==="메세지함")openMailbox();
  },err=>console.warn("mail",err));
 }
+function openMailDetail(mid){
+ const m=mailData[mid];if(!m)return;
+ mailSelected=mid;
+ if(!m.read){m.read=true;update(ref(realtimeDB,"mail/"+uid+"/"+mid),{read:true}).catch(()=>{});mailBadge()}
+ openMailbox();
+}
 function openMailbox(){
  if(!uid)return;
- const entries=mailEntries(),unread=entries.filter(m=>!m.read);
- if(unread.length){
-  unread.forEach(m=>{if(mailData[m.id])mailData[m.id].read=true;update(ref(realtimeDB,"mail/"+uid+"/"+m.id),{read:true}).catch(()=>{})});
-  mailBadge();
+ if(mailSelected&&!mailData[mailSelected])mailSelected=null;
+ const entries=mailEntries();
+ const detail=mailSelected?mailData[mailSelected]:null;
+ let body="";
+ if(detail){
+  const q=detail.item&&detail.item.n?Math.max(1,Math.floor(+detail.item.q||1)):0;
+  const item=q?`<div class="mail-item"><span>첨부 : <b>${esc(detail.item.n)}</b>${q>1?` ×${q}`:""}</span><button type="button" class="btn sm2" data-mclaim="${esc(mailSelected)}">받기</button></div>`:"";
+  body=`<div class="mail-detail"><div class="mail-head"><b>${esc(detail.admin?"GM":(detail.fromName||"상대"))}</b><span class="dim">${clockOf(+detail.at||0)}</span></div><div class="mail-text">${esc(detail.text||"")}</div>${item}<div class="mail-act"><button type="button" class="btn alt sm2" data-mback>← 목록</button><button type="button" class="btn alt sm2" data-mdel="${esc(mailSelected)}">삭제</button></div></div>`;
+ }else{
+  const rows=entries.length?entries.map(m=>{
+   const q=m.item&&m.item.n?1:0,who=m.admin?"GM":(m.fromName||"상대");
+   return `<button type="button" class="mail-row-btn" data-mopen="${esc(m.id)}"><span class="mail-ico">✉</span><span class="mail-row-name">${esc(who)}의 쪽지</span>${q?`<span class="mail-att">첨부</span>`:""}${m.read?"":`<span class="mail-dot"></span>`}<span class="mail-row-date">${clockOf(+m.at||0)}</span></button>`;
+  }).join(""):`<p class="dim">받은 쪽지가 없습니다.</p>`;
+  body=`<div class="mail-list">${rows}</div><p class="dim sm" style="margin-top:8px">쪽지를 선택하면 내용을 볼 수 있습니다.</p>`;
  }
- const rows=entries.length?entries.map(m=>{
-  const q=m.item&&m.item.n?Math.max(1,Math.floor(+m.item.q||1)):0;
-  const item=q?`<div class="mail-item"><span>첨부 : <b>${esc(m.item.n)}</b>${q>1?` ×${q}`:""}</span><button type="button" class="btn sm2" data-mclaim="${esc(m.id)}">받기</button></div>`:"";
-  return `<div class="mail-row"><div class="mail-head"><b>${esc(m.fromName||"상대")}</b><span class="dim">${clockOf(+m.at||0)}</span>${m.read?"":`<span class="mail-new">새 쪽지</span>`}</div><div class="mail-text">${esc(m.text||"")}</div>${item}<div class="mail-act"><button type="button" class="btn alt sm2" data-mdel="${esc(m.id)}">삭제</button></div></div>`;
- }).join(""):`<p class="dim">받은 쪽지가 없습니다.</p>`;
  mailOpen=true;
- pop("메세지함",`<div id="mailList">${rows}</div><p class="dim sm" style="margin-top:8px">첨부 아이템은 [받기]를 눌러 소지품으로 옮길 수 있습니다.</p>`,[{t:"닫기"}],false,true);
+ pop("메세지함",body,[{t:"닫기"}],false,true);
  const pb=$("pb");
  if(pb)pb.onclick=e=>{
-  const cl=e.target.closest("[data-mclaim],[data-mdel]");if(!cl)return;
-  if(cl.dataset.mclaim!=null)claimMailItem(cl.dataset.mclaim);
-  else if(cl.dataset.mdel!=null)deleteMail(cl.dataset.mdel);
+  const cl=e.target.closest("[data-mopen],[data-mback],[data-mclaim],[data-mdel]");if(!cl)return;
+  if(cl.dataset.mopen!=null)return openMailDetail(cl.dataset.mopen);
+  if(cl.hasAttribute("data-mback")){mailSelected=null;return openMailbox()}
+  if(cl.dataset.mclaim!=null)return claimMailItem(cl.dataset.mclaim);
+  if(cl.dataset.mdel!=null)return deleteMail(cl.dataset.mdel);
  };
 }
 async function claimMailItem(mid){
@@ -8935,7 +8977,7 @@ async function claimMailItem(mid){
 async function deleteMail(mid){
  const m=mailData[mid];if(!m)return;
  const doDel=async()=>{
-  try{await remove(ref(realtimeDB,"mail/"+uid+"/"+mid));delete mailData[mid];mailBadge();openMailbox();toast("쪽지를 삭제했습니다.")}
+  try{await remove(ref(realtimeDB,"mail/"+uid+"/"+mid));delete mailData[mid];mailSelected=null;mailBadge();openMailbox();toast("쪽지를 삭제했습니다.")}
   catch(e){console.warn("mail delete",e);toast("쪽지를 삭제하지 못했습니다.");openMailbox()}
  };
  if(m.item&&m.item.n){
@@ -9384,7 +9426,7 @@ render();bag();renderAll();clock();
  _ids.push(setTimeout(()=>{try{applyItemRefund()}catch(e){console.warn(e)}},300));
  _ids.push(setTimeout(()=>{try{if(affectionDecay()&&npcOpen)npcRender()}catch(e){}},400));
  if(me.expedition)setTimeout(checkExpAct,400);
-return{stop(){try{if(_npcResize)window.removeEventListener("resize",_npcResize);_npcResize=null}catch(e){};try{if(tutActive)tutClose(false)}catch(e){};try{resetWhisperTab()}catch(e){};_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);window.removeEventListener("focus",checkExpAct);accountHold=false;syncHold=false;if(rosterUnsub)rosterUnsub();if(campfireUnsub)try{campfireUnsub()}catch(e){}if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};if(whisperPingUnsub)try{whisperPingUnsub()}catch(e){};if(partyProposalUnsub)try{partyProposalUnsub()}catch(e){};if(partyExpUnsub)try{partyExpUnsub()}catch(e){};if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(mailUnsub)try{mailUnsub()}catch(e){};mailUnsub=null;mailOpen=false;if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}guildView.open=false;if(friendView.profilesUnsub){try{friendView.profilesUnsub()}catch(e){}friendView.profilesUnsub=null}if(friendView.linksUnsub){try{friendView.linksUnsub()}catch(e){}friendView.linksUnsub=null}if(friendView.reqsUnsub){try{friendView.reqsUnsub()}catch(e){}friendView.reqsUnsub=null}friendView.open=false;if(presenceRef)remove(presenceRef).catch(()=>{})}};
+return{stop(){try{if(_npcResize)window.removeEventListener("resize",_npcResize);_npcResize=null}catch(e){};try{if(tutActive)tutClose(false)}catch(e){};try{resetWhisperTab()}catch(e){};_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);window.removeEventListener("focus",checkExpAct);accountHold=false;syncHold=false;if(rosterUnsub)rosterUnsub();if(campfireUnsub)try{campfireUnsub()}catch(e){}if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};if(whisperPingUnsub)try{whisperPingUnsub()}catch(e){};if(partyProposalUnsub)try{partyProposalUnsub()}catch(e){};if(partyExpUnsub)try{partyExpUnsub()}catch(e){};if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(mailUnsub)try{mailUnsub()}catch(e){};mailUnsub=null;mailOpen=false;mailSelected=null;if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}guildView.open=false;if(friendView.profilesUnsub){try{friendView.profilesUnsub()}catch(e){}friendView.profilesUnsub=null}if(friendView.linksUnsub){try{friendView.linksUnsub()}catch(e){}friendView.linksUnsub=null}if(friendView.reqsUnsub){try{friendView.reqsUnsub()}catch(e){}friendView.reqsUnsub=null}friendView.open=false;if(presenceRef)remove(presenceRef).catch(()=>{})}};
 
 
 }
