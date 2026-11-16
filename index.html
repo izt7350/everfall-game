@@ -3386,13 +3386,16 @@ function statusTreatment(d){
  return {action:"치료 불가"};
 }
 function cureChance(d,self=false,remainMs=null){
- const base=d&&d.cure?(self?d.cure.self:d.cure.other):(self?50:60);
+ const rates=d&&d.cure?d.cure:null;
+ const base=(rates&&(self?rates.self:rates.other))??(self?50:60);
  const int=Math.max(1,+((calcStats(me).int)||5)),intBonus=Math.max(0,int-5)*2;
  // 치유 기능 레벨 1당 치료 성공률 +1.5%p
  const heal=Math.max(0,Math.min(SKILL_MAX,+((me.skills||{}).heal||0))),healBonus=heal*1.5;
  const hours=remainMs!=null?Math.max(0,+remainMs)/3600000:(d&&d.min>0?d.min/60:24);
  const durationPenalty=Math.min(25,Math.ceil(hours)*2);
- return Math.max(30,Math.min(90,Math.round(base+intBonus+healBonus-durationPenalty)));
+ // 타인 치료가 항상 자신 치료보다 높도록 상·하한을 분리한다 (자신 30~90%, 타인 35~95%).
+ const cap=self?90:95,floor=self?30:35;
+ return Math.max(floor,Math.min(cap,Math.round(base+intBonus+healBonus-durationPenalty)));
 }
 function applyStatus(x,opts={}){
  const d=statusDefOf(x);if(!d)return null;
