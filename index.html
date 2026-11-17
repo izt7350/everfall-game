@@ -379,6 +379,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .ctabs::-webkit-scrollbar{display:none}
 #gameRoot .ctabs.dragging{cursor:grabbing;user-select:none}
 #gameRoot .ctab{flex:0 0 auto;height:48px;padding:0 4px;border:0;background:none;color:var(--dim);font-size:14px;line-height:22px;font-weight:500;position:relative;white-space:nowrap}
+#gameRoot .ctab[hidden]{display:none}
 #gameRoot .ctab[aria-selected="true"]{color:var(--accent-text);border-bottom:0}
 #gameRoot .ctab[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px;background:var(--accent)}
 #gameRoot .log{display:block;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:4px 20px 8px;font-size:14px;line-height:20px;gap:0}
@@ -996,6 +997,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
    <button class="ctab" role="tab" aria-selected="true" data-c="local">현장</button>
    <button class="ctab" role="tab" aria-selected="false" data-c="world">세계</button>
    <button class="ctab" role="tab" aria-selected="false" data-c="notice">공지</button>
+   <button class="ctab" role="tab" aria-selected="false" data-c="guild" id="guildChatTab" hidden>길드</button>
   </div>
   <div class="log" id="log"></div>
   <div class="send"><input id="inp" placeholder="메시지 입력…" maxlength="200"><button id="btn">전송</button></div>
@@ -2070,7 +2072,9 @@ function logOfflineEvent(uid,c,type,text,data){
   S.setLog(uid,cid,seq%200,entry).catch(()=>{});
  }catch(e){}
 }
-async function play(){accountHold=false;syncHold=false;const save=s=>{if(accountHold||syncHold)return;const rev=Math.max(Date.now(),(+((acc.character||{}).rev)||0)+1),data={...s,rev,by:SESSION_ID};acc.character={...acc.character,...data};const cref=ref(realtimeDB,"accounts/"+me.uid+"/character");update(cref,data).catch(async err=>{console.warn("char save",err);await freshToken(true);if(((acc.character||{}).rev)!==rev)return;update(cref,data).catch(e=>console.warn("char save retry",e))})};
+async function play(){accountHold=false;syncHold=false;
+ try{await claimSession();const fresh=await S.getAcc(me.uid);if(fresh&&fresh.character){fresh.character=norm(fresh.character);acc=fresh}}catch(e){console.warn("account refresh",e)}
+ const save=s=>{if(accountHold||syncHold)return;const rev=Math.max(Date.now(),(+((acc.character||{}).rev)||0)+1),data={...s,rev,by:SESSION_ID};acc.character={...acc.character,...data};const cref=ref(realtimeDB,"accounts/"+me.uid+"/character");update(cref,data).catch(async err=>{console.warn("char save",err);await freshToken(true);if(((acc.character||{}).rev)!==rev)return;update(cref,data).catch(e=>console.warn("char save retry",e))})};
  try{let c=norm(acc.character),d=null,dOk=false;
   try{d=await S.getDowned(me.uid);dOk=true}catch(e){}
   if(dOk&&d&&d.revive&&+d.revive.at<=+d.until){
@@ -4782,7 +4786,7 @@ function openSettings(){const dark=isDark();
   else if(b.dataset.ub!=null){me.blocked.splice(+b.dataset.ub,1);render()}
   else if(b.hasAttribute("data-save-profile")){saveProfile()}
    else if(b.hasAttribute("data-tutrestart")){try{$("pop").hidden=true}catch(e){};try{tutStart(true)}catch(e){};return}
-   else if(b.hasAttribute("data-clearchat")){pop("채팅 전체 초기화",`<p>현장·세계·공지·귓속말의 모든 메시지를 삭제합니다. 되돌릴 수 없습니다.</p>`,[{t:"초기화",c:"bad",fn:resetAllChat},{t:"취소",fn:openSettings}]);return}
+   else if(b.hasAttribute("data-clearchat")){pop("채팅 전체 초기화",`<p>현장·세계·공지·길드·귓속말의 모든 메시지를 삭제합니다. 되돌릴 수 없습니다.</p>`,[{t:"초기화",c:"bad",fn:resetAllChat},{t:"취소",fn:openSettings}]);return}
    else return;openSettings()};
  $("pb").onchange=e=>{if(e.target.id==="ncIn"){me.color=colorOf(e.target.value);applyColor()}}
  function applyColor(){try{opts.save(snap())}catch(e){}render();decorateNames();syncPresence(true);openSettings()}
@@ -4812,7 +4816,7 @@ const guildMembers=g=>Object.entries(g&&g.members&&typeof g.members==="object"?g
 const guildRole=g=>guildRoleOf(g,uid);
 const guildIsLeader=g=>guildRole(g)==="leader";
 const guildBusy=()=>!!me.travel||!!me.expedition||!!me.rest||!!me.read||!!me.downed||!!me.deadPending;
-function guildSaveSelf(){try{opts.save(cp(snap()))}catch(e){};try{updateProfileCard()}catch(e){};try{renderGuildBox()}catch(e){}}
+function guildSaveSelf(){try{opts.save(cp(snap()))}catch(e){};try{updateProfileCard()}catch(e){};try{renderGuildBox()}catch(e){};try{syncGuildChatTab()}catch(e){}}
 function renderGuildBox(){
  try{syncGuildTab()}catch(e){}
  const el=$("guild");if(!el)return;
@@ -5244,7 +5248,7 @@ function guildBoardHtml(g){
  </div>
  <div class="g-sec">
   <div class="g-sech">길드 명부 <span class="dim">${members.length}명 · 접속 ${esc(guildView.online||"…")}</span></div>
-  <div class="g-members">${members.sort((a,b)=>guildRankValue(b[1].role)-guildRankValue(a[1].role)||String(a[1].name||"").localeCompare(String(b[1].name||""),"ko")).map(([id,m])=>`<div class="g-item"><span class="g-dot ${guildView.onlineSet.has(id)?"on":"off"}" data-gdot="${esc(id)}"></span><span class="g-nm">${esc(m.name||"")}${id===uid?" (나)":""}</span><span class="g-chip">${esc(guildRankName(g,m.role||"member"))}</span></div>`).join("")}</div>
+  <div class="g-members">${members.sort((a,b)=>guildRankValue(b[1].role)-guildRankValue(a[1].role)||String(a[1].name||"").localeCompare(String(b[1].name||""),"ko")).map(([id,m])=>{const col=nameColor(id);return `<div class="g-item"><span class="g-dot ${guildView.onlineSet.has(id)?"on":"off"}" data-gdot="${esc(id)}"></span><span class="g-nm"${col?` style="color:${col}"`:""}>${esc(m.name||"")}${id===uid?" (나)":""}</span><span class="g-chip">${esc(guildRankName(g,m.role||"member"))}</span></div>`}).join("")}</div>
  </div>
  ${leader?"":`<div class="g-sec" style="text-align:right"><button class="sm2" data-gleave>길드 탈퇴</button></div>`}`;
 }
@@ -5629,6 +5633,7 @@ async function guildTick(){
    }
   }
  }catch(e){}
+ try{syncGuildChatTab()}catch(e){}
 }
 
 function specs(x){const it=info(nm(x)),o=[];if(it.atk!=null&&+it.atk>0){const lo=it.atkMin!=null?+it.atkMin:Math.max(.1,Math.round(it.atk*.85*10)/10),hi=it.atkMax!=null?+it.atkMax:Math.max(lo,Math.round(it.atk*1.15*10)/10);o.push(["최소 공격력",lo],["최고 공격력",hi])}if(it.def!=null)o.push(["방어",it.def]);if(it.hp!=null)o.push(["최대 HP",it.hp]);if(it.mp!=null)o.push(["최대 정신력",it.mp]);if(it.cap!=null)o.push(["소지품 칸",it.cap]);if(it.trapDamageRed!=null)o.push(["함정 피해 감소",it.trapDamageRed+"%"]);if(typeof x==="object")o.push(["내구도",fmt1(x.dur),x.max]);return o}
@@ -6162,7 +6167,7 @@ function cancelTravel(ret,origin,label){
  toast(`이동을 취소했습니다. 출발한 곳까지 약 ${ret}분 걸립니다.`);
 }
 $("travelCancel").onclick=openTravelCancel;
-function arrive(){sfx("ok");playCompleteSound();const d=me.travel.dest,walkMin=Math.max(0,+me.travel.min||0);me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub??null;const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:(d.sub??null);addWalkMinutes(walkMin);bag();renderAll();try{render()}catch(e){};try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){}}
+function arrive(){sfx("ok");playCompleteSound();const d=me.travel.dest,walkMin=Math.max(0,+me.travel.min||0);me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub??null;const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:(d.sub??null);addWalkMinutes(walkMin);bag();renderAll();try{render()}catch(e){};try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){};try{opts.save(cp(snap()))}catch(e){}}
 T(()=>{if(me.travel){Date.now()>=me.travel.end?arrive():renderAll()}},1000);
 T(checkExpAct,1000);
 // ---- 날씨 (2026-11-10) ----
@@ -6890,8 +6895,8 @@ $("tabs").onclick=e=>{const b=e.target.closest(".tab");if(!b)return;setTab(b.dat
 let people=[];
 let presenceRef=null,presenceLoc="",presenceAt=0,rosterUnsub=null,rosterGen=0,presenceWarned=false,downedUnsub=null,downedMap={},presenceList=[],rosterError=false;
 const PEOPLE_TTL=600000;
-const chatData={local:[],world:[],notice:[],whisper:[]};
-const chatUnsub={local:null,world:null,notice:null,whisper:null};
+const chatData={local:[],world:[],notice:[],guild:[],whisper:[]};
+const chatUnsub={local:null,world:null,notice:null,guild:null,whisper:null};
 const chatPaths={};
 let cur="local",sending=false,whisperUser=null,whisperPingUnsub=null,whisperTabs=[];
 const seenPingAt={};
@@ -6960,8 +6965,23 @@ function chatPath(tab){
  if(tab==="local")return "chat/cont/"+me.cont;
  if(tab==="world")return "chat/world";
  if(tab==="notice")return "chat/notice";
+ if(tab==="guild")return me.guildId?`chat/guild/${me.guildId}`:null;
  if(tab==="whisper")return whisperUser&&uid?`whispers/${[uid,whisperUser.uid].sort().join("~")}`:null;
  return "chat/notice";
+}
+function syncGuildChatTab(){
+ const has=!!me.guildId,btn=$("guildChatTab");
+ if(btn){btn.hidden=!has;btn.title=has?(me.guild||"길드"):"길드";}
+ if(!has){
+  if(chatUnsub.guild){try{chatUnsub.guild()}catch(e){};chatUnsub.guild=null}
+  delete chatPaths.guild;chatData.guild=[];
+  if(cur==="guild"){cur="world";try{render()}catch(e){}}
+ }else{
+  const p=chatPath("guild");
+  if(chatUnsub.guild&&chatPaths.guild!==p){try{chatUnsub.guild()}catch(e){};chatUnsub.guild=null;chatData.guild=[];delete chatPaths.guild}
+  if(cur==="guild")subscribeChat("guild");
+ }
+ syncChatTabs();
 }
 
 let presenceAuthWarned=false;
@@ -7582,7 +7602,7 @@ async function resetAllChat(){
  try{
   await Promise.all([remove(ref(realtimeDB,"chat")),remove(ref(realtimeDB,"whispers")),remove(ref(realtimeDB,"whisperPing"))]);
   Object.keys(chatData).forEach(k=>chatData[k]=[]);Object.keys(seenPingAt).forEach(k=>delete seenPingAt[k]);
-  subscribeChat("local",true);subscribeChat("world",true);subscribeChat("notice",true);
+  subscribeChat("local",true);subscribeChat("world",true);subscribeChat("notice",true);if(me.guildId)subscribeChat("guild",true);
   if(whisperUser)subscribeChat("whisper",true);
   try{render()}catch(e){}
   toast("모든 채팅방을 초기화했습니다.");
@@ -7605,7 +7625,7 @@ function decorateNames(){
 }
 document.addEventListener("everfall-theme",decorateNames);
 function render(){
- const lock=(cur==="notice"&&!me.isAdmin)||!!me.downed||!!me.deadPending||(cur==="local"&&!!me.travel),noWhisper=cur==="whisper"&&!whisperUser;
+ const lock=(cur==="notice"&&!me.isAdmin)||(cur==="guild"&&!me.guildId)||!!me.downed||!!me.deadPending||(cur==="local"&&!!me.travel),noWhisper=cur==="whisper"&&!whisperUser;
  const msgs=(chatData[cur]||[]).filter(m=>cur==="notice"||cur==="whisper"||!me.blocked.includes(m.name)).map(m=>{
   const realName=m.name||"무명",name=displayName(m.uid,realName),c=colorOf(m.c||(realName===me.name?me.color:"#CB3533")),sys=m.sys==="downed",canEdit=cur==="notice"&&me.isAdmin&&!!m.id;
   return `<div class="msg ${cur==="notice"?"notice":""} ${sys?"sys":""}${canEdit?" editable":""}"${canEdit?` data-msg-edit="${esc(m.id)}" role="button" tabindex="0" title="클릭해서 공지 수정"`:""}>${sys?`<span class="who">시스템</span>`:`<span class="who js-name" data-uid="${esc(m.uid||"")}" data-u="${esc(realName)}" title="캐릭터 정보 보기" style="--name-color:${c}">${esc(name)}</span>`}<span class="txt">${esc(m.t)}</span>${cur==="notice"&&m.editedAt?'<span class="edited">(수정됨)</span>':""}<span class="when">${chatTime(m.at)}</span></div>`}).join("");
@@ -7614,7 +7634,7 @@ function render(){
  logEl.scrollTop=logEl.scrollHeight;
  requestAnimationFrame(()=>{logEl.scrollTop=logEl.scrollHeight});
  $("inp").disabled=lock||noWhisper||sending;$("btn").disabled=lock||noWhisper||sending;
- $("inp").placeholder=(me.downed||me.deadPending)?"쓰러진 상태에서는 채팅할 수 없습니다.":(cur==="local"&&me.travel)?"이동 중에는 현장 채팅을 사용할 수 없습니다.":cur==="notice"?(me.isAdmin?"공지 입력… (메시지를 클릭하면 수정)":"공지는 관리자만 작성할 수 있어요"):cur==="whisper"?(whisperUser?`${whisperUser.name}에게 귓속말…`:"귓속말 상대를 선택하세요"):"메시지 입력…";
+ $("inp").placeholder=(me.downed||me.deadPending)?"쓰러진 상태에서는 채팅할 수 없습니다.":(cur==="local"&&me.travel)?"이동 중에는 현장 채팅을 사용할 수 없습니다.":cur==="notice"?(me.isAdmin?"공지 입력… (메시지를 클릭하면 수정)":"공지는 관리자만 작성할 수 있어요"):cur==="guild"?(me.guildId?"길드원에게 메시지…":"길드에 가입해야 합니다."):cur==="whisper"?(whisperUser?`${whisperUser.name}에게 귓속말…`:"귓속말 상대를 선택하세요"):"메시지 입력…";
  decorateNames()}
 $("log").onclick=e=>{
  const ed=e.target.closest("[data-msg-edit]");
@@ -7711,9 +7731,11 @@ function openWhisperTab(wuid){
 }
 function switchChat(tab){
  if(tab==="whisper"&&!whisperUser)return;
+ if(tab==="guild"&&!me.guildId)return toast("길드에 가입해야 길드 채팅을 사용할 수 있습니다.");
  cur=tab;
  syncChatTabs();
  if(tab==="whisper")subscribeChat("whisper");
+ else if(tab==="guild")subscribeChat("guild");
  whisperSave();
  render();
 }
@@ -7749,6 +7771,7 @@ async function send(){const v=$("inp").value.trim();if(!v||$("inp").disabled||se
  if(me.downed||me.deadPending){toast("쓰러진 상태에서는 채팅할 수 없습니다.");return}
  if(!uid){toast("로그인 정보를 확인할 수 없어 메시지를 보낼 수 없어요.");return}
  if(cur==="local"&&me.travel){toast("이동 중에는 현장 채팅을 사용할 수 없습니다.");return}
+ if(cur==="guild"&&!me.guildId){toast("길드에 가입해야 길드 채팅을 사용할 수 있습니다.");return}
  if(cur==="whisper"&&!whisperUser){toast("귓속말을 보낼 상대를 선택하세요.");return}
  const path=chatPath(cur);if(!path)return;
  sending=true;render();
@@ -7763,7 +7786,7 @@ async function send(){const v=$("inp").value.trim();if(!v||$("inp").disabled||se
  finally{sending=false;render()}}
 $("btn").onclick=send;$("inp").onkeydown=e=>{if(e.key==="Enter"&&!e.isComposing)send()};
 render();
-if(uid){syncPresence(true);subscribeChat("world");subscribeChat("notice");subscribeDownedMap();subscribeGraves();subscribeWhisperPing();restoreWhisper();T(()=>{handleProposalPopup();startProposalRun();maybeStartProposalExp();try{tryPendingRun()}catch(e){}},5000);T(()=>syncPresence(true),60000)}
+if(uid){syncPresence(true);subscribeChat("world");subscribeChat("notice");subscribeDownedMap();subscribeGraves();subscribeWhisperPing();restoreWhisper();try{syncGuildChatTab()}catch(e){};T(()=>{handleProposalPopup();startProposalRun();maybeStartProposalExp();try{tryPendingRun()}catch(e){}},5000);T(()=>syncPresence(true),60000)}
 
 // ---- 시간 / 시장 (한국 표준시 기준) ----
 const KST=o=>new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",...o});
@@ -7814,6 +7837,11 @@ T(()=>{if(uid&&!me.deadPending){try{syncPresence()}catch(e){}}},20000);
 // 탭으로 돌아왔을 때 즉시 접속 위치를 다시 쓰고 명단을 새로 구독한다(백그라운드 스로틀 대응).
 const onPresenceVisible=async()=>{if(document.hidden||!uid)return;await freshToken(false);if(document.hidden)return;try{syncPresence(true)}catch(e){}try{startRoster()}catch(e){}};
 document.addEventListener("visibilitychange",onPresenceVisible);
+// 탭을 떠날 때 마지막 상태(위치·이동 등)를 즉시 저장해 다른 기기에서 이어받을 수 있게 한다.
+const flushGameSave=()=>{try{if(uid&&!me.deadPending)opts.save(cp(snap()))}catch(e){}};
+const onGameHiddenSave=()=>{if(document.hidden)flushGameSave()};
+document.addEventListener("visibilitychange",onGameHiddenSave);
+window.addEventListener("pagehide",flushGameSave);
 // 대장간 상점: 아이템 데이터의 장비를 매일 대륙별로 무작위 8종 (등급 비중은 시장과 같음: 일반 70 / 고급 20 / 희귀 8.5 / 영웅 1.5)
 const SMITH_SLOTS=8,SMITH_GROUP_W=[["무기",40],["방어구",30],["악세사리",20],["가방",10]];
 const smithGroupOf=d=>/무기/.test(d.sub)?"무기":d.sub==="방어구"?"방어구":d.sub==="악세사리"?"악세사리":d.sub==="가방"?"가방":"기타";
@@ -9576,7 +9604,7 @@ render();bag();renderAll();clock();
  _ids.push(setTimeout(()=>{try{applyItemRefund()}catch(e){console.warn(e)}},300));
  _ids.push(setTimeout(()=>{try{if(affectionDecay()&&npcOpen)npcRender()}catch(e){}},400));
  if(me.expedition)setTimeout(checkExpAct,400);
-return{stop(){try{if(_npcResize)window.removeEventListener("resize",_npcResize);_npcResize=null}catch(e){};try{if(tutActive)tutClose(false)}catch(e){};try{resetWhisperTab()}catch(e){};_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);document.removeEventListener("visibilitychange",onPresenceVisible);window.removeEventListener("focus",checkExpAct);accountHold=false;syncHold=false;if(rosterUnsub)rosterUnsub();if(campfireUnsub)try{campfireUnsub()}catch(e){}if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};if(whisperPingUnsub)try{whisperPingUnsub()}catch(e){};if(partyProposalUnsub)try{partyProposalUnsub()}catch(e){};if(partyExpUnsub)try{partyExpUnsub()}catch(e){};if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(mailUnsub)try{mailUnsub()}catch(e){};mailUnsub=null;mailOpen=false;mailSelected=null;if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}guildView.open=false;if(guildView.profilesUnsub){try{guildView.profilesUnsub()}catch(e){}guildView.profilesUnsub=null}if(friendView.profilesUnsub){try{friendView.profilesUnsub()}catch(e){}friendView.profilesUnsub=null}if(friendView.linksUnsub){try{friendView.linksUnsub()}catch(e){}friendView.linksUnsub=null}if(friendView.reqsUnsub){try{friendView.reqsUnsub()}catch(e){}friendView.reqsUnsub=null}friendView.open=false;if(presenceRef)remove(presenceRef).catch(()=>{})}};
+return{stop(){try{if(_npcResize)window.removeEventListener("resize",_npcResize);_npcResize=null}catch(e){};try{if(tutActive)tutClose(false)}catch(e){};try{resetWhisperTab()}catch(e){};_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);document.removeEventListener("visibilitychange",onPresenceVisible);document.removeEventListener("visibilitychange",onGameHiddenSave);window.removeEventListener("pagehide",flushGameSave);window.removeEventListener("focus",checkExpAct);accountHold=false;syncHold=false;if(rosterUnsub)rosterUnsub();if(campfireUnsub)try{campfireUnsub()}catch(e){}if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};if(whisperPingUnsub)try{whisperPingUnsub()}catch(e){};if(partyProposalUnsub)try{partyProposalUnsub()}catch(e){};if(partyExpUnsub)try{partyExpUnsub()}catch(e){};if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(mailUnsub)try{mailUnsub()}catch(e){};mailUnsub=null;mailOpen=false;mailSelected=null;if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}guildView.open=false;if(guildView.profilesUnsub){try{guildView.profilesUnsub()}catch(e){}guildView.profilesUnsub=null}if(friendView.profilesUnsub){try{friendView.profilesUnsub()}catch(e){}friendView.profilesUnsub=null}if(friendView.linksUnsub){try{friendView.linksUnsub()}catch(e){}friendView.linksUnsub=null}if(friendView.reqsUnsub){try{friendView.reqsUnsub()}catch(e){}friendView.reqsUnsub=null}friendView.open=false;if(presenceRef)remove(presenceRef).catch(()=>{})}};
 
 
 }
