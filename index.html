@@ -1577,7 +1577,7 @@ const defStatus=o=>{const d={maxStacks:1,min:60,ef:{},clear:[],...o};STATUS_DB[d
  defStatus({id:"overcast",n:"흐린 하늘",t:"buff",sub:"환경",d:"구름이 햇빛을 가려 선선하고 몸을 숨기기 쉬운 상태. (날씨: 흐림)",min:180,env:1,weather:1,ef:{stealth:5,mpRegenPct:5}}),
  defStatus({id:"gale",n:"강풍",t:"debuff",sub:"환경",d:"거센 바람에 몸을 가누기 어렵고 화살이 빗나간다. (날씨: 강풍)",min:180,env:1,weather:1,ef:{rangedPct:-15,movePct:-10},clear:["날씨 변화"],treat:{action:"날씨가 바뀌거나 그 지역을 떠나면 해제"}}),
  // 전투 상태이상 15
- defStatus({id:"bleed",n:"출혈",t:"debuff",sub:"전투",d:"상처에서 피가 계속 흐른다.",min:60,maxStacks:3,ef:{hpPctHr:-2,movePct:-5},clear:["붕대"],treat:{item:"붕대"}}),
+ defStatus({id:"bleed",n:"출혈",t:"debuff",sub:"전투",d:"상처에서 피가 계속 흐른다.",min:210,maxStacks:3,ef:{hpPctHr:-2,movePct:-5},clear:["붕대"],treat:{item:"붕대"}}),
  defStatus({id:"poison",n:"중독",t:"debuff",sub:"전투",d:"독이 몸에 퍼졌다.",min:60,maxStacks:3,ef:{hpPctHr:-1,healPct:-20},clear:["해독제"],treat:{item:"해독제"}}),
  defStatus({id:"burn",n:"화상",t:"debuff",sub:"전투",d:"불에 데어 계속 아프다.",min:60,maxStacks:2,ef:{hpPctHr:-2,defPct:-10},clear:["치유 연고"],treat:{item:"치유 연고"}}),
  defStatus({id:"freeze",n:"빙결",t:"debuff",sub:"전투",d:"몸이 얼어 움직임이 둔해졌다.",min:60,ef:{speedPct:-30,evasionPct:-10},clear:["따뜻한 곳"],treat:{action:"따뜻한 곳에서 해제"}}),
@@ -6522,10 +6522,12 @@ function scaleMonster(mon,star,opts={}){
    h*=k*q;a*=k*q;
   }
   if(role==="boss"||opts.boss){h*=1.15;a*=1.15}
+  // ★4 이상 몬스터의 공격력을 15% 낮춘다. (모든 탐사 모드·역할 공통)
+  if(s>=4)a*=0.85;
   return{...mon,hp:Math.max(1,Math.round((+mon.hp||1)*h)),...scaleAtkTriplet(mon,a),def:Math.max(0,Math.round((+mon.def||0)*d*100)/100)};
  }
  const sc=monsterScale(star),hf=highTierScale(star,mon.role);
- return{...mon,hp:Math.max(1,Math.round((+mon.hp||1)*sc.hp*hf.hp)),...scaleAtkTriplet(mon,sc.atk*hf.atk),def:Math.max(0,Math.round((+mon.def||0)*sc.def*hf.def*100)/100)}
+ return{...mon,hp:Math.max(1,Math.round((+mon.hp||1)*sc.hp*hf.hp)),...scaleAtkTriplet(mon,sc.atk*hf.atk*(s>=4?0.85:1)),def:Math.max(0,Math.round((+mon.def||0)*sc.def*hf.def*100)/100)}
 }
 function capBattleLoot(loot,star){
  if(Math.floor(+star||0)>2)return loot;
