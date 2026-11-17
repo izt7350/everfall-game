@@ -756,6 +756,9 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .g-wtab[aria-selected="true"]{border-color:var(--accent-strong);color:var(--accent-text);background:var(--accent-soft)}
 #gameRoot .g-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px;line-height:18px}
 #gameRoot .g-item:last-child{border-bottom:0}
+#gameRoot .g-item-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 18px}
+#gameRoot .g-item-grid>.g-item{min-width:0}
+@media (max-width:700px){#gameRoot .g-item-grid{grid-template-columns:1fr}}
 #gameRoot .g-item>.g-nm{flex:1;min-width:0;font-weight:500;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 #gameRoot .f-rel{font-size:11px;color:var(--accent-text);font-weight:600}
 #pop .g-item{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--line);font-size:12px;line-height:18px}
@@ -2805,7 +2808,16 @@ function drawDurs(){
  try{renderProposalPanels()}catch(e){}}
 let riskOpenKind=null;
 function riskParty(){
- const allies=me.partyId&&partyData?onlineAllies():(me.party||[]);
+ if(me.partyId&&partyData&&partyData.members){
+  const members=Object.entries(partyData.members).slice(0,5).map(([id,m])=>{
+   const r=m&&m.risk;
+   if(r&&isFinite(+r.atk)&&isFinite(+r.def))return {lv:Math.max(1,+r.lv||+(m&&m.lv)||1),atk:Math.max(0,+r.atk||0),def:Math.max(0,+r.def||0)};
+   let st={};try{st=calcStats(normAlly({...m,uid:id,ai:true}))}catch(e){}
+   return {lv:Math.max(1,+(m&&m.lv)||1),atk:Math.max(+st.meleeAtk||0,+st.rangedAtk||0,+st.magicAtk||0),def:Math.max(0,+st.def||0)};
+  });
+  if(members.length)return members;
+ }
+ const allies=me.party||[];
  return [me,...allies].filter(Boolean).slice(0,5).map(c=>{
   let st={};try{st=calcStats(c)}catch(e){}
   return {lv:Math.max(1,+c.lv||1),atk:Math.max(+st.meleeAtk||0,+st.rangedAtk||0,+st.magicAtk||0),def:Math.max(0,+st.def||0)};
@@ -2837,6 +2849,7 @@ function renderExpeditionRisk(kind){
 }
 function openRisk(kind){
  riskOpenKind=kind;
+ syncPartyMemberPayload(true);
  const lr=$("longrisk"),dr=$("dunrisk");
  if(lr)lr.hidden=kind!=="long";if(dr)dr.hidden=kind!=="dungeon";
  renderExpeditionRisk(kind);
@@ -5386,7 +5399,7 @@ function guildWhListHtml(g){
  const d=guildWhData(g),canTake=guildPerm(g,"warehouseWithdraw");
  const tabs=`<div class="g-wtabs">${Array.from({length:d.pages},(_,i)=>`<button class="g-wtab" data-gwh="${i}" aria-selected="${i===d.page}">창고${i+1}</button>`).join("")}</div>`;
  const rows=d.groups.length?d.groups.map(x=>`<div class="g-item"><button type="button" class="g-nm" data-gwinfokey="${esc(x.key)}" title="아이템 정보">${esc(x.n)}${x.q>1?` ×${x.q}`:""}${typeof x.it==="object"?dura(x.it):""}</button><button class="sm2" data-gwitkey="${esc(x.key)}" ${canTake?"":"disabled"}>꺼내기</button></div>`).join(""):`<div class="g-empty">${d.q?"검색 결과가 없습니다.":"창고가 비어 있습니다."}</div>`;
- return `${tabs}<div>${rows}</div>`;
+ return `${tabs}<div class="g-item-grid">${rows}</div>`;
 }
 function guildInvRows(){
  const invRows=[],im=new Map();
@@ -5414,7 +5427,7 @@ function guildInvCountText(g){
 }
 function guildInvListHtml(g){
  const rows=guildInvRows(),q=String(guildView.invQuery||"").trim(),canPut=guildPerm(g,"warehouseDeposit");
- return `<div>${rows.length?rows.map(r=>{
+ return `<div class="g-item-grid">${rows.length?rows.map(r=>{
   const info=r.obj?`data-giinfoidx="${r.idx}"`:`data-giinfo="${esc(encodeURIComponent(r.n))}"`;
   const dep=r.obj?`data-gdepi="${r.idx}"`:`data-gdep="${esc(encodeURIComponent(r.n))}"`;
   return `<div class="g-item"><button type="button" class="g-nm" ${info} title="아이템 정보">${esc(r.n)}${r.q>1?` ×${r.q}`:""}${r.obj?dura(r.it):""}</button><button class="sm2" ${dep} ${canPut?"":"disabled"}>넣기</button></div>`;
@@ -7697,7 +7710,15 @@ function addMercenary(){
 }
 function myPotionInfo(){let n=0,h=0;for(const x of me.inv||[]){const k=nm(x);if(isHpPotion(k)&&!isPotionAutoLocked(k)){n++;h+=potionHealVal(info(k).fx.hp||0)}}return {n,h:n?Math.round(h/n):0}}
 function memberPayload(){
- return {name:me.name,lv:me.lv,job:me.job,color:me.color,stats:me.stats.slice(),skills:{...me.skills},equipped:cp(me.equipped),traits:me.traits.slice(),hp:me.hp.slice(),pot:myPotionInfo(),at:Date.now()};
+ const st=calcStats(me),atk=Math.max(+st.meleeAtk||0,+st.rangedAtk||0,+st.magicAtk||0),def=Math.max(0,+st.def||0);
+ return {name:me.name,lv:me.lv,job:me.job,color:me.color,stats:me.stats.slice(),skills:{...me.skills},equipped:cp(me.equipped),traits:me.traits.slice(),hp:me.hp.slice(),pot:myPotionInfo(),risk:{atk:Math.round(atk*100)/100,def:Math.round(def*100)/100,lv:Math.max(1,+me.lv||1)},at:Date.now()};
+}
+function syncPartyMemberPayload(rerender){
+ if(!uid||!me.partyId||!partyData||!partyData.members||!partyData.members[uid])return;
+ const p=memberPayload();
+ partyData.members[uid]={...partyData.members[uid],...p};
+ if(rerender){try{refreshRisk()}catch(e){}}
+ update(ref(realtimeDB,"parties/"+me.partyId+"/members/"+uid),p).catch(e=>console.warn("party payload",e));
 }
 // 파티 로컬 상태 정리 (해산·추방·잔여 partyId) — 2026-11-11
 function clearPartyLocal(msg){
@@ -8167,7 +8188,7 @@ $("nlbtn").onclick=insertChatNewline;
 $("inp").addEventListener("input",growChatInput);
 $("inp").onkeydown=e=>{if(e.key!=="Enter"||e.isComposing)return;if(e.shiftKey&&cur==="notice")return;e.preventDefault();send()};
 render();
-if(uid){syncPresence(true);subscribeChat("world");subscribeChat("notice");subscribeDownedMap();subscribeGraves();subscribeWhisperPing();restoreWhisper();try{syncGuildChatTab()}catch(e){};T(()=>{handleProposalPopup();startProposalRun();maybeStartProposalExp();try{tryPendingRun()}catch(e){}},5000);T(()=>syncPresence(true),60000)}
+if(uid){syncPresence(true);subscribeChat("world");subscribeChat("notice");subscribeDownedMap();subscribeGraves();subscribeWhisperPing();restoreWhisper();try{syncGuildChatTab()}catch(e){};T(()=>{handleProposalPopup();startProposalRun();maybeStartProposalExp();try{tryPendingRun()}catch(e){}},5000);T(()=>syncPresence(true),60000);T(()=>syncPartyMemberPayload(),60000)}
 
 // ---- 시간 / 시장 (한국 표준시 기준) ----
 const KST=o=>new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",...o});
