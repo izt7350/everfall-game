@@ -2513,7 +2513,7 @@ S|기사들의 병영(거점)|0|성을 수비하던 기사들이 생활하던 �
 S|봉인된 보물고|7|영주의 재산과 가보를 보관하던 금고.
 S|검은 연회장|7|영주와 귀족들이 연회를 열던 대형 홀. 식탁과 샹들리에가 그대로 방치되어 있다.
 #아르케인
-C|만민의 광장|아르케인의 수도이자 여러 대륙의 사람들이 모여들던 거대한 교역·정치의 중심지. 광장을 둘러싸고 평의회 의사당과 상업 지구, 각국의 대사관과 시민 시설이 자리하고 있었다. 몬스터 침략 당시 평의회의 대응이 늦어지면서 도시는 순식간에 무너졌고, 이후 아르케인은 여러 정치 세력으로 분열되었다. 지금은 폐허가 된 광장과 건물들만이 과거 번영의 흔적을 간직하고 있다. 이곳은 자주 시장이 선다. 오전 9시부터 오후 9시까지.
+C|만민의 광장|아르케인의 수도이자 여러 대륙의 사람들이 모여들던 거대한 교역·정치의 중심지. 광장을 둘러싸고 평의회 의사당과 상업 지구, 각국의 대사관과 시민 시설이 자리하고 있었다. 몬스터 침략 당시 평의회의 대응이 늦어지면서 도시는 순식간에 무너졌고, 이후 아르케인은 여러 정치 세력으로 분열되었다. 지금은 폐허가 된 광장과 건물들만이 과거 번영의 흔적을 간직하고 있다. 이곳은 가끔 시장이 선다. 오전 9시부터 오후 9시까지.
 P|cap:55,28;cross:43,34;dock:33,40;parl:62,19;glass:69,11.5;beach:68,33.5
 E|cap-cross;cross-dock;cap-parl;parl-glass;cap-beach
 L|dock,cross,cap,parl,glass;cap,beach
@@ -7775,7 +7775,7 @@ const dayOdd=()=>Math.floor((Date.now()+9*36e5)/864e5)%2===1;
 const eliOpen=()=>isOpen()&&dayOdd();
 const soleOpen=()=>isOpen()&&!dayOdd(); // 솔레니아 진료소: 이틀에 한 번
 const soleShopOpen=()=>isOpen(); // 솔레니아 시장·대장간: 매일 오전 9시~오후 9시
-const arkOpen=()=>{if(!isOpen())return false;const s=traitDayKey()+"ark";let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0)%100<60}; // 아르케인 시장·대장간: 영업일 확률 60%
+const arkOpen=()=>{if(!isOpen())return false;const s=traitDayKey()+"ark";let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return (h>>>0)%100<70}; // 아르케인 시장·대장간: 영업일 확률 70%
 function clock(){const n=new Date();
  $("ck").textContent=KST({hour:"numeric",minute:"2-digit",second:"2-digit",hour12:true}).format(n);
  $("cd").textContent=KST({month:"long",day:"numeric",weekday:"short"}).format(n);
