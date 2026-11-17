@@ -5860,25 +5860,28 @@ function swapPop(cur,nw,fn,slot){const A=specs(cur),B=specs(nw),acc=info(nm(nw))
 const gkey=()=>[me.cont,me.area,me.sub||""].map(v=>String(v).replace(/[.#$/\[\]]/g,"_")).join("|");
 const groundPath=()=>"ground/"+gkey();
 const sharedGround={items:[]};
-let groundUnsub=null,groundLoc="",groundMigratedKey="";
+let groundUnsub=null,groundLoc="";
+const groundMigrated=new Set(),groundMigrating=new Set();
 function groundSetData(val){
  const o=val&&typeof val==="object"?val:{};
  sharedGround.items=Object.entries(o).map(([id,x])=>({id,x})).filter(e=>e.x!=null&&e.x!=="").sort((a,b)=>String(a.id).localeCompare(String(b.id)));
  try{groundRender()}catch(e){}
 }
-function groundMakeEntries(items){
+function groundHash(s){let h=2166136261;for(let i=0;i<s.length;i++){h^=s.charCodeAt(i);h=Math.imul(h,16777619)}return(h>>>0).toString(36)}
+function groundMakeEntries(items,seed){
  const base=Date.now().toString(36),out={};
  items.forEach((x,i)=>{
   let id;
-  do{id="g"+base+Math.random().toString(36).slice(2,8)+i.toString(36)}while(out[id]);
+  if(seed!=null)id="m"+i.toString(36).padStart(4,"0")+groundHash(seed+"|"+i+"|"+JSON.stringify(x));
+  else do{id="g"+base+Math.random().toString(36).slice(2,8)+i.toString(36)}while(out[id]);
   out[id]=cp(x);
  });
  return out;
 }
-async function groundAddItems(items,path){
+async function groundAddItems(items,path,seed){
  if(!items||!items.length)return false;
  path=path||groundPath();
- const entries=groundMakeEntries(items);
+ const entries=groundMakeEntries(items,seed);
  try{
   const res=await runTransaction(ref(realtimeDB,path),cur=>{
    const o=cur&&typeof cur==="object"?cur:{};
@@ -5895,13 +5898,16 @@ async function groundAddItems(items,path){
 }
 async function migrateLocalGround(){
  const k=gkey();
- if(groundMigratedKey===k)return;
+ if(groundMigrated.has(k)||groundMigrating.has(k))return;
  const local=Array.isArray(me.ground&&me.ground[k])?me.ground[k].slice():[];
- if(!local.length){groundMigratedKey=k;return}
- const ok=await groundAddItems(local,"ground/"+k);
- if(!ok)return;
+ if(!local.length){groundMigrated.add(k);return}
+ groundMigrating.add(k);
+ try{groundRender()}catch(e){}
+ const ok=await groundAddItems(local,"ground/"+k,k);
+ groundMigrating.delete(k);
+ if(!ok){try{groundRender()}catch(e){};return}
  if(Array.isArray(me.ground[k])){me.ground[k]=[];delete me.ground[k]}
- groundMigratedKey=k;
+ groundMigrated.add(k);
  try{opts.save(cp(snap()))}catch(e){}
  if(gkey()===k)try{groundRender()}catch(e){}
 }
@@ -5985,7 +5991,7 @@ function repairAirship(){
   [{t:"이름 짓기",c:"",fn:()=>{const v=(($("rnIn")||{}).value||"").trim();const a=airShip();if(a&&v){a.name=v.slice(0,10);try{rideRender()}catch(e){};try{opts.save(cp(snap()))}catch(e){}}}},{t:"나중에"}]);
 }
 function groundRender(){
- const shared=sharedGround.items||[],local=me.ground[gkey()]||[],rows=[];
+ const shared=sharedGround.items||[],local=groundMigrating.has(gkey())?[]:(me.ground[gkey()]||[]),rows=[];
  if(atAirWorkshop())rows.push(`<div class="irow"><div class="ihead" style="cursor:default">부서진 비행선 <span class="dim sm">여러 대가 방치되어 있다</span></div><div class="ibtn"><button class="sm2" data-airfix="1">수리하기</button></div></div>`);
  gravesHere().forEach(([gid,gr])=>{
   const trace=Date.now()>+gr.expiresAt, name=esc(gr.ownerName||"무명");
