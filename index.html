@@ -1391,6 +1391,8 @@ function adminLogDetail(r){
  const combat=[d.monster,d.role?roleName(d.role):null,d.rounds!=null?`${num(d.rounds)}턴`:null,d.boss?"보스전":null].filter(Boolean).join(" · ");
  if(combat)add("전투",esc(combat));
  if(d.status)add("전투 상태",esc(resultName(d.status)));
+ if(d.preemptive)add("전투 결과","선제 공격으로 HP 1 귀환");
+ if(Array.isArray(d.battleLog)&&d.battleLog.length)rows.push(`<div class="ai-row" style="display:block"><span>전투 로그</span><div class="explog-pop" style="max-height:140px;margin-top:4px">${d.battleLog.map(t=>`<div class="explog-line">${esc(t)}</div>`).join("")}</div></div>`);
  if(d.xp!=null)add("획득 경험치",`+${num(d.xp)}`);
  if(Array.isArray(d.loot)&&d.loot.length)add("획득 아이템",esc(tallyLog(d.loot)));
  if(d.badTrait)add("획득한 부정 특성",esc(d.badTrait));
@@ -4342,13 +4344,13 @@ function triggerDowned(){
  const expLog=me.expedition?{kind:me.expedition.kind,min:me.expedition.min,end:me.expedition.end}:null,travLog=!!me.travel,restLog=!!me.rest;
  if(me.travel||me.rest||me.expedition||me.read){me.travel=null;me.rest=null;me.expedition=null;me.read=null}
  const now=Date.now(),until=now+90*60000,place=locText().slice(0,80);
- me.downed={since:now,until,startedAt:now,cont:me.cont,area:me.area,sub:me.sub||"",place,revive:null,dead:false};
+ me.downed={since:now,until,startedAt:now,cont:me.cont,area:me.area,sub:me.sub||"",place,revive:null,dead:false,why};
  me.deadPending=false;
  if(battle){battle=null;battleEquipSnapshot=null;try{closePop()}catch(e){}}
  try{closePop()}catch(e){}
  ["tmodal","cmodal","rmodal","mvmodal","modal"].forEach(id=>{const el=$(id);if(el)el.hidden=true});
  if(uid){
-  S.setDowned(uid,{name:me.name,cont:me.cont,area:me.area,sub:me.sub||"",place,since:now,until,startedAt:now}).catch(e=>console.warn("downed",e));
+  S.setDowned(uid,{name:me.name,cont:me.cont,area:me.area,sub:me.sub||"",place,since:now,until,startedAt:now,why}).catch(e=>console.warn("downed",e));
   push(ref(realtimeDB,"chat/world"),{uid,name:"시스템",t:`${place}에 누군가 쓰러졌다. 아직 숨이 붙어있다.`,at:now,sys:"downed",place}).catch(e=>console.warn("downedChat",e));
  }
  try{opts.save(cp(snap()))}catch(e){}
@@ -4392,7 +4394,9 @@ async function beginDeath(){
  }
  if(!me.downed){me.deadPending=false;return}
  me.deathState={...me.downed};me.downed=null;
- logChar("death",`사망 · ${me.deathState.place||""}`,{...me.deathState,hp:me.hp.slice(),mp:me.mp.slice(),hunger:me.hunger.slice(),fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
+ const dwhy=me.deathState.why||((+me.hp[0]||0)<=0?"hp":((+me.hunger[0]||0)<=0?"hunger":"unknown"));
+ const dwhyText=dwhy==="hunger"?"허기 0":dwhy==="hp"?"HP 0":"원인 불명";
+ logChar("death",`사망 · ${dwhyText} · ${me.deathState.place||""}`,{...me.deathState,why:dwhy,hp:me.hp.slice(),mp:me.mp.slice(),hunger:me.hunger.slice(),fx:(me.fx||[]).map(f=>f&&(f.label||f.n))});
  if(uid)S.setDowned(uid,{...me.deathState,name:me.name,dead:true}).catch(()=>{});
  try{if(presenceRef)remove(presenceRef).catch(()=>{})}catch(e){}
  updateDownedBar();renderAll();
@@ -4458,7 +4462,7 @@ else if(uid)setTimeout(subscribeOwnDowned,3000); // 일어난 상태면 남은 �
 
 // 팝업
 let popF=[];
-const guildView={gid:"",data:null,tab:"board",page:0,noticeMode:"view",noticeIndex:0,noticePage:0,postMode:"list",postIndex:0,postPage:0,online:"",onlineSet:new Set(),profiles:{},open:false,unsub:null,profilesUnsub:null};
+const guildView={gid:"",data:null,tab:"board",page:0,noticeMode:"view",noticeIndex:0,noticePage:0,postMode:"list",postIndex:0,postPage:0,online:"",onlineSet:new Set(),profiles:{},open:false,unsub:null,profilesUnsub:null,whRecent:[],invRecent:[]};
 function pop(t,h,b,lock,sheet){$("pt").textContent=t;$("pb").innerHTML=h;$("pb").onclick=null;$("pb").oninput=null;popF=b;$("pbtn").innerHTML=b.map((x,k)=>`<button class="btn ${x.c===undefined?"alt":x.c}" data-k="${k}"${x.disabled?" disabled":""}>${esc(x.t)}</button>`).join("");$("pop").dataset.lock=lock?"1":"";$("pop").classList.toggle("sheet",!!sheet);$("pop").classList.remove("guild");$("pop").hidden=false}
 const closePop=()=>{$("pop").hidden=true;expRecordView=false};
 $("pbtn").onclick=e=>{const b=e.target.closest("[data-k]");if(!b)return;const f=popF[+b.dataset.k];closePop();if(f.fn)f.fn()};
@@ -5014,7 +5018,7 @@ function startGuildTab(){
  const gid=me.guildId;
  if(guildView.open&&guildView.gid===gid&&guildView.unsub){if(guildView.data)guildRender();return}
  if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}
- guildView.gid=gid;guildView.tab=guildView.tab||"board";guildView.page=0;
+ guildView.gid=gid;guildView.tab=guildView.tab||"board";if(guildView.tab==="warehouse"){guildView.whRecent=[];guildView.invRecent=[]}guildView.page=0;
  guildView.noticeMode="view";guildView.noticeIndex=0;guildView.noticePage=0;
  guildView.postMode="list";guildView.postIndex=0;guildView.postPage=0;
  guildView.open=true;guildView.data=null;
@@ -5294,16 +5298,46 @@ function guildPostSectionHtml(posts){
  return `<div class="g-list g-boardlist">${rows.length?rows.map(p=>`<button type="button" class="g-listrow" data-gpview="${esc(p.k)}"><span class="g-rowtitle">${esc(p.title||p.text||"(제목 없음)")}</span><span class="g-rowmeta">${esc(p.by||"")} · ${esc(fmt(p.at))}</span></button>`).join(""):`<div class="g-empty">게시글이 없습니다.</div>`}</div>
  <div class="g-foot"><div class="g-pager"><button class="sm2" data-gppage="prev" ${guildView.postPage<=0?"disabled":""}>이전</button><span>${guildView.postPage+1} / ${pages}</span><button class="sm2" data-gppage="next" ${guildView.postPage>=pages-1?"disabled":""}>다음</button></div><div class="g-actions"><button class="sm2" data-gpmode="write">글쓰기</button></div></div>`;
 }
+const WH_KEY=x=>typeof x==="string"?`s:${nm(x)}`:`o:${nm(x)}|${x.dur!=null?x.dur:""}|${x.max!=null?x.max:""}`;
+function whTouchRecent(list,key){const i=list.indexOf(key);if(i>=0)list.splice(i,1);list.unshift(key);if(list.length>80)list.length=80}
+function whRecentRank(list,key){const i=list.indexOf(key);return i<0?9999:i}
+function whCatRank(n){const i=INV_CATS.indexOf(invCat(n));return i<0?INV_CATS.length:i}
+function whSortEntries(items,recent){
+ return items.map((x,i)=>({x,i,key:WH_KEY(x)})).sort((a,b)=>{
+  const ra=whRecentRank(recent,a.key),rb=whRecentRank(recent,b.key);
+  if(ra!==rb)return ra-rb;
+  const ca=whCatRank(nm(a.x)),cb=whCatRank(nm(b.x));
+  if(ca!==cb)return ca-cb;
+  const c=nm(a.x).localeCompare(nm(b.x),"ko");if(c)return c;
+  return a.i-b.i;
+ });
+}
 function guildWarehouseHtml(g){
  const wh=g.warehouse&&typeof g.warehouse==="object"?g.warehouse:{};
  const level=Math.max(0,Math.floor(+wh.level||0)),cap=30*(level+1),items=gArr(wh.items);
  const pages=Math.max(1,Math.ceil(cap/30));
  guildView.page=Math.max(0,Math.min(guildView.page,pages-1));
- const page=guildView.page,list=items.slice(page*30,page*30+30);
- const groups=[],map=new Map();
- for(const it of list){const n=nm(it);if(map.has(n))map.get(n).q++;else{const o={n,q:1};map.set(n,o);groups.push(o)}}
- const ig=[],im=new Map(),objs=[];
- me.inv.forEach((it,idx)=>{if(typeof it==="string"){const n=nm(it);if(im.has(n))im.get(n).q++;else{const o={n,q:1};im.set(n,o);ig.push(o)}}else objs.push({it,idx})});
+ const page=guildView.page;
+ const sortedWh=whSortEntries(items,guildView.whRecent||[]);
+ const pageItems=sortedWh.slice(page*30,page*30+30).map(e=>e.x);
+ const groups=[],gmap=new Map();
+ for(const it of pageItems){const key=WH_KEY(it);if(gmap.has(key))gmap.get(key).q++;else{const o={key,n:nm(it),q:1,it};gmap.set(key,o);groups.push(o)}}
+ const invRows=[],im=new Map();
+ me.inv.forEach((it,idx)=>{
+  if(typeof it==="string"){
+   const key=WH_KEY(it),r=im.get(key);
+   if(r){r.q++;r.last=idx}
+   else{const o={key,n:nm(it),q:1,idx,last:idx,obj:false,it};im.set(key,o);invRows.push(o)}
+  }else invRows.push({key:WH_KEY(it),n:nm(it),q:1,idx,last:idx,obj:true,it});
+ });
+ invRows.sort((a,b)=>{
+  const ra=whRecentRank(guildView.invRecent||[],a.key),rb=whRecentRank(guildView.invRecent||[],b.key);
+  if(ra!==rb)return ra-rb;
+  const ca=whCatRank(a.n),cb=whCatRank(b.n);
+  if(ca!==cb)return ca-cb;
+  const c=a.n.localeCompare(b.n,"ko");if(c)return c;
+  return b.last-a.last;
+ });
  const canExpand=count("단단한 나무")>=2&&count("고철")>=3&&count("노끈")>=2;
  const canIn=guildPerm(g,"vaultDeposit"),canOut=guildPerm(g,"vaultWithdraw"),canPut=guildPerm(g,"warehouseDeposit"),canTake=guildPerm(g,"warehouseWithdraw");
  const perms=g.permissions&&typeof g.permissions==="object"?g.permissions:{};
@@ -5324,14 +5358,19 @@ function guildWarehouseHtml(g){
  <div class="g-sec">
   <div class="g-sech">길드 창고 <span class="dim">${items.length} / ${cap}칸 · 빼기 ${esc(guildRankName(g,minTake))} 이상</span></div>
   <div class="g-wtabs">${Array.from({length:pages},(_,i)=>`<button class="g-wtab" data-gwh="${i}" aria-selected="${i===page}">창고${i+1}</button>`).join("")}</div>
-  <div>${groups.length?groups.map(x=>`<div class="g-item"><button type="button" class="g-nm" data-gwinfo="${esc(encodeURIComponent(x.n))}">${esc(x.n)}${x.q>1?` ×${x.q}`:""}</button><button class="sm2" data-gwit="${esc(encodeURIComponent(x.n))}" ${canTake?"":"disabled"}>꺼내기</button></div>`).join(""):`<div class="g-empty">창고가 비어 있습니다.</div>`}</div>
+  <div>${groups.length?groups.map(x=>`<div class="g-item"><button type="button" class="g-nm" data-gwinfokey="${esc(x.key)}" title="아이템 정보">${esc(x.n)}${x.q>1?` ×${x.q}`:""}${typeof x.it==="object"?dura(x.it):""}</button><button class="sm2" data-gwitkey="${esc(x.key)}" ${canTake?"":"disabled"}>꺼내기</button></div>`).join(""):`<div class="g-empty">창고가 비어 있습니다.</div>`}</div>
   <div class="g-nav"><span class="g-cost">창고 증설 · 단단한 나무 2 · 고철 3 · 노끈 2</span><button class="sm2" data-gwexpand ${canExpand?"":"disabled"}>창고 증설</button></div>
  </div>
  <div class="g-sec">
   <div class="g-sech">내 소지품 <span class="dim">넣기 ${esc(guildRankName(g,minPut))} 이상</span></div>
-  <div>${ig.length||objs.length?ig.map(x=>`<div class="g-item"><button type="button" class="g-nm" data-giinfo="${esc(encodeURIComponent(x.n))}">${esc(x.n)}${x.q>1?` ×${x.q}`:""}</button><button class="sm2" data-gdep="${esc(encodeURIComponent(x.n))}" ${canPut?"":"disabled"}>넣기</button></div>`).join("")+objs.map(x=>`<div class="g-item"><button type="button" class="g-nm" data-giinfoidx="${x.idx}">${esc(nm(x.it))}${dura(x.it)}</button><button class="sm2" data-gdepi="${x.idx}" ${canPut?"":"disabled"}>넣기</button></div>`).join(""):`<div class="g-empty">넣을 아이템이 없습니다.</div>`}</div>
+  <div>${invRows.length?invRows.map(r=>{
+   const info=r.obj?`data-giinfoidx="${r.idx}"`:`data-giinfo="${esc(encodeURIComponent(r.n))}"`;
+   const dep=r.obj?`data-gdepi="${r.idx}"`:`data-gdep="${esc(encodeURIComponent(r.n))}"`;
+   return `<div class="g-item"><button type="button" class="g-nm" ${info} title="아이템 정보">${esc(r.n)}${r.q>1?` ×${r.q}`:""}${r.obj?dura(r.it):""}</button><button class="sm2" ${dep} ${canPut?"":"disabled"}>넣기</button></div>`;
+  }).join(""):`<div class="g-empty">넣을 아이템이 없습니다.</div>`}</div>
  </div>`;
 }
+
 function guildPermRow(g,key,options=GUILD_ROLE_KEYS){
  const p=g.permissions&&typeof g.permissions==="object"?g.permissions:{};
  const cur=p[key]||GUILD_PERM_DEFAULTS[key]||"rookie";
@@ -5382,9 +5421,9 @@ async function refreshGuildOnline(members){
  if(gHost())gHost().querySelectorAll("[data-gdot]").forEach(d=>{const on=set.has(d.dataset.gdot);d.classList.toggle("on",on);d.classList.toggle("off",!on)});
 }
 function guildClick(e){
- const b=e.target.closest("[data-gtab],[data-gnmode],[data-gnpage],[data-gnprev],[data-gnnext],[data-gnview],[data-gncancel],[data-gnotice],[data-gpmode],[data-gppage],[data-gpprev],[data-gpnext],[data-gpview],[data-gpcancel],[data-gpost],[data-gvaultin],[data-gvaultout],[data-gwh],[data-gwinfo],[data-giinfo],[data-giinfoidx],[data-gdep],[data-gdepi],[data-gwit],[data-gwexpand],[data-gaccept],[data-greject],[data-gmember],[data-gkick],[data-gdetails],[data-gsettings],[data-gleave],[data-gdisband]");
+ const b=e.target.closest("[data-gtab],[data-gnmode],[data-gnpage],[data-gnprev],[data-gnnext],[data-gnview],[data-gncancel],[data-gnotice],[data-gpmode],[data-gppage],[data-gpprev],[data-gpnext],[data-gpview],[data-gpcancel],[data-gpost],[data-gvaultin],[data-gvaultout],[data-gwh],[data-gwinfo],[data-gwinfokey],[data-giinfo],[data-giinfoidx],[data-gdep],[data-gdepi],[data-gwit],[data-gwitkey],[data-gwexpand],[data-gaccept],[data-greject],[data-gmember],[data-gkick],[data-gdetails],[data-gsettings],[data-gleave],[data-gdisband]");
  if(!b)return;const g=guildView.data;if(!g)return;
- if(b.dataset.gtab){guildView.tab=b.dataset.gtab;guildView.page=0;guildView.noticeMode="view";guildView.noticeIndex=0;guildView.noticePage=0;guildView.postMode="list";guildView.postIndex=0;guildView.postPage=0;guildRender();return}
+ if(b.dataset.gtab){guildView.tab=b.dataset.gtab;guildView.page=0;guildView.noticeMode="view";guildView.noticeIndex=0;guildView.noticePage=0;guildView.postMode="list";guildView.postIndex=0;guildView.postPage=0;if(guildView.tab==="warehouse"){guildView.whRecent=[];guildView.invRecent=[]}guildRender();return}
  if(b.dataset.gnmode){guildView.noticeMode=b.dataset.gnmode;if(guildView.noticeMode==="view")guildView.noticeIndex=0;guildRender();return}
  if(b.dataset.gnpage){guildView.noticePage+=b.dataset.gnpage==="next"?1:-1;guildRender();return}
  if(b.hasAttribute("data-gnprev")){guildView.noticeIndex++;guildRender();return}
@@ -5402,11 +5441,13 @@ function guildClick(e){
  if(b.hasAttribute("data-gvaultin")){guildVaultIn();return}
  if(b.hasAttribute("data-gvaultout")){guildVaultOut();return}
  if(b.dataset.gwh!=null){guildView.page=Math.max(0,+b.dataset.gwh||0);guildRender();return}
+ if(b.dataset.gwinfokey!=null){const key=b.dataset.gwinfokey;const list=gArr((g.warehouse||{}).items);const it=list.find(v=>WH_KEY(v)===key);showItem(it!=null?it:String(b.textContent||"").replace(/\s*×\d+.*$/,"").trim());return}
  if(b.dataset.gwinfo!=null){const n=decodeURIComponent(b.dataset.gwinfo);const list=gArr((g.warehouse||{}).items);const it=list.find(v=>nm(v)===n);showItem(it!=null?it:n);return}
  if(b.dataset.giinfo!=null){const n=decodeURIComponent(b.dataset.giinfo);const idx=me.inv.findIndex(x=>nm(x)===n);if(idx>=0)showItem(me.inv[idx],idx);else showItem(n);return}
  if(b.dataset.giinfoidx!=null){const idx=+b.dataset.giinfoidx;if(me.inv[idx]!=null)showItem(me.inv[idx],idx);return}
  if(b.dataset.gdep!=null){guildDeposit(decodeURIComponent(b.dataset.gdep));return}
  if(b.dataset.gdepi!=null){guildDepositIndex(+b.dataset.gdepi);return}
+ if(b.dataset.gwitkey!=null){guildWithdrawKey(b.dataset.gwitkey);return}
  if(b.dataset.gwit!=null){guildWithdraw(decodeURIComponent(b.dataset.gwit));return}
  if(b.hasAttribute("data-gwexpand")){guildExpand();return}
  if(b.dataset.gaccept){guildAccept(b.dataset.gaccept);return}
@@ -5454,6 +5495,7 @@ async function depositGuildItems(name,qty){
   let ok=false,nextItems=null;
   try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/items"),arr=>{const list=gArr(arr);if(list.length+n>cap)return;for(let i=0;i<n;i++)list.push(name);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v)}}catch(e){ok=false}
   if(!ok)return toast("창고 공간이 부족합니다.");
+  whTouchRecent(guildView.whRecent,`s:${name}`);guildView.invRecent=(guildView.invRecent||[]).filter(k=>k!==`s:${name}`);guildView.page=0;
   const removed=takeItems(name,n);
   if(removed.length<n)console.warn("guild deposit remove mismatch",name,n,removed.length);
   if(guildView.data&&nextItems){
@@ -5482,6 +5524,7 @@ async function depositGuildItem(idx){
   let ok=false,nextItems=null;
   try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/items"),arr=>{const list=gArr(arr);if(list.length>=cap)return;list.push(item);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v)}}catch(e){ok=false}
   if(!ok)return toast("창고가 가득 찼습니다.");
+  whTouchRecent(guildView.whRecent,WH_KEY(item));guildView.invRecent=(guildView.invRecent||[]).filter(k=>k!==WH_KEY(item));guildView.page=0;
   // 같은 이름의 다른 인스턴스가 아니라, 클릭한 바로 그 아이템을 우선 제거한다.
   let now=me.inv[idx]===cur?idx:me.inv.indexOf(cur);
   if(now<0)now=me.inv.findIndex(x=>nm(x)===name);
@@ -5497,25 +5540,55 @@ async function depositGuildItem(idx){
   toast(`${name}을(를) 창고에 넣었습니다.`);
  }finally{guildDepositBusy=false}
 }
-async function guildWithdraw(name){
- if(!name||!guildView.data)return;
+let guildWithdrawBusy=false;
+function whKeyItems(key){return gArr((guildView.data&&guildView.data.warehouse||{}).items).filter(x=>WH_KEY(x)===key)}
+function whKeyLabel(sample){return nm(sample)+(typeof sample==="object"?` (내구도 ${fmt1(sample.dur)}/${safeNum(sample.max,0)})`:"")}
+function guildWithdrawKey(key){
+ if(!guildView.data)return;
  if(!guildPerm(guildView.data,"warehouseWithdraw"))return toast("창고에서 물건을 꺼낼 권한이 없습니다.");
- const gid=guildView.gid;let out=null,nextItems=null;
- try{const res=await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse/items"),arr=>{const list=gArr(arr),i=list.findIndex(x=>nm(x)===name);if(i<0)return;out=list[i];list.splice(i,1);nextItems=list;return list});if(!res.committed)out=null;else{const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v)}}catch(e){out=null}
- if(!out)return toast("아이템을 꺼내지 못했습니다.");
- if(!canAdd(out)){
-  try{await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse/items"),arr=>{const list=gArr(arr);list.push(out);return list})}catch(e){}
-  return toast("소지품 칸이 부족합니다.");
- }
- addItem(out);
- if(guildView.data&&nextItems){
-  const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};
-  gd.warehouse.items=nextItems;
- }
- bag();
- if(guildView.open)try{guildRender()}catch(e){}
- try{opts.save(cp(snap()))}catch(e){}
- toast(`${name}을(를) 꺼냈습니다.`);
+ const list=whKeyItems(key);if(!list.length)return toast("아이템이 없습니다.");
+ const label=whKeyLabel(list[0]),max=list.length;
+ if(max<=1)return withdrawGuildItems(key,1,label);
+ pop("창고에서 꺼내기",`<p><b>${esc(label)}</b> <span class="dim">· ${max}개</span></p>${qtyHtml(max)}`,[{t:"꺼내기",c:"",fn:()=>withdrawGuildItems(key,qtyVal(max),label)},{t:"취소"}],true);
+ $("pb").onclick=e=>qtyClick(e,max);
+}
+async function withdrawGuildItems(key,qty,label){
+ if(!guildView.data)return;
+ if(!guildPerm(guildView.data,"warehouseWithdraw"))return toast("창고에서 물건을 꺼낼 권한이 없습니다.");
+ if(guildWithdrawBusy)return toast("처리 중입니다. 잠시만 기다려 주세요.");
+ const max=whKeyItems(key).length,n=Math.max(1,Math.min(Math.floor(+qty||1),max));
+ if(!max)return toast("아이템이 없습니다.");
+ const gid=guildView.gid;let out=[],nextItems=null;
+ guildWithdrawBusy=true;
+ try{
+  let ok=false;
+  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse/items"),arr=>{
+   out=[];const list=gArr(arr),keep=[];
+   for(const it of list){if(out.length<n&&WH_KEY(it)===key)out.push(cp(it));else keep.push(it)}
+   if(out.length<n)return;
+   nextItems=keep;return keep;
+  });ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v)}}catch(e){ok=false}
+  if(!ok)return toast("아이템을 꺼내지 못했습니다.");
+  if(out.filter(x=>typeof x!=="string").length>Math.max(0,cap()-usedSlots())||out.some(x=>!canAdd(x))){
+   try{await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse/items"),arr=>{const list=gArr(arr);out.forEach(x=>list.push(cp(x)));return list})}catch(e){}
+   return toast("소지품 칸이 부족합니다.");
+  }
+  out.forEach(x=>{const c=cp(x);if(addItem(c)){const actual=me.inv[me.inv.length-1];if(actual!=null)whTouchRecent(guildView.invRecent,WH_KEY(actual))}});
+  guildView.whRecent=(guildView.whRecent||[]).filter(k=>k!==key);
+  if(guildView.data&&nextItems){
+   const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};
+   gd.warehouse.items=nextItems;
+  }
+  bag();
+  if(guildView.open)try{guildRender()}catch(e){}
+  try{opts.save(cp(snap()))}catch(e){}
+  toast(`${label||key} ×${out.length}을(를) 꺼냈습니다.`);
+ }finally{guildWithdrawBusy=false}
+}
+async function guildWithdraw(name){
+ const found=gArr((guildView.data&&guildView.data.warehouse||{}).items).find(x=>nm(x)===name);
+ if(found)return guildWithdrawKey(WH_KEY(found));
+ return toast("아이템이 없습니다.");
 }
 async function guildVaultIn(){
  const g=guildView.data;if(!g)return;
@@ -6622,10 +6695,16 @@ function startBattle(mon,opts={}){
  battleEquipSnapshot=brokenAtStart;
  const st=calcStats(me),star=Math.max(1,Math.floor(+opts.star||battleStars())),scaled=scaleMonster(mon,star,{mode:"short",partySize:1}),hp=scaled.hp,atk=scaled.atk,def=scaled.def;
  wearTool("은신 도구");
- battle={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),mon:{...scaled,maxHp:hp,hp,atk,def},star,source:opts.source||"fieldNormal",areaObj:opts.areaObj||null,difficulty:"normal",boss:false,bossRole:false,partySize:1,allies:[],log:[],miss:0,evaded:0,done:false,skill:"melee",win:false,result:null,sync:false,potionCd:0,startHp:me.hp[0],startFx:(me.fx||[]).map(f=>f&&(f.label||f.n))};
+ battle={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),mon:{...scaled,maxHp:hp,hp,atk,def},star,source:opts.source||"fieldNormal",areaObj:opts.areaObj||null,difficulty:"normal",boss:false,bossRole:false,partySize:1,allies:[],log:[],miss:0,evaded:0,done:false,skill:"melee",win:false,result:null,sync:false,potionCd:0,preemptive:false,startHp:me.hp[0],startFx:(me.fx||[]).map(f=>f&&(f.label||f.n))};
  const tag=mon.role==="정예"?"[정예] ":mon.role==="보스"?"[보스] ":"";
  battleLog(`${tag}${mon.name}이(가) 나타났다.`);
- if(mon.speed>st.speed){battleLog("몬스터가 먼저 움직인다.");monsterStrike()}
+ if(mon.speed>st.speed){
+  battleLog("몬스터가 먼저 움직인다.");
+  battle.preemptive=true;
+  monsterStrike();
+  if(me.hp[0]<=0){finishBattle(false);return}
+  battle.preemptive=false;
+ }
  if(me.hp[0]<=0){finishBattle(false);return}
  renderBattle();
 }
@@ -6709,7 +6788,7 @@ function monsterStrike(){
   wearEquip("acc1",wearRange(.1,.2));
   wearEquip("acc2",wearRange(.1,.2));
  }
- if(t.kind==="me"&&me.hp[0]<=0){battle.done=true;battleEquipSnapshot=null;triggerDowned();return}
+ if(t.kind==="me"&&me.hp[0]<=0){battle.done=true;battleEquipSnapshot=null;battleLog(`${m.name}의 공격! ${label}에게 ${dmg} 피해${crit?" (치명타)":""}`);return}
  battleLog(`${m.name}의 공격! ${label}에게 ${dmg} 피해${crit?" (치명타)":""}`);
  if(t.kind==="me"){if(Math.random()<WOUND_HIT_CHANCE){applyStatus("wound",{silent:true});battleLog("공격에 베여 상처가 났다.")}if(me.fx.some(f=>f&&f.id==="sleep")){removeStatus("sleep",{silent:true});battleLog("충격으로 잠에서 깼다.")}if(taunted){const tf=me.fx.find(f=>f&&f.id==="taunt");if(tf){tf.hits=(+tf.hits||0)+1;if(tf.hits>=2){removeStatus("taunt",{silent:true});battleLog("도발이 풀렸다.")}}}tryMonsterStatus(m)}
  if(t.kind==="ally"&&t.a.hp[0]<=0)battleLog(`${t.a.name}이(가) 쓰러졌다.`);
@@ -6754,10 +6833,10 @@ function finishBattle(win){
  battleEquipSnapshot=null;
  if(me.downed){battle=null;bag();renderAll();return}
  const m=battle.mon;battle.done=true;
+ const preemptive=!!battle.preemptive;
  const hpRatio=me.hp[1]>0?me.hp[0]/me.hp[1]:0;let newBad="";
  const hpBefore=+me.hp[0]||0;
  const fxNow=(me.fx||[]).map(f=>f&&(f.label||f.n)),fxAdded=fxNow.filter(x=>x&&!(battle.startFx||[]).includes(x)),fxRemoved=(battle.startFx||[]).filter(x=>x&&!fxNow.includes(x));
- if(!win)me.hp[0]=1;
  if(win){
   if(hpRatio<=.2)tryGoodTrait("튼튼함");
   if(hpRatio<=.1)tryGoodTrait("불굴");
@@ -6782,9 +6861,20 @@ function finishBattle(win){
   bag();renderStatus();barsRender();
   pop("승리",`<p><b>${esc(m.name)}</b>을(를) 쓰러뜨렸다.</p><p>경험치 +${xp}</p>${got.length?`<p><b>획득</b> ${esc(tally(got))}</p>`:'<p class="dim">획득한 아이템은 없다.</p>'}${badLine}`,[{t:"확인",fn:()=>{battle=null;bag();renderAll()}}],true);
  }else{
-  battle.win=false;me.hp[0]=1;barsRender();
-  logChar("battle",`전투 패배 · ${m.name}`,{monster:m.name,role:m.role,source:battle.source||null,star:battle.star||null,before:battle.startHp??hpBefore,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],mp:me.mp.slice(),hunger:me.hunger.slice(),status:"lose",badTrait:newBad||null,fx:fxNow,fxAdded,fxRemoved});
-  pop("패배",`<p>${esc(m.name)}에게 쓰러졌다.</p><p class="dim">간신히 목숨만 건졌다. HP 1로 귀환한다.</p>${badLine}`,[{t:"확인",fn:()=>{battle=null;bag();renderAll()}}],true);
+  battle.win=false;
+  // 선제 공격(몬스터가 먼저 움직인 첫 턴)으로 쓰러진 경우에만 HP 1로 귀환한다.
+  // 그 외 전투 패배는 기존대로 쓰러진다.
+  if(preemptive)me.hp[0]=1;
+  barsRender();
+  const body=battleBody();
+  logChar("battle",preemptive?`전투 패배 · ${m.name} · 선제 공격 (HP 1 귀환)`:`전투 패배 · ${m.name}`,{monster:m.name,role:m.role,source:battle.source||null,star:battle.star||null,before:battle.startHp??hpBefore,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],mp:me.mp.slice(),hunger:me.hunger.slice(),status:"lose",preemptive,badTrait:newBad||null,fx:fxNow,fxAdded,fxRemoved,battleLog:(battle.log||[]).slice(-20).map(l=>l&&l.text).filter(Boolean)});
+  if(preemptive){
+   pop("패배",`<p>${esc(m.name)}의 선제 공격을 맞고 HP 1로 귀환했다.</p>${body}${badLine}`,[{t:"확인",fn:()=>{battle=null;bag();renderAll()}}],true);
+  }else{
+   triggerDowned();
+   const downedNow=!!me.downed;
+   pop(downedNow?"전투 패배":"구사일생",`<p>${downedNow?`${esc(m.name)}에게 쓰러졌다.`:`${esc(m.name)}의 공격에서 간신히 살아남았다. HP 1로 귀환했다.`}</p>${body}${badLine}`,[{t:"확인",fn:()=>{battle=null;bag();renderAll()}}],true);
+  }
  }
 }
 const EXPLORE_DAILY_LIMIT=60,EXPLORE_COOLDOWN=10000;
