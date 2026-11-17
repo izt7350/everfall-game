@@ -512,6 +512,10 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot #ttabs{display:flex;border-bottom:1px solid var(--line);margin:8px 0;position:sticky;top:0;background:var(--panel);z-index:1}
 #gameRoot #ttabs .ttab{flex:1;padding:8px;background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);font:inherit;cursor:pointer}
 #gameRoot #ttabs .ttab[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent);font-weight:700}
+#gameRoot .t-search{padding:0 0 8px}
+#gameRoot .t-search[hidden]{display:none}
+#gameRoot .t-search input{box-sizing:border-box;width:100%;height:38px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font:inherit;font-size:13px}
+#gameRoot .t-search input::placeholder{color:var(--dim)}
 #gameRoot .tr .sname{min-width:0;font:inherit}
 
 #gameRoot .tr .tname{display:block;width:100%;min-width:0;padding:0;margin:0;border:0;background:none;color:var(--text);font:inherit;text-align:left;cursor:pointer}
@@ -1003,7 +1007,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 <div class="modal" id="mvmodal" hidden><div class="mbox" style="width:340px;max-width:90vw"><h3 id="mvt" style="line-height:1.4"></h3><div class="modes" id="mvm"></div><p id="mvi" style="text-align:left;font-size:14px"></p><div style="display:flex;gap:8px;justify-content:center"><button class="btn alt" id="mvno">취소</button><button class="btn" id="mvgo">이동</button></div></div></div>
 <div class="modal sheet" id="rmodal" hidden><div class="mbox" style="text-align:left;width:440px"><h3>아래의 장비·도구를 수리할까? <span style="float:right;font-size:13px;font-weight:400"><b id="rg"></b></span></h3><div id="rl"></div><p id="rmsg" style="font-size:13px;color:var(--dim);min-height:1.5em;margin:8px 0"></p><div style="text-align:right"><button class="btn" id="rclose">닫기</button></div></div></div>
 <div class="modal sheet" id="cmodal" hidden><div class="mbox" style="width:340px"><h3 id="ctitle">치료할 상태이상을 선택하세요</h3><p class="dim" id="cwho" style="margin:0 0 8px"></p><div id="cl" class="cl"></div><div style="margin-top:10px"><button class="btn alt" id="cclose">취소</button></div></div></div>
-<div class="modal sheet" id="tmodal" hidden><div class="mbox" style="text-align:left;width:440px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column"><h3><span id="ttitle">시장 거래</span> <span style="float:right;font-size:13px;font-weight:400">보유금 <b id="tg"></b></span></h3><div id="ttalk" class="t-talk"></div><div class="t-npc" id="tnpc" hidden><b id="tnpcName"></b><p id="tnpcLine"></p></div><div id="ttabs"><button type="button" class="ttab" data-ttab="buy" aria-selected="true">구매</button><button type="button" class="ttab" data-ttab="sell" aria-selected="false">판매</button><button type="button" class="ttab ttab-special" id="ttabSpecial" data-ttab="special" aria-selected="false" hidden>특별상점</button></div><div id="tl"></div><p id="tmsg" style="font-size:13px;color:var(--dim);min-height:1.5em;margin:8px 0"></p><div style="text-align:right"><button class="btn" id="tclose">닫기</button></div></div></div>
+<div class="modal sheet" id="tmodal" hidden><div class="mbox" style="text-align:left;width:440px;max-height:85vh;overflow:hidden;display:flex;flex-direction:column"><h3><span id="ttitle">시장 거래</span> <span style="float:right;font-size:13px;font-weight:400">보유금 <b id="tg"></b></span></h3><div id="ttalk" class="t-talk"></div><div class="t-npc" id="tnpc" hidden><b id="tnpcName"></b><p id="tnpcLine"></p></div><div id="ttabs"><button type="button" class="ttab" data-ttab="buy" aria-selected="true">구매</button><button type="button" class="ttab" data-ttab="sell" aria-selected="false">판매</button><button type="button" class="ttab ttab-special" id="ttabSpecial" data-ttab="special" aria-selected="false" hidden>특별상점</button></div><div id="tsearchWrap" class="t-search" hidden><input type="search" id="tsearch" placeholder="판매할 아이템 검색" autocomplete="off" aria-label="판매할 아이템 검색"></div><div id="tl"></div><p id="tmsg" style="font-size:13px;color:var(--dim);min-height:1.5em;margin:8px 0"></p><div style="text-align:right"><button class="btn" id="tclose">닫기</button></div></div></div>
 <div class="modal" id="modal" hidden><div class="mbox"><h3 id="mt"></h3><p id="mb" style="white-space:pre-line"></p><button class="btn" id="mok">확인</button></div></div>
 <div class="tut" id="tut" hidden>
  <svg class="tut-shade" id="tutShade" aria-hidden="true">
@@ -3253,8 +3257,11 @@ function resolveExp(partial=false,why){
  const fxNow=(me.fx||[]).map(f=>f&&(f.label||f.n)),fxAdded=fxNow.filter(x=>x&&!fxBefore.includes(x)),fxRemoved=fxBefore.filter(x=>x&&!fxNow.includes(x));
  logChar("expedition",`${cfg.label} ${partial?"중도 귀환":"완료"} · 계획 ${e.min}분 · 아이템 ${found.length}개 · 조우 ${enc}회 · HP ${hpBefore} → ${me.hp[0]}/${me.hp[1]} · 정신력 ${mpBefore} → ${mpAfter} · 허기 ${hungerBefore} → ${me.hunger[0]}/${me.hunger[1]}`,{kind:e.kind,min:e.min,elapsed:Math.floor(elapsed),partial,area:(areaObj&&areaObj.name)||e.area,found,lost,encounters:enc,battles:battleLogs.length,wins:battleLogs.filter(b=>b.win).length,dmg,mpCost:Math.max(0,mpBefore-mpAfter),mpBefore,mpAfter,box,defeated,before:hpBefore,after:me.hp[0],hp:me.hp.slice(),mp:me.mp.slice(),hungerBefore,hungerAfter:me.hunger[0],hunger:me.hunger.slice(),xp:gain,skillXp:skillGain,fx:fxNow,fxAdded,fxRemoved,expLogs:(me.expLogs||[]).slice(-10)});
  // clearProposal(); — 2026-11-14: 늦게 접속한 파티원이 공동 스냅샷을 읽을 수 있게 제안을 남겨 둔다(끝난 제안은 proposalStale로 숨김)
- if(me.hp[0]<=0||me.hunger[0]<=0){triggerDowned();return}
+ // HP·허기 0으로 쓰러져도 탐사 정산 화면은 보여 준다. 쓰러짐 상태는 먼저 적용한다.
+ const collapsed=me.hp[0]<=0||me.hunger[0]<=0;
+ if(collapsed)triggerDowned();
  const lines=[];
+ if(me.downed)lines.push(`<p style="color:var(--bad)">쓰러졌다. 90분 안에 소생이 필요하다.</p>`);
  if(partial)lines.push(`<p class="dim">${Math.floor(elapsed)}분 진행 · 완료한 ${segs*30}분만큼의 보상</p>`);
  if(found.length)lines.push(`<p><b>획득</b> ${esc(tally(found))}</p>`);
  if(!partial&&box)lines.push(`<p><b>던전 보상 상자</b>를 얻었다.</p>`);
@@ -7901,7 +7908,7 @@ function merchantGoods(){
  }
  return out;
 }
-let curGoods=GOODS,tradeHub=false,tradeTab="buy",tradeOpen=null;
+let curGoods=GOODS,tradeHub=false,tradeTab="buy",tradeOpen=null,tradeSearch="";
 const tmsg=t=>$("tmsg").textContent=t;
 // 판매가는 구매가의 약 35% 수준. 상인 계열 보정은 이 위에 적용된다.
 const SELL_RATE=.35;
@@ -7961,6 +7968,7 @@ function tradeRender(){
  $("tg").textContent=me.gold+" G";
  {const lv=skillLvOf(me,"talk"),ng=negotiateOf(me),on=lv||ng;$("ttalk").textContent=on?`${lv?`교섭 Lv ${lv}`:"교섭"}${ng?` (좋은 소식 +${fmt1(ng)}%)`:""} · 구매 -${fmt1((1-talkBuyMult(me))*100)}% · 판매 +${fmt1((talkSellMult(me)-1)*100)}%`:"";$("ttalk").hidden=!on}
  $("ttabs").querySelectorAll("[data-ttab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.ttab===tradeTab?"true":"false"));
+ const sw=$("tsearchWrap");if(sw)sw.hidden=tradeTab!=="sell";
  if(tradeTab==="special"&&tradeSpecial){
   const bought=specialBoughtList();
   $("tl").innerHTML=specialGoods(tradeSpecial.key,tradeSpecial.type).map(([n,b])=>{const unit=buyP(price(n,b)),op=tradeOpen===n,sold=bought.includes(tradeSpecial.key+"|"+n),gr=(info(n).grade||"");
@@ -7979,12 +7987,14 @@ function tradeRender(){
    const it=info(n);if(it.bound)continue;
    seen.add(n);rows.push({n,q:count(n),unit:shopSellUnit(n),cm:citySellMod(n)});
   }
-  $("tl").innerHTML=rows.map(r=>{const op=tradeOpen===r.n,lk=isItemLocked(r.n);
+  const q=tradeSearch.trim().toLowerCase();
+  const shown=q?rows.filter(r=>{const it=info(r.n);return `${r.n} ${it.grade||""} ${it.sub||""} ${effText(r.n)}`.toLowerCase().includes(q)}):rows;
+  $("tl").innerHTML=shown.map(r=>{const op=tradeOpen===r.n,lk=isItemLocked(r.n);
    return `<div class="tr shoprow"><button type="button" class="tname" data-name="${esc(r.n)}" aria-expanded="${op}">${esc(r.n)}${lk?" 🔒":""}<span class="tcaret">▾</span><small>보유 ${r.q} · 개당 ${r.unit} G${r.cm?` · <span style="color:${r.cm.m>1?"var(--accent-text)":"var(--dim)"}">${esc(me.cont)} ${r.cm.label} ${r.cm.m>1?"+":"−"}${Math.round(Math.abs(r.cm.m-1)*100)}%</span>`:""}</small></button><button class="btn alt" data-a="sell" data-n="${esc(r.n)}" data-p="${r.unit}"${lk?" disabled title=\"잠긴 아이템은 판매할 수 없습니다.\"":""}>판매</button>${op?`<div class="teff" title="${esc(effText(r.n))}">${esc(effText(r.n))}</div>`:""}</div>`;
-  }).join("")||`<p class="dim">판매할 아이템이 없다.</p>`;
+  }).join("")||`<p class="dim">${q?"검색 결과가 없습니다.":"판매할 아이템이 없다."}</p>`;
  }
 }
-function openTrade(t,g,opts={}){if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");if(me.travel)return toast("이동 중에는 거래할 수 없습니다.");if(actionLock("휴식 중에는 거래할 수 없습니다."))return;curGoods=g;tradeHub=!!opts.hub;tradeTab="buy";tradeOpen=null;$("ttitle").textContent=t;{const sp=opts.npc||(typeof npcTradeSpeech!=="undefined"?npcTradeSpeech:null);$("tnpc").hidden=!(sp&&sp.line);if(sp&&sp.line){$("tnpcName").textContent=sp.name;$("tnpcLine").textContent=sp.line}tradeSpecial=sp&&sp.special?{key:sp.key,type:sp.type}:null;$("ttabSpecial").hidden=!tradeSpecial}tradeRender();const sp=Math.round(hubSpread()*100);tmsg(tradeHub?`거점 상인 시세 · 수도 시장 대비 구매 +${sp}% / 판매 -${sp}%`:"");$("tmodal").hidden=false}
+function openTrade(t,g,opts={}){if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");if(me.travel)return toast("이동 중에는 거래할 수 없습니다.");if(actionLock("휴식 중에는 거래할 수 없습니다."))return;curGoods=g;tradeHub=!!opts.hub;tradeTab="buy";tradeOpen=null;tradeSearch="";{const se=$("tsearch");if(se)se.value=""}$("ttitle").textContent=t;{const sp=opts.npc||(typeof npcTradeSpeech!=="undefined"?npcTradeSpeech:null);$("tnpc").hidden=!(sp&&sp.line);if(sp&&sp.line){$("tnpcName").textContent=sp.name;$("tnpcLine").textContent=sp.line}tradeSpecial=sp&&sp.special?{key:sp.key,type:sp.type}:null;$("ttabSpecial").hidden=!tradeSpecial}tradeRender();const sp=Math.round(hubSpread()*100);tmsg(tradeHub?`거점 상인 시세 · 수도 시장 대비 구매 +${sp}% / 판매 -${sp}%`:"");$("tmodal").hidden=false}
 $("trade").onclick=()=>openTrade("시장 거래",marketGoods("kardor"));
 $("etrade").onclick=()=>openTrade("시장 거래",marketGoods("elis"));
 $("atrade").onclick=()=>openTrade("만민의 광장 시장",marketGoods("ark"));
@@ -8405,6 +8415,7 @@ $("buyHay").onclick=()=>{
  modal("건초 구입","건초 1개를 구입했습니다.");
 };
 $("tclose").onclick=()=>$("tmodal").hidden=true;
+$("tsearch").oninput=e=>{tradeSearch=String(e.target.value||"");if(tradeTab==="sell")tradeRender()};
 $("ttabs").onclick=e=>{const b=e.target.closest("[data-ttab]");if(!b)return;tradeTab=b.dataset.ttab;tradeOpen=null;tradeRender()};
 $("tl").onclick=e=>{
  const nameBtn=e.target.closest(".tname");
