@@ -4728,7 +4728,7 @@ function invAct(a,i){
  else if(a==="drop"){
   if(isItemLocked(n))return toast("잠긴 아이템은 버릴 수 없습니다.");
   const max=count(n);
-  pop("버리기",`<p><b>${esc(n)}</b> <span class="dim">(보유 ${max})</span></p><p class="dim">바닥에 버릴 개수를 선택하세요.</p>${qtyHtml(max)}`,[{t:"버리기",c:"bad",fn:()=>{if(!starvationActionCost())return;const q=qtyVal(max),rm=takeItems(n,q,x);if(rm.length){const k=gkey();(me.ground[k]=me.ground[k]||[]).push(...rm)}bag();groundRender();modal("버리기 완료",`${n}${rm.length>1?` ×${rm.length}`:""}을(를) 바닥에 버렸다.`)}},{t:"취소"}]);
+  pop("버리기",`<p><b>${esc(n)}</b> <span class="dim">(보유 ${max})</span></p><p class="dim">바닥에 버릴 개수를 선택하세요.</p>${qtyHtml(max)}`,[{t:"버리기",c:"bad",fn:()=>{if(!starvationActionCost())return;const q=qtyVal(max),rm=takeItems(n,q,x);if(rm.length)dropGroundItems(n,rm);else{bag();groundRender()}}},{t:"취소"}]);
   $("pb").onclick=e=>qtyClick(e,max);
  }
  else if(a==="destroy"){
@@ -5858,6 +5858,100 @@ function swapPop(cur,nw,fn,slot){const A=specs(cur),B=specs(nw),acc=info(nm(nw))
  pop("교체하시겠습니까?",`<div class="swap">${col(cur,A,false)}${col(nw,B,true)}</div>${wnote}${atkCmp}`,[{t:"교체하기",c:"",fn},{t:"취소"}])}
 // 바닥
 const gkey=()=>[me.cont,me.area,me.sub||""].map(v=>String(v).replace(/[.#$/\[\]]/g,"_")).join("|");
+const groundPath=()=>"ground/"+gkey();
+const sharedGround={items:[]};
+let groundUnsub=null,groundLoc="",groundMigratedKey="";
+function groundSetData(val){
+ const o=val&&typeof val==="object"?val:{};
+ sharedGround.items=Object.entries(o).map(([id,x])=>({id,x})).filter(e=>e.x!=null&&e.x!=="").sort((a,b)=>String(a.id).localeCompare(String(b.id)));
+ try{groundRender()}catch(e){}
+}
+function groundMakeEntries(items){
+ const base=Date.now().toString(36),out={};
+ items.forEach((x,i)=>{
+  let id;
+  do{id="g"+base+Math.random().toString(36).slice(2,8)+i.toString(36)}while(out[id]);
+  out[id]=cp(x);
+ });
+ return out;
+}
+async function groundAddItems(items,path){
+ if(!items||!items.length)return false;
+ path=path||groundPath();
+ const entries=groundMakeEntries(items);
+ try{
+  const res=await runTransaction(ref(realtimeDB,path),cur=>{
+   const o=cur&&typeof cur==="object"?cur:{};
+   if(Object.keys(o).length+Object.keys(entries).length>120)return;
+   Object.assign(o,entries);
+   return o;
+  });
+  if(res&&res.committed){
+   if(path===groundPath())groundSetData(res.snapshot&&res.snapshot.val?res.snapshot.val():null);
+   return true;
+  }
+ }catch(e){console.warn("ground add",e)}
+ return false;
+}
+async function migrateLocalGround(){
+ const k=gkey();
+ if(groundMigratedKey===k)return;
+ const local=Array.isArray(me.ground&&me.ground[k])?me.ground[k].slice():[];
+ if(!local.length){groundMigratedKey=k;return}
+ const ok=await groundAddItems(local,"ground/"+k);
+ if(!ok)return;
+ if(Array.isArray(me.ground[k])){me.ground[k]=[];delete me.ground[k]}
+ groundMigratedKey=k;
+ try{opts.save(cp(snap()))}catch(e){}
+ if(gkey()===k)try{groundRender()}catch(e){}
+}
+function syncGround(force){
+ if(!uid)return;
+ const key=gkey();
+ if(!force&&key===groundLoc)return;
+ groundLoc=key;
+ if(groundUnsub){try{groundUnsub()}catch(e){}groundUnsub=null}
+ sharedGround.items=[];
+ try{
+  groundUnsub=onValue(ref(realtimeDB,groundPath()),s=>{
+   groundSetData(s.val());
+   try{migrateLocalGround()}catch(e){}
+  },err=>console.warn("ground",err));
+ }catch(e){console.warn("ground",e)}
+ try{groundRender()}catch(e){}
+}
+async function dropGroundItems(n,rm){
+ if(!rm.length)return;
+ bag();try{opts.save(cp(snap()))}catch(e){}
+ const ok=await groundAddItems(rm);
+ if(!ok){
+  for(const x of rm){if(!addItem(cp(x)))me.inv.push(x)}
+  bag();try{opts.save(cp(snap()))}catch(e){}
+  toast("바닥에 버리지 못했습니다. 소지품으로 돌려받았습니다.");
+  return;
+ }
+ bag();try{opts.save(cp(snap()))}catch(e){}
+ try{groundRender()}catch(e){}
+ modal("버리기 완료",`${n}${rm.length>1?` ×${rm.length}`:""}을(를) 바닥에 버렸다.`);
+}
+async function pickGroundItem(id){
+ if(me.travel)return toast("이동 중에는 소지품을 만질 수 없습니다.");
+ if(actionLock("휴식 중에는 소지품을 만질 수 없습니다."))return;
+ const entry=sharedGround.items.find(e=>e.id===id);
+ if(!entry)return toast("이미 다른 생존자가 주워갔습니다.");
+ if(!canAdd(entry.x)){modal("가방이 가득 찼다","더 들 수 없다.");return}
+ try{
+  const res=await runTransaction(ref(realtimeDB,groundPath()+"/"+id),cur=>cur==null?undefined:null);
+  if(!res||!res.committed){toast("이미 다른 생존자가 주워갔습니다.");syncGround(true);return}
+ }catch(e){console.warn("ground pick",e);return toast("아이템을 줍지 못했습니다.")}
+ if(!addItem(cp(entry.x))){
+  try{await set(ref(realtimeDB,groundPath()+"/"+id),entry.x)}catch(e){}
+  return modal("가방이 가득 찼다","더 들 수 없다.");
+ }
+ sharedGround.items=sharedGround.items.filter(e=>e.id!==id);
+ bag();try{opts.save(cp(snap()))}catch(e){}
+ try{groundRender()}catch(e){}
+}
 let graveData={},graveUnsub=null,graveVisit=null;
 function gravesHere(){const now=Date.now(),sub=me.sub||"";return Object.entries(graveData).filter(([gid,g])=>g&&g.cont===me.cont&&g.area===me.area&&(g.sub||"")===sub)}
 function subscribeGraves(){
@@ -5891,18 +5985,28 @@ function repairAirship(){
   [{t:"이름 짓기",c:"",fn:()=>{const v=(($("rnIn")||{}).value||"").trim();const a=airShip();if(a&&v){a.name=v.slice(0,10);try{rideRender()}catch(e){};try{opts.save(cp(snap()))}catch(e){}}}},{t:"나중에"}]);
 }
 function groundRender(){
- const g=me.ground[gkey()]||[],rows=[];
+ const shared=sharedGround.items||[],local=me.ground[gkey()]||[],rows=[];
  if(atAirWorkshop())rows.push(`<div class="irow"><div class="ihead" style="cursor:default">부서진 비행선 <span class="dim sm">여러 대가 방치되어 있다</span></div><div class="ibtn"><button class="sm2" data-airfix="1">수리하기</button></div></div>`);
  gravesHere().forEach(([gid,gr])=>{
   const trace=Date.now()>+gr.expiresAt, name=esc(gr.ownerName||"무명");
   rows.push(`<div class="grave-row ${trace?"trace":""}">${trace?`<span class="grave-name">묘비의 흔적</span>`:`<span class="grave-name" data-grave="${esc(gid)}">[${name}]의 묘비</span> 이곳에 잠들다.`}</div>`);
  });
- const items=g.map((x,i)=>`<div class="irow"><div class="ihead" style="cursor:default">${esc(nm(x))}${dura(x)}</div><div class="ibtn"><button class="sm2" data-g="${i}">줍기</button></div></div>`).join("");
+ const sharedRows=shared.map(e=>`<div class="irow"><div class="ihead" style="cursor:default">${esc(nm(e.x))}${dura(e.x)}</div><div class="ibtn"><button class="sm2" data-g="${esc(e.id)}">줍기</button></div></div>`).join("");
+ const localRows=local.map((x,i)=>`<div class="irow"><div class="ihead" style="cursor:default">${esc(nm(x))}${dura(x)}</div><div class="ibtn"><button class="sm2" data-glocal="${i}">줍기</button></div></div>`).join("");
  const cf=campfireActive(),cfRow=cf?`<div class="campfire-row"><span class="cf-tag">[모닥불]</span> <b>${esc(cf.name||"무명")}</b>이가 피웠다. <span class="dim">남은 지속시간 <span id="cft">${campfireLeftText(cf)}</span></span></div>`:"";
- $("gl").innerHTML=cfRow+rows.join("")+items||`<span class="dim">아무것도 없다.</span>`;
+ $("gl").innerHTML=cfRow+rows.join("")+sharedRows+localRows||`<span class="dim">아무것도 없다.</span>`;
 }
-$("gl").onclick=e=>{if(e.target.closest("[data-airfix]")){openAirRepair();return}const gv=e.target.closest("[data-grave]");if(gv){openGrave(gv.dataset.grave);return}const b=e.target.closest("[data-g]");if(!b)return;if(me.travel)return toast("이동 중에는 소지품을 만질 수 없습니다.");if(actionLock("휴식 중에는 소지품을 만질 수 없습니다."))return;const k=gkey(),g=me.ground[k]||[],i=+b.dataset.g,x=g[i];if(x==null)return;
- if(!canAdd(x)){modal("가방이 가득 찼다","더 들 수 없다.");return}g.splice(i,1);if(!g.length)delete me.ground[k];addItem(x);bag();groundRender()};
+$("gl").onclick=async e=>{
+ if(e.target.closest("[data-airfix]")){openAirRepair();return}
+ const gv=e.target.closest("[data-grave]");if(gv){openGrave(gv.dataset.grave);return}
+ const sb=e.target.closest("[data-g]");if(sb){await pickGroundItem(sb.dataset.g);return}
+ const lb=e.target.closest("[data-glocal]");if(!lb)return;
+ if(me.travel)return toast("이동 중에는 소지품을 만질 수 없습니다.");
+ if(actionLock("휴식 중에는 소지품을 만질 수 없습니다."))return;
+ const k=gkey(),g=me.ground[k]||[],i=+lb.dataset.glocal,x=g[i];if(x==null)return;
+ if(!canAdd(x)){modal("가방이 가득 찼다","더 들 수 없다.");return}
+ g.splice(i,1);if(!g.length)delete me.ground[k];addItem(x);bag();groundRender();
+};
 function openGrave(gid){
  const gr=graveData[gid];if(!gr)return;
  const trace=Date.now()>+gr.expiresAt,name=esc(gr.ownerName||"무명");
@@ -7248,6 +7352,7 @@ function syncPresence(force){
   presenceRef=ref(realtimeDB,"presence/"+me.cont+"/"+me.area+"/"+uid);
   startRoster();
   try{syncCampfire(true)}catch(e){}
+  try{syncGround(true)}catch(e){}
   if(oldCont!==me.cont)subscribeChat("local");
  }
  if(force||moved||Date.now()-presenceAt>30000){
@@ -7960,7 +8065,7 @@ async function openPlayerProfile(targetUid,name){
   buttons.push({t:"쪽지",fn:()=>openComposeNote(targetUid,who)});
   buttons.push({t:"귓속말",fn:()=>startWhisper(targetUid,who)});
   if(me.guildId&&!(p&&p.guild))buttons.push({t:"길드 초대",fn:()=>guildInvite(targetUid,who)});
-  buttons.push({t:"친구 추가",fn:()=>profileFriendAdd(targetUid,who)});
+  if(!isFriend(targetUid))buttons.push({t:"친구 추가",fn:()=>profileFriendAdd(targetUid,who)});
  }
  buttons.push({t:"닫기"});
  const areaNote=(!self&&targetUid&&name&&!d&&!same)?`<p class="dim" style="margin:0 0 8px;color:var(--bad)">같은 소지역에 있어야 거래하거나 치료할 수 있습니다.</p>`:"";
