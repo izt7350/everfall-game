@@ -997,7 +997,6 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
    <button class="ctab" role="tab" aria-selected="true" data-c="local">현장</button>
    <button class="ctab" role="tab" aria-selected="false" data-c="world">세계</button>
    <button class="ctab" role="tab" aria-selected="false" data-c="notice">공지</button>
-   <button class="ctab" role="tab" aria-selected="false" data-c="guild" id="guildChatTab" hidden>길드</button>
   </div>
   <div class="log" id="log"></div>
   <div class="send"><input id="inp" placeholder="메시지 입력…" maxlength="200"><button id="btn">전송</button></div>
@@ -5040,6 +5039,7 @@ function friendOnline(id){
 }
 function displayName(id,name){if(id===uid)return name||me.name||"무명";if(!isFriend(id))return name||"무명";const f=me.friends&&me.friends[id];return f&&f.nick?f.nick:(name||"무명")}
 function nameColor(id){if(id===uid&&okColor(me.color))return me.color;const p=(friendView.profiles&&friendView.profiles[id])||(guildView.profiles&&guildView.profiles[id]);return p&&okColor(p.color)?p.color:""}
+function isGmLabel(name){return /^(GM|운영자)$/i.test(String(name||"").trim())}
 function friendLabel(f){
  const who=esc(f.nick||f.name||"친구");
  return `${f.rel?`<span class="f-rel">나의 ${esc(f.rel)}</span> `:""}${who}`;
@@ -5248,7 +5248,7 @@ function guildBoardHtml(g){
  </div>
  <div class="g-sec">
   <div class="g-sech">길드 명부 <span class="dim">${members.length}명 · 접속 ${esc(guildView.online||"…")}</span></div>
-  <div class="g-members">${members.sort((a,b)=>guildRankValue(b[1].role)-guildRankValue(a[1].role)||String(a[1].name||"").localeCompare(String(b[1].name||""),"ko")).map(([id,m])=>{const col=nameColor(id);return `<div class="g-item"><span class="g-dot ${guildView.onlineSet.has(id)?"on":"off"}" data-gdot="${esc(id)}"></span><span class="g-nm"${col?` style="color:${col}"`:""}>${esc(m.name||"")}${id===uid?" (나)":""}</span><span class="g-chip">${esc(guildRankName(g,m.role||"member"))}</span></div>`}).join("")}</div>
+  <div class="g-members">${members.sort((a,b)=>guildRankValue(b[1].role)-guildRankValue(a[1].role)||String(a[1].name||"").localeCompare(String(b[1].name||""),"ko")).map(([id,m])=>{const col=nameColor(id);return `<div class="g-item"><span class="g-dot ${guildView.onlineSet.has(id)?"on":"off"}" data-gdot="${esc(id)}"></span><button type="button" class="g-nm" data-gmember="${esc(id)}" title="캐릭터 정보 보기"${col?` style="color:${col}"`:""}>${esc(m.name||"")}${id===uid?" (나)":""}</button><span class="g-chip">${esc(guildRankName(g,m.role||"member"))}</span></div>`}).join("")}</div>
  </div>
  ${leader?"":`<div class="g-sec" style="text-align:right"><button class="sm2" data-gleave>길드 탈퇴</button></div>`}`;
 }
@@ -6970,13 +6970,23 @@ function chatPath(tab){
  return "chat/notice";
 }
 function syncGuildChatTab(){
- const has=!!me.guildId,btn=$("guildChatTab");
- if(btn){btn.hidden=!has;btn.title=has?(me.guild||"길드"):"길드";}
- if(!has){
+ const has=!!me.guildId,ct=$("ctabs");
+ let btn=$("guildChatTab");
+ if(has){
+  if(ct&&!btn){
+   btn=document.createElement("button");
+   btn.type="button";btn.id="guildChatTab";btn.className="ctab";btn.dataset.c="guild";btn.textContent="길드";
+   const firstWhisper=ct.querySelector('.ctab[data-c="whisper"]');
+   ct.insertBefore(btn,firstWhisper||null);
+  }
+  if(btn)btn.title=me.guild||"길드";
+ }else{
+  if(cur==="guild"){cur="world";try{render()}catch(e){}}
+  if(btn)btn.remove();
   if(chatUnsub.guild){try{chatUnsub.guild()}catch(e){};chatUnsub.guild=null}
   delete chatPaths.guild;chatData.guild=[];
-  if(cur==="guild"){cur="world";try{render()}catch(e){}}
- }else{
+ }
+ if(has){
   const p=chatPath("guild");
   if(chatUnsub.guild&&chatPaths.guild!==p){try{chatUnsub.guild()}catch(e){};chatUnsub.guild=null;chatData.guild=[];delete chatPaths.guild}
   if(cur==="guild")subscribeChat("guild");
@@ -7627,8 +7637,8 @@ document.addEventListener("everfall-theme",decorateNames);
 function render(){
  const lock=(cur==="notice"&&!me.isAdmin)||(cur==="guild"&&!me.guildId)||!!me.downed||!!me.deadPending||(cur==="local"&&!!me.travel),noWhisper=cur==="whisper"&&!whisperUser;
  const msgs=(chatData[cur]||[]).filter(m=>cur==="notice"||cur==="whisper"||!me.blocked.includes(m.name)).map(m=>{
-  const realName=m.name||"무명",name=displayName(m.uid,realName),c=colorOf(m.c||(realName===me.name?me.color:"#CB3533")),sys=m.sys==="downed",canEdit=cur==="notice"&&me.isAdmin&&!!m.id;
-  return `<div class="msg ${cur==="notice"?"notice":""} ${sys?"sys":""}${canEdit?" editable":""}"${canEdit?` data-msg-edit="${esc(m.id)}" role="button" tabindex="0" title="클릭해서 공지 수정"`:""}>${sys?`<span class="who">시스템</span>`:`<span class="who js-name" data-uid="${esc(m.uid||"")}" data-u="${esc(realName)}" title="캐릭터 정보 보기" style="--name-color:${c}">${esc(name)}</span>`}<span class="txt">${esc(m.t)}</span>${cur==="notice"&&m.editedAt?'<span class="edited">(수정됨)</span>':""}<span class="when">${chatTime(m.at)}</span></div>`}).join("");
+  const realName=m.name||"무명",name=displayName(m.uid,realName),c=colorOf(m.c||(realName===me.name?me.color:"#CB3533")),sys=m.sys==="downed",canEdit=cur==="notice"&&me.isAdmin&&!!m.id,noProfile=isGmLabel(realName)||isGmLabel(name)||!m.uid;
+  return `<div class="msg ${cur==="notice"?"notice":""} ${sys?"sys":""}${canEdit?" editable":""}"${canEdit?` data-msg-edit="${esc(m.id)}" role="button" tabindex="0" title="클릭해서 공지 수정"`:""}>${sys?`<span class="who">시스템</span>`:noProfile?`<span class="who" style="--name-color:${c}">${esc(name)}</span>`:`<span class="who js-name" data-uid="${esc(m.uid||"")}" data-u="${esc(realName)}" title="캐릭터 정보 보기" style="--name-color:${c}">${esc(name)}</span>`}<span class="txt">${esc(m.t)}</span>${cur==="notice"&&m.editedAt?'<span class="edited">(수정됨)</span>':""}<span class="when">${chatTime(m.at)}</span></div>`}).join("");
  const logEl=$("log");
  logEl.innerHTML=msgs?`<div class="log-inner">${msgs}</div>`:`<div class="dim" style="padding:8px">${noWhisper?"귓속말을 보낼 상대를 선택하세요.":"아직 메시지가 없습니다."}</div>`;
  logEl.scrollTop=logEl.scrollHeight;
@@ -7639,7 +7649,7 @@ function render(){
 $("log").onclick=e=>{
  const ed=e.target.closest("[data-msg-edit]");
  if(ed){if(cur==="notice"&&me.isAdmin)openNoticeEdit(ed.dataset.msgEdit);return}
- const b=e.target.closest(".who");if(!b||cur==="notice")return;openPlayerProfile(b.dataset.uid,b.dataset.u)
+ const b=e.target.closest(".who");if(!b||cur==="notice")return;const tu=b.dataset.uid,tn=b.dataset.u;if(!tu&&!tn)return;if(isGmLabel(tn))return;openPlayerProfile(tu,tn)
 };
 $("log").onkeydown=e=>{
  if(e.key!=="Enter"&&e.key!==" ")return;
@@ -7670,6 +7680,7 @@ function sameSubArea(p){
  return String(p.cont||"")===String(me.cont||"")&&String(p.area||"")===String(me.area||"")&&String(p.sub||"")===String(me.sub||"");
 }
 async function openPlayerProfile(targetUid,name){
+ if(isGmLabel(name))return;
  let p=null;if(targetUid){try{p=await S.getProfile(targetUid)}catch(e){}}
  // 프로필에 남은 partyId가 실제 파티인지 확인 (해산·추방 후 남은 값 제거, 현재 리더로 교정)
  if(p&&p.partyId&&targetUid&&targetUid!==uid&&p.partyId!==me.partyId){const chk=await partyAliveFor(p.partyId,targetUid,p.partyLeader);if(chk.ok)p.partyLeader=chk.leader;else{p.partyId=null;p.partyLeader=null}}
@@ -7708,7 +7719,13 @@ async function openPlayerProfile(targetUid,name){
  buttons.push({t:"닫기"});
  const areaNote=(!self&&targetUid&&name&&!d&&!same)?`<p class="dim" style="margin:0 0 8px;color:var(--bad)">같은 소지역에 있어야 거래하거나 치료할 수 있습니다.</p>`:"";
  if(!p)return admPop("캐릭터 정보",`${areaNote}<div class="ai"><div class="ai-head"><span class="ai-avatar"></span><div class="ai-id">${nameLine}<div class="ai-sub">프로필 정보가 아직 없습니다.</div>${d?'<div class="ai-sub" style="color:var(--bad);font-weight:700">쓰러짐 · '+Math.max(0,Math.ceil((+d.until-Date.now())/60000))+'분 남음</div>':""}</div></div></div>`,buttons,true);
- admPop("캐릭터 정보",areaNote+charInfoHtml(p,{uid:targetUid,lastLogin:p.at,downed:d,nick,realName,rel}),buttons,true)}
+ let body="";
+ try{body=areaNote+charInfoHtml(p,{uid:targetUid,lastLogin:p.at,downed:d,nick,realName,rel})}
+ catch(e){
+  console.warn("charInfoHtml",e);
+  body=areaNote+`<div class="ai"><div class="ai-head"><span class="ai-avatar"></span><div class="ai-id">${nameLine}<div class="ai-sub">프로필 정보를 표시하지 못했습니다.</div></div></div></div>`;
+ }
+ admPop("캐릭터 정보",body,buttons,true)}
 function startWhisper(targetUid,name){
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 귓속말을 보낼 수 없습니다.");
  if(!targetUid||targetUid===uid)return toast("자신에게는 귓속말을 보낼 수 없습니다.");
