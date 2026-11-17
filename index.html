@@ -8567,31 +8567,41 @@ $("buyHorse").onclick=()=>{
  bag();rideRender();try{opts.save(cp(snap()))}catch(e){}
  modal("말 구입","말 1마리를 구입했습니다. 동행에서 이름을 바꿀 수 있습니다.");
 };
-$("buyFeed").onclick=()=>{
+function stableBuyMax(n){
+ const goldMax=Math.floor((+me.gold||0)/10);
+ if(goldMax<1)return 0;
+ if(!canAdd(n))return 0;
+ return Math.min(99,goldMax);
+}
+function openStableBuy(n){
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");
  if(me.travel)return toast("이동 중에는 마굿간을 이용할 수 없습니다.");
  if(actionLock("휴식 중에는 마굿간을 이용할 수 없습니다."))return;
  if(!stableOpen())return toast("마굿간 영업시간이 아닙니다.");
- if(me.gold<10)return toast("10G가 필요합니다.");
- if(!canAdd("먹이"))return toast("가방이 가득 찼습니다.");
+ const max=stableBuyMax(n);
+ if(max<1){
+  if((+me.gold||0)<10)return toast("10G가 필요합니다.");
+  return toast("가방이 가득 찼습니다.");
+ }
+ shopQtyPopup("buy",n,10,max,q=>buyStable(n,q));
+}
+function buyStable(n,q){
+ if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");
+ if(me.travel)return toast("이동 중에는 마굿간을 이용할 수 없습니다.");
+ if(actionLock("휴식 중에는 마굿간을 이용할 수 없습니다."))return;
+ if(!stableOpen())return toast("마굿간 영업시간이 아닙니다.");
+ q=Math.max(1,Math.min(99,Math.floor(+q||1),Math.floor((+me.gold||0)/10)));
+ if(q<1)return toast("10G가 필요합니다.");
+ if(!canAdd(n))return toast("가방이 가득 찼습니다.");
  if(!starvationActionCost())return;
- me.gold-=10;addItem("먹이");
+ me.gold-=10*q;
+ for(let i=0;i<q;i++)addItem(n);
  bag();rideRender();try{opts.save(cp(snap()))}catch(e){}
- modal("먹이 구입","먹이 1개를 구입했습니다.");
-};
+ modal(`${n} 구입`,`${n} ${q}개를 구입했습니다. (${10*q}G)`);
+}
+$("buyFeed").onclick=()=>openStableBuy("먹이");
 // 말 이동용 건초 (2026-11-13)
-$("buyHay").onclick=()=>{
- if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 거래할 수 없습니다.");
- if(me.travel)return toast("이동 중에는 마굿간을 이용할 수 없습니다.");
- if(actionLock("휴식 중에는 마굿간을 이용할 수 없습니다."))return;
- if(!stableOpen())return toast("마굿간 영업시간이 아닙니다.");
- if(me.gold<10)return toast("10G가 필요합니다.");
- if(!canAdd("건초"))return toast("가방이 가득 찼습니다.");
- if(!starvationActionCost())return;
- me.gold-=10;addItem("건초");
- bag();rideRender();try{opts.save(cp(snap()))}catch(e){}
- modal("건초 구입","건초 1개를 구입했습니다.");
-};
+$("buyHay").onclick=()=>openStableBuy("건초");
 $("tclose").onclick=()=>$("tmodal").hidden=true;
 $("tsearch").oninput=e=>{tradeSearch=String(e.target.value||"");if(tradeTab==="sell")tradeRender()};
 $("ttabs").onclick=e=>{const b=e.target.closest("[data-ttab]");if(!b)return;tradeTab=b.dataset.ttab;tradeOpen=null;tradeRender()};
