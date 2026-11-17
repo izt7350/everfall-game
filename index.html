@@ -2362,6 +2362,10 @@ function calcStats(c){
  const rawWeight=eqNames.reduce((a,n)=>a+itemWt(n),0),weight=rawWeight*(1-Math.min(.8,equipWeightRed/100)),capacity=10+str*2,over=Math.max(0,weight-capacity);
  const weightPenalty=over<=0?0:(over<20?1:2);
  const skillMax=Math.max(S("melee"),S("ranged"),S("magic"));
+ // 체력은 HP뿐 아니라 방어력·피해 경감에도 기여한다.
+ // 기본값 5 초과 1당 방어력 +2, 받는 피해 감소 +4% (체력 경감은 최대 50%).
+ // (근력 1당 근접 공격력 +2와 같은 비중. 방어력은 피해 공식의 감소율 때문에 실제 피해 감소는 완만하다.)
+ const vitDef=Math.max(0,(vit-5)*2),vitDmgRed=Math.max(0,Math.min(.5,(vit-5)*.04));
  const pct=(v,p)=>Math.max(0,v*(1+(p||0)/100)),clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 // 2026-11-15: 능력치 기본값(5)을 빼지 않음 — 공격·명중·회피·도주·치명·독서시간은 능력치 그대로 곱함 (HP·MP·허기만 기존대로 −5 기준)
  const baseCrit=5+1.0*(luck)+traitCrit+mods.critPct+nonWeaponCrit;
@@ -2392,8 +2396,9 @@ function calcStats(c){
   hpMax:Math.max(1,Math.round((100+10*(vit-5)+(jt.hp||0)+traitHp+equipHp)*(1+(mods.hpPct||0)/100))),
   mpMax:Math.max(1,Math.round((100+10*(int-5)+(jt.mp||0)+traitMp+equipMp)*(1+(mods.mpPct||0)/100))),
   hungerMax:Math.max(1,Math.round((100+3*(vit-5)+traitHunger)*(1+(mods.hungerPct||0)/100))),
-  def:Math.max(0,(equipDef+mods.defFlat)*(1+(mods.defPct||0)/100)),
-  dmgRed:Math.min(.6,(jt.dmgRed||0)+traitDmgRed+equipDmgRed),
+  def:Math.max(0,(equipDef+vitDef+mods.defFlat)*(1+(mods.defPct||0)/100)),
+  dmgRed:Math.min(.6,(jt.dmgRed||0)+traitDmgRed+equipDmgRed+vitDmgRed),
+  vitDmgRed,
   lowHpRed:traitLowHp,
   encounterRed:Math.min(.8,Math.max(0,traitEnc-(mods.encounterPct||0)/100+(tools.encounterRed||0)/100)), // 상태의 encounterPct: 음수면 조우 감소
   expDmgRed:Math.min(.5,traitExpDmg),
@@ -9346,6 +9351,7 @@ function renderStatus(){
   ["원거리 공격력",fmtRange(st.rangedAtkMin,st.rangedAtkMax)],
   ["마법 공격력",fmtRange(st.magicAtkMin,st.magicAtkMax)],
   ["방어력",fmt1(st.def)],
+  ["체력 피해 감소",fmt1((st.vitDmgRed||0)*100)+"%"],
   ["속도",fmt1(st.speed)],
   ["회피율",fmt1(st.evasion)+"%"],
   ["도주율",fmt1(st.flee)+"%"],
