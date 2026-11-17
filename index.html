@@ -1891,10 +1891,10 @@ const dayOf=c=>Math.floor((Date.now()-(c.createdAt||acc.createdAt||Date.now()))/
 let game=null;
 const SESSION_ID=Math.random().toString(36).slice(2)+Date.now().toString(36);
 let accountHold=false,syncHold=false;
-let sessionUnsub=null,sessionClaimed=false,sessionKicking=false;
+let sessionUnsub=null,sessionClaimed=false,sessionKicking=false,sessionStale=false;
 async function claimSession(){
  if(!me.uid)return;
- sessionKicking=false;
+ sessionKicking=false;sessionStale=false;
  try{
   const now=Date.now();
   await set(ref(realtimeDB,"accounts/"+me.uid+"/session"),{sid:SESSION_ID,at:now});
@@ -1904,8 +1904,8 @@ async function claimSession(){
  if(sessionUnsub){try{sessionUnsub()}catch(e){}}
  sessionUnsub=onValue(ref(realtimeDB,"accounts/"+me.uid+"/session"),s=>{
   const v=s.val();
-  if(!v||!v.sid||v.sid===SESSION_ID)return;
-  endStaleSession();
+  if(!v||!v.sid||v.sid===SESSION_ID){sessionStale=false;return}
+  sessionStale=true;endStaleSession();
  },()=>{});
 }
 async function releaseSession(){
@@ -2086,7 +2086,8 @@ function logOfflineEvent(uid,c,type,text,data){
 }
 async function play(){accountHold=false;syncHold=false;
  try{await claimSession();const fresh=await S.getAcc(me.uid);if(fresh&&fresh.character){fresh.character=norm(fresh.character);acc=fresh}}catch(e){console.warn("account refresh",e)}
- const save=s=>{if(accountHold||syncHold)return;const rev=Math.max(Date.now(),(+((acc.character||{}).rev)||0)+1),data={...s,rev,by:SESSION_ID};acc.character={...acc.character,...data};const cref=ref(realtimeDB,"accounts/"+me.uid+"/character");update(cref,data).catch(async err=>{console.warn("char save",err);await freshToken(true);if(((acc.character||{}).rev)!==rev)return;update(cref,data).catch(e=>console.warn("char save retry",e))})};
+ const save=s=>{if(accountHold||syncHold||sessionStale)return;const rev=Math.max(Date.now(),(+((acc.character||{}).rev)||0)+1),data={...s,rev,by:SESSION_ID};acc.character={...acc.character,...data};const cref=ref(realtimeDB,"accounts/"+me.uid+"/character");update(cref,data).catch(async err=>{console.warn("char save",err);await freshToken(true);if(sessionStale||((acc.character||{}).rev)!==rev)return;update(cref,data).catch(e=>console.warn("char save retry",e))})};
+ const stamp=c=>{c.rev=Math.max(Date.now(),(+c.rev||0)+1);c.by=SESSION_ID;return c};
  try{let c=norm(acc.character),d=null,dOk=false;
   try{d=await S.getDowned(me.uid);dOk=true}catch(e){}
   if(dOk&&d&&d.revive&&+d.revive.at<=+d.until){
@@ -2094,7 +2095,7 @@ async function play(){accountHold=false;syncHold=false;
    c.hp=c.hp||[0,100];c.hp[0]=Math.min(c.hp[1],(+c.hp[0]||0)+30);
    c.hunger=c.hunger||[0,100];c.hunger[0]=Math.min(c.hunger[1],(+c.hunger[0]||0)+30);
    c.downed=null;
-   acc.character=c;await set(ref(realtimeDB,"accounts/"+me.uid+"/character"),c);await S.delDowned(me.uid).catch(()=>{});
+   acc.character=c;await set(ref(realtimeDB,"accounts/"+me.uid+"/character"),stamp(c));await S.delDowned(me.uid).catch(()=>{});
    d=null;toast("누군가 당신을 소생시켰습니다.");
   }
   let cur=dOk?d:(c.downed||null);
@@ -2113,7 +2114,7 @@ async function play(){accountHold=false;syncHold=false;
     const now=Date.now();
     cur={...cur,name:cur.name||c.name,cont:cur.cont||c.cont,area:cur.area||c.area,sub:cur.sub||"",place:cur.place||c.place||"",since:now,until:now+90*60000,startedAt:now,revive:null,dead:false};
     c.downed=cur;acc.character=c;
-    try{await set(ref(realtimeDB,"accounts/"+me.uid+"/character"),c);await S.setDowned(me.uid,cur)}catch(e){console.warn("offline downed start",e)}
+    try{await set(ref(realtimeDB,"accounts/"+me.uid+"/character"),stamp(c));await S.setDowned(me.uid,cur)}catch(e){console.warn("offline downed start",e)}
    }
   }
   const active=cur&&!revived&&+cur.until>Date.now()?cur:null;
