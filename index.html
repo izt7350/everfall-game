@@ -5435,9 +5435,36 @@ async function guildWritePost(){
 }
 async function guildDeposit(name){
  if(!name||!guildView.data)return;
- const idx=me.inv.findIndex(x=>nm(x)===name);
- if(idx<0)return toast("아이템이 없습니다.");
- await depositGuildItem(idx);
+ if(!guildPerm(guildView.data,"warehouseDeposit"))return toast("창고에 물건을 넣을 권한이 없습니다.");
+ const max=count(name);
+ if(max<1)return toast("아이템이 없습니다.");
+ if(max<=1)return depositGuildItems(name,1);
+ pop("창고에 넣기",`<p><b>${esc(name)}</b> <span class="dim">· 보유 ${max}개</span></p>${qtyHtml(max)}`,[{t:"넣기",c:"",fn:()=>depositGuildItems(name,qtyVal(max))},{t:"취소"}],true);
+ $("pb").onclick=e=>qtyClick(e,max);
+}
+async function depositGuildItems(name,qty){
+ if(!guildView.data)return;
+ if(!guildPerm(guildView.data,"warehouseDeposit"))return toast("창고에 물건을 넣을 권한이 없습니다.");
+ if(guildDepositBusy)return toast("처리 중입니다. 잠시만 기다려 주세요.");
+ const have=count(name),n=Math.max(1,Math.min(Math.floor(+qty||1),have));
+ if(!have)return toast("아이템이 없습니다.");
+ const wh=guildView.data.warehouse||{},cap=30*(Math.max(0,Math.floor(+wh.level||0))+1);
+ guildDepositBusy=true;
+ try{
+  let ok=false,nextItems=null;
+  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/items"),arr=>{const list=gArr(arr);if(list.length+n>cap)return;for(let i=0;i<n;i++)list.push(name);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v)}}catch(e){ok=false}
+  if(!ok)return toast("창고 공간이 부족합니다.");
+  const removed=takeItems(name,n);
+  if(removed.length<n)console.warn("guild deposit remove mismatch",name,n,removed.length);
+  if(guildView.data&&nextItems){
+   const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};
+   gd.warehouse.items=nextItems;
+  }
+  bag();
+  if(guildView.open)try{guildRender()}catch(e){}
+  try{opts.save(cp(snap()))}catch(e){}
+  toast(`${name} ×${removed.length||n}을(를) 창고에 넣었습니다.`);
+ }finally{guildDepositBusy=false}
 }
 async function guildDepositIndex(idx){
  if(!Number.isInteger(idx)||idx<0||idx>=me.inv.length)return toast("아이템이 없습니다.");
