@@ -949,7 +949,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 <div class="explore" id="rest"><div><b>휴식</b><span>긴 휴식일수록 회복량이 크다.<em id="reststat"></em></span></div><button class="btn" id="restBtn">휴식</button></div>
    <div class="svc-grid" id="svcGrid">
    <div class="explore" id="secretMerchant" hidden><div><b>상인</b><span>조용히 거래를 청해오는 상인. 숨어서 거래하기 때문에 24시간 거래가 가능하다.</span></div><button class="btn" id="merchantTrade">거래하기</button></div>
-   <div class="explore" id="stable" hidden><div><b>마굿간</b><span id="stdesc">말 700G · 건초 15G · 먹이 15G</span><em id="ststat"></em></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="buyHorse">말 구입 (700G)</button><button class="btn alt" id="buyHay">건초 구입 (15G)</button><button class="btn alt" id="buyFeed">먹이 구입 (15G)</button></div></div>
+   <div class="explore" id="stable" hidden><div><b>마굿간</b><span id="stdesc">말 700G · 건초 10G · 먹이 10G</span><em id="ststat"></em></div><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn" id="buyHorse">말 구입 (700G)</button><button class="btn alt" id="buyHay">건초 구입 (10G)</button><button class="btn alt" id="buyFeed">먹이 구입 (10G)</button></div></div>
    </div>
    <div class="npc-grid" id="npcGrid">
     <div class="explore npc" id="market" data-npc="market" hidden><div class="npc-txt"><b><span class="npc-role">상점주</span> <span class="npc-nm">에디스</span></b><span>거래가 가능하다. 물품은 매일 바뀐다. (오후 12시~오전 12시)<em id="mstat"></em></span></div><button type="button" class="btn npc-talk">대화하기</button><div class="npc-acts" hidden><button class="btn" id="trade">거래하기</button></div></div>
@@ -7966,7 +7966,7 @@ function clock(){const n=new Date();
  ["cure","traitCure"].forEach(i=>$(i).disabled=tv||!sole);$("clstat").textContent=sole?" · 오늘 열림":" · 오늘은 쉬는 날";
   const sOpen=stableOpen();["buyHorse","buyHay","buyFeed"].forEach(i=>$(i).disabled=tv||!sOpen);
   $("ststat").textContent=sOpen?" · 영업 중":" · 영업 종료";
-  $("stdesc").textContent="영업시간: 오전 9시~오후 9시 · 말 700G · 건초 15G · 먹이 15G";
+  $("stdesc").textContent="영업시간: 오전 9시~오후 9시 · 말 700G · 건초 10G · 먹이 10G";
  const busy=tv||!!me.expedition||!!me.rest,rh=isRestZone(),rl=restLeft();
   if($("innRestBtn"))$("innRestBtn").disabled=busy||!innOpen();
   if($("innTrade"))$("innTrade").disabled=busy||!innOpen();
@@ -8572,10 +8572,10 @@ $("buyFeed").onclick=()=>{
  if(me.travel)return toast("이동 중에는 마굿간을 이용할 수 없습니다.");
  if(actionLock("휴식 중에는 마굿간을 이용할 수 없습니다."))return;
  if(!stableOpen())return toast("마굿간 영업시간이 아닙니다.");
- if(me.gold<15)return toast("15G가 필요합니다.");
+ if(me.gold<10)return toast("10G가 필요합니다.");
  if(!canAdd("먹이"))return toast("가방이 가득 찼습니다.");
  if(!starvationActionCost())return;
- me.gold-=15;addItem("먹이");
+ me.gold-=10;addItem("먹이");
  bag();rideRender();try{opts.save(cp(snap()))}catch(e){}
  modal("먹이 구입","먹이 1개를 구입했습니다.");
 };
@@ -8585,10 +8585,10 @@ $("buyHay").onclick=()=>{
  if(me.travel)return toast("이동 중에는 마굿간을 이용할 수 없습니다.");
  if(actionLock("휴식 중에는 마굿간을 이용할 수 없습니다."))return;
  if(!stableOpen())return toast("마굿간 영업시간이 아닙니다.");
- if(me.gold<15)return toast("15G가 필요합니다.");
+ if(me.gold<10)return toast("10G가 필요합니다.");
  if(!canAdd("건초"))return toast("가방이 가득 찼습니다.");
  if(!starvationActionCost())return;
- me.gold-=15;addItem("건초");
+ me.gold-=10;addItem("건초");
  bag();rideRender();try{opts.save(cp(snap()))}catch(e){}
  modal("건초 구입","건초 1개를 구입했습니다.");
 };
