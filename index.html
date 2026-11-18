@@ -1845,24 +1845,28 @@ function adminLogin(){let keepPref=true;try{keepPref=localStorage.getItem("everf
    if(!(await S.getAdmin(c.user.uid))){await signOut(auth);e.textContent="관리자 권한이 없는 계정입니다.";$("doAdmin").disabled=false;return}
    me={uid:c.user.uid,name:id,admin:true};acc=null;go("admin")}
   catch(x){e.textContent="아이디 또는 비밀번호가 올바르지 않습니다.";$("doAdmin").disabled=false}}
-async function openAdminNote(accounts){
+const adminAccountName=a=>a?((a.character&&a.character.name)||a.loginId||("UID "+String(a.id||"").slice(0,8))):"";
+async function openAdminNote(accounts,targetId){
  const names=[...new Set([...ITEM_DATA.map(d=>d.name),"이동속도 증가 포션","건초"])].sort((a,b)=>a.localeCompare(b,"ko"));
  const opts=names.map(n=>{const it=ITEM_BY_NAME[n]||{};return `<option value="${esc(n)}">${esc(n)}${it.grade?` · ${esc(it.grade)}`:""}</option>`}).join("");
- const recipients=(accounts||[]).filter(a=>a&&a.id).length;
- admPop("모두에게 쪽지",`<div class="note-compose"><p class="dim">전체 ${recipients}명에게 발송합니다. 첨부 아이템은 각자 메세지함에서 받을 수 있습니다.</p><textarea id="anText" maxlength="300" placeholder="쪽지 내용을 입력하세요"></textarea><div class="note-row"><select id="anItem"><option value="">첨부 안 함</option>${opts}</select><input type="number" id="anQty" min="1" value="1" inputmode="numeric" aria-label="첨부 수량"></div><div class="note-row"><span class="dim">골드</span><input type="number" id="anGold" min="0" max="1000000" value="0" inputmode="numeric" aria-label="첨부 골드"><span class="dim">G · 받는 사람마다 지급</span></div><div class="note-actions"><button type="button" class="btn" id="anSend">보내기</button></div></div>`,[{t:"닫기"}],true);
+ const target=targetId?(accounts||[]).find(a=>a&&a.id===targetId):null;
+ if(targetId&&!target)return toast("대상 계정을 찾을 수 없습니다.");
+ const recipients=targetId?1:(accounts||[]).filter(a=>a&&a.id).length;
+ const recipientLine=targetId?`<p class="dim">받는 사람 : <b>${esc(adminAccountName(target))}</b>${target&&target.loginId&&target.loginId!==adminAccountName(target)?` <span class="dim">(${esc(target.loginId)})</span>`:""}</p>`:`<p class="dim">전체 ${recipients}명에게 발송합니다. 첨부 아이템은 각자 메세지함에서 받을 수 있습니다.</p>`;
+ admPop(targetId?"쪽지 보내기":"모두에게 쪽지",`<div class="note-compose">${recipientLine}<textarea id="anText" maxlength="300" placeholder="쪽지 내용을 입력하세요"></textarea><div class="note-row"><select id="anItem"><option value="">첨부 안 함</option>${opts}</select><input type="number" id="anQty" min="1" value="1" inputmode="numeric" aria-label="첨부 수량"></div><div class="note-row"><span class="dim">골드</span><input type="number" id="anGold" min="0" max="1000000" value="0" inputmode="numeric" aria-label="첨부 골드"><span class="dim">G · ${targetId?"받는 캐릭터에게 지급":"받는 사람마다 지급"}</span></div><div class="note-actions"><button type="button" class="btn" id="anSend">보내기</button></div></div>`,[{t:"닫기"}],true);
  const q=$("anQty"),sel=$("anItem"),btn=$("anSend");
  if(q)q.disabled=true;
  if(sel)sel.onchange=()=>{if(q)q.disabled=!sel.value};
- if(btn)btn.onclick=()=>sendAdminNote(accounts);
+ if(btn)btn.onclick=()=>sendAdminNote(accounts,targetId);
 }
-async function sendAdminNote(accounts){
+async function sendAdminNote(accounts,targetId){
  const text=String(($("anText")||{}).value||"").trim().slice(0,300);
  if(!text)return toast("쪽지 내용을 입력해 주세요.");
  const itemName=($("anItem")||{}).value||"";
  let qty=Math.max(1,Math.floor(+($("anQty")||{}).value||1));
  if(itemName)qty=Math.min(999,qty);else qty=0;
  const gold=Math.max(0,Math.min(1000000,Math.floor(+($("anGold")||{}).value||0)));
- const ids=[...new Set((accounts||[]).map(a=>a&&a.id).filter(Boolean))];
+ const ids=targetId?[String(targetId)]:[...new Set((accounts||[]).map(a=>a&&a.id).filter(Boolean))];
  if(!ids.length)return toast("발송할 계정이 없습니다.");
  const btn=$("anSend");if(btn)btn.disabled=true;
  const base={from:me.uid,fromName:"운영자",text,read:false,admin:true,item:itemName?{n:itemName,q:qty}:null,gold};
@@ -1873,7 +1877,8 @@ async function sendAdminNote(accounts){
   catch(e){console.warn("admin note",id,e);fail++}
  }
  admClose();
- toast(fail?`${ok}명에게 보냈습니다. ${fail}명은 실패했습니다.`:`${ok}명에게 쪽지를 보냈습니다.`);
+ if(targetId){const t=(accounts||[]).find(a=>a.id===targetId);toast(fail?`쪽지 발송에 실패했습니다. Firebase 규칙을 확인해 주세요.`:`${adminAccountName(t)}에게 쪽지를 보냈습니다.`)}
+ else toast(fail?`${ok}명에게 보냈습니다. ${fail}명은 실패했습니다.`:`${ok}명에게 쪽지를 보냈습니다.`);
 }
 async function admin(){
  if(!me.admin){go("login");return}
@@ -1894,6 +1899,7 @@ async function admin(){
    <span class="sm">${a.lastLogin?fmt(a.lastLogin):"-"}</span><span class="st ${b?"ban":""}">${b?"정지":"정상"}</span>
    <span class="row">${b?`<button class="btn alt sm" data-a="unban" data-i="${a.id}">정지 해제</button>`:`<button class="btn alt sm" data-a="ban" data-i="${a.id}" ${self?"disabled":""}>정지</button>`}
    <button class="btn alt sm" data-a="reset" data-i="${a.id}" ${c&&!self?"":"disabled"}>${arm==="reset"+a.id?"정말 초기화?":"캐릭터 초기화"}</button>
+   <button class="btn alt sm" data-a="note" data-i="${a.id}" ${c?"":"disabled"}>쪽지</button>
    <button class="btn alt sm" data-a="logs" data-i="${a.id}">로그</button>
    <button class="btn alt sm" data-a="del" data-i="${a.id}" ${self?"disabled":""}>${arm==="del"+a.id?"정말 삭제?":"삭제"}</button></span>
    ${b?`<span class="rs dim sm">정지 사유 : ${esc(b.reason||"없음")} (${fmt(b.at)})</span>`:""}
@@ -1967,6 +1973,7 @@ async function admin(){
    {t:"허기 회복",c:"",fn:()=>adminFillChar(id,"hunger","허기를")},
    {t:"상태이상 추가",fn:()=>adminAddStatus(id)},
    {t:"상태이상 제거",fn:()=>adminRemoveStatus(id)},
+   {t:"쪽지 보내기",fn:()=>openAdminNote(accs,id)},
    {t:"활동 로그",fn:()=>showLogs(id)},
    {t:"닫기"}
   ];
@@ -2019,6 +2026,7 @@ async function admin(){
   else{await S.delAcc(id);await S.delBan(id).catch(()=>{});if(t.loginId)await S.freeLoginId(t.loginId).catch(()=>{});accs=accs.filter(x=>x.id!==id);delete banMap[id];toast("계정을 삭제했습니다")}
   draw()}catch(e){console.warn(e);toast("처리에 실패했어요")}};
  const act=async(a,id)=>{try{
+  if(a==="note"){if(!accs.find(x=>x.id===id&&x.character))return toast("캐릭터가 없습니다.");openAdminNote(accs,id);return}
   if(a==="logs"){showLogs(id);return}
   if(a==="ban"){open=id;draw();$("rs").focus();return}
   if(a==="bancancel"){open=null}
@@ -8840,7 +8848,7 @@ document.addEventListener("everfall-theme",decorateNames);
 function render(){
  const lock=(cur==="notice"&&!me.isAdmin)||(cur==="guild"&&!me.guildId)||(cur==="party"&&!me.partyId)||!!me.downed||!!me.deadPending||(cur==="local"&&!!me.travel),noWhisper=cur==="whisper"&&!whisperUser;
  const msgs=(chatData[cur]||[]).filter(m=>cur==="notice"||cur==="whisper"||!me.blocked.includes(m.name)).map(m=>{
-  const realName=m.name||"무명",name=displayName(m.uid,realName),c=colorOf(m.c||(realName===me.name?me.color:"#CB3533")),sys=m.sys==="downed",canEdit=cur==="notice"&&me.isAdmin&&!!m.id,noProfile=isGmLabel(realName)||isGmLabel(name)||!m.uid,ttl=String(m.title||"").trim(),ttlHtml=ttl?`<span class="chat-title">「${esc(ttl)}」</span> `:"";
+  const realName=m.name||"무명",name=displayName(m.uid,realName),c=colorOf(m.c||(realName===me.name?me.color:"#CB3533")),sys=m.sys==="downed",canEdit=cur==="notice"&&me.isAdmin&&!!m.id,noProfile=isGmLabel(realName)||isGmLabel(name)||!m.uid,ttl=String(m.title||"").trim(),ttlHtml=ttl?`<span class="chat-title">「${esc(ttl)}」</span>`:"";
   return `<div class="msg ${cur==="notice"?"notice":""} ${sys?"sys":""}${canEdit?" editable":""}"${canEdit?` data-msg-edit="${esc(m.id)}" role="button" tabindex="0" title="클릭해서 공지 수정"`:""}>${sys?`<span class="who">시스템</span>`:noProfile?`<span class="who" style="--name-color:${c}">${ttlHtml}${esc(name)}</span>`:`<span class="who js-name" data-uid="${esc(m.uid||"")}" data-u="${esc(realName)}" title="캐릭터 정보 보기" style="--name-color:${c}">${ttlHtml}${esc(name)}</span>`}<span class="txt">${esc(m.t)}</span>${cur==="notice"&&m.editedAt?'<span class="edited">(수정됨)</span>':""}<span class="when">${chatTime(m.at)}</span></div>`}).join("");
  const logEl=$("log");
  logEl.innerHTML=msgs?`<div class="log-inner">${msgs}</div>`:`<div class="dim" style="padding:8px">${noWhisper?"귓속말을 보낼 상대를 선택하세요.":"아직 메시지가 없습니다."}</div>`;
