@@ -2942,7 +2942,7 @@ function gainPlayerXP(amount){
   else if(me.lv>=3)me.skillPts++;
  }
  if(me.lv>=PLAYER_MAX)me.xp=0;
- if(ups){try{toast(`레벨 업! Lv ${me.lv}`)}catch(e){};try{renderStatus();barsRender()}catch(e){};try{$("charSub").textContent=me.origin+" · Lv "+me.lv+" · 생존 "+me.day+"일째"}catch(e){}}
+ if(ups){try{toast(`레벨 업! Lv ${me.lv}`)}catch(e){};try{syncPartyMemberPayload()}catch(e){};try{renderStatus();barsRender()}catch(e){};try{$("charSub").textContent=me.origin+" · Lv "+me.lv+" · 생존 "+me.day+"일째"}catch(e){}}
  return ups;
 }
 function gainSkillXP(key,amount){
@@ -8882,8 +8882,9 @@ function memberPayload(){
 }
 function syncPartyMemberPayload(rerender){
  if(!uid||!me.partyId||!partyData||!partyData.members||!partyData.members[uid])return;
- const p=memberPayload();
+ const p=memberPayload(),lvChanged=+partyData.members[uid].lv!==+p.lv;
  partyData.members[uid]={...partyData.members[uid],...p};
+ if(lvChanged){try{partyRender()}catch(e){}}
  if(rerender){try{refreshRisk()}catch(e){}}
  update(ref(realtimeDB,"parties/"+me.partyId+"/members/"+uid),p).catch(e=>console.warn("party payload",e));
 }
@@ -9383,7 +9384,7 @@ $("nlbtn").onclick=insertChatNewline;
 $("inp").addEventListener("input",growChatInput);
 $("inp").onkeydown=e=>{if(e.key!=="Enter"||e.isComposing)return;if(e.shiftKey&&cur==="notice")return;e.preventDefault();send()};
 render();
-if(uid){syncPresence(true);subscribeChat("world");subscribeChat("notice");subscribeDownedMap();subscribeGraves();subscribeWhisperPing();restoreWhisper();try{syncGuildChatTab()}catch(e){};try{syncPartyChatTab()}catch(e){};T(()=>{handleProposalPopup();startProposalRun();maybeStartProposalExp();try{tryPendingRun()}catch(e){}},5000);T(()=>syncPresence(true),60000);T(()=>syncPartyMemberPayload(),60000)}
+if(uid){syncPresence(true);subscribeChat("world");subscribeChat("notice");subscribeDownedMap();subscribeGraves();subscribeWhisperPing();restoreWhisper();try{syncGuildChatTab()}catch(e){};try{syncPartyChatTab()}catch(e){};T(()=>{handleProposalPopup();startProposalRun();maybeStartProposalExp();try{tryPendingRun()}catch(e){}},5000);T(()=>syncPresence(true),60000);T(()=>syncPartyMemberPayload(),60000);setTimeout(()=>{try{syncPartyMemberPayload()}catch(e){}},4000)}
 
 // ---- 시간 / 시장 (한국 표준시 기준) ----
 const KST=o=>new Intl.DateTimeFormat("ko-KR",{timeZone:"Asia/Seoul",...o});
@@ -10772,7 +10773,8 @@ function openMailbox(){
  const q=detail.item&&detail.item.n?Math.max(1,Math.floor(+detail.item.q||1)):0;
  const g=Math.max(0,Math.floor(+detail.gold||0));
  const tierLabel=detail.item&&detail.item.n==="던전 보상 상자"?(String(detail.item.tier)==="78"?" (★7~8)":" (★4~5)"):"";
- const item=q?`<div class="mail-item"><span>첨부 : <b>${esc(detail.item.n)}</b>${tierLabel}${q>1?` ×${q}`:""}</span><button type="button" class="btn sm2" data-mclaim="${esc(mailSelected)}">받기</button></div>`:"";
+ const durLabel=detail.item&&detail.item.dur!=null&&detail.item.max!=null?` <span class="dim">내구도 ${fmt1(+detail.item.dur)}/${safeNum(detail.item.max,0)}</span>`:"";
+ const item=q?`<div class="mail-item"><span>첨부 : <b>${esc(detail.item.n)}</b>${tierLabel}${q>1?` ×${q}`:""}${durLabel}</span><button type="button" class="btn sm2" data-mclaim="${esc(mailSelected)}">받기</button></div>`:"";
  const gold=g?`<div class="mail-item"><span>골드 : <b>${g} G</b></span><button type="button" class="btn sm2" data-mgold="${esc(mailSelected)}">받기</button></div>`:"";
  const body=`<div class="mail-detail"><div class="mail-head"><b>${esc(detail.admin?"GM":(detail.fromName||"상대"))}</b><span class="dim">${clockOf(+detail.at||0)}</span></div><div class="mail-text">${esc(detail.text||"")}</div>${item}${gold}<div class="mail-act"><button type="button" class="btn alt sm2" data-mback>← 목록</button><button type="button" class="btn alt sm2" data-mdel="${esc(mailSelected)}">삭제</button></div></div>`;
  mailOpen=true;
@@ -10786,8 +10788,11 @@ function openMailbox(){
   if(cl.dataset.mdel!=null)return deleteMail(cl.dataset.mdel);
  };
 }
-function mailItemPayload(it,q){const o={n:String(it.n),q:Math.max(1,Math.floor(+q||1))};for(const k of ["tier","area"])if(it[k]!=null)o[k]=String(it[k]);if(it.min!=null)o.min=+it.min;return o}
-function mailItemObj(it){const n=String(it.n||""),x=lootObj(n);if(n!=="던전 보상 상자")return x;const o={n,tier:String(it.tier||"45"),min:Math.max(1,+it.min||30)};if(it.area)o.area=String(it.area);return o}
+function mailItemPayload(it,q){const o={n:String(it.n),q:Math.max(1,Math.floor(+q||1))};for(const k of ["tier","area"])if(it[k]!=null)o[k]=String(it[k]);if(it.min!=null)o.min=+it.min;if(it.dur!=null)o.dur=+it.dur;if(it.max!=null)o.max=+it.max;return o}
+function mailItemObj(it){const n=String(it.n||""),x=lootObj(n);
+ // 장비·도구: 보낸 내구도를 그대로 (최대치는 받는 쪽 기준값을 넘지 않게)
+ if(n!=="던전 보상 상자"&&x&&typeof x==="object"&&x.max!=null&&it.dur!=null&&isFinite(+it.dur)){x.dur=Math.max(0,Math.min(+x.max,+it.dur));return x}
+ if(n!=="던전 보상 상자")return x;const o={n,tier:String(it.tier||"45"),min:Math.max(1,+it.min||30)};if(it.area)o.area=String(it.area);return o}
 async function claimMailItem(mid){
  const m=mailData[mid];if(!m||!m.item||!m.item.n)return;
  let claimed=null;
@@ -10797,6 +10802,8 @@ async function claimMailItem(mid){
    claimed={n:String(x.item.n),q:Math.max(1,Math.floor(+x.item.q||1))};
    for(const k of ["tier","area"])if(x.item[k]!=null)claimed[k]=String(x.item[k]);
    if(x.item.min!=null)claimed.min=+x.item.min;
+   if(x.item.dur!=null&&isFinite(+x.item.dur))claimed.dur=+x.item.dur;
+   if(x.item.max!=null&&isFinite(+x.item.max))claimed.max=+x.item.max;
    x.item=null;x.claimedAt=Date.now();return x;
   });
   if(!res.committed||!claimed)return toast("이미 받았거나 첨부가 없습니다.");
@@ -10840,10 +10847,16 @@ async function deleteMail(mid){
  }
  doDel();
 }
+// 쪽지 장비 첨부 (2026-11-19): 내구도가 있는 장비·도구는 한 개씩, 보낸 내구도 그대로 받는다.
+let noteAttachObjs=[];
+const noteGearOk=x=>x&&typeof x==="object"&&x.dur!=null&&x.max!=null&&typeof x.n==="string"&&x.n!=="던전 보상 상자";
 function openComposeNote(toUid,toName){
  if(!toUid||toUid===uid)return;
- const rows=invGroupedRows().filter(r=>typeof r.x==="string"&&r.q>0&&!isItemLocked(r.x)&&!info(r.x).bound);
- const opts=rows.map(r=>`<option value="${esc(r.x)}">${esc(r.x)} (보유 ${r.q})</option>`).join("");
+ const all=invGroupedRows();
+ const rows=all.filter(r=>typeof r.x==="string"&&r.q>0&&!isItemLocked(r.x)&&!info(r.x).bound);
+ noteAttachObjs=all.filter(r=>noteGearOk(r.x)&&!isItemLocked(nm(r.x))&&!info(nm(r.x)).bound).map(r=>r.x);
+ const gearOpts=noteAttachObjs.map((x,k)=>`<option value="o:${k}">${esc(nm(x))} · 내구도 ${fmt1(x.dur)}/${safeNum(x.max,0)}</option>`).join("");
+ const opts=rows.map(r=>`<option value="${esc(r.x)}">${esc(r.x)} (보유 ${r.q})</option>`).join("")+(gearOpts?`<optgroup label="장비·도구 (1개씩)">${gearOpts}</optgroup>`:"");
  pop("쪽지 보내기",`<div class="note-compose"><div class="dim">받는 사람 : <b>${esc(toName||"상대")}</b></div><textarea id="noteText" maxlength="300" placeholder="쪽지 내용을 입력하세요"></textarea><div class="note-row"><select id="noteItem"><option value="">첨부 안 함</option>${opts}</select><input type="number" id="noteQty" min="1" value="1" inputmode="numeric" aria-label="첨부 수량"></div><div class="note-row"><span class="dim">골드</span><input type="number" id="noteGold" min="0" max="${me.gold}" value="0" inputmode="numeric" aria-label="첨부 골드"><span class="dim">G · 보유 ${me.gold} G</span></div><div class="note-actions"><button type="button" class="btn" id="noteSend">보내기</button></div></div>`,[{t:"닫기"}]);
  const q=$("noteQty"),sel=$("noteItem");
  if(q)q.disabled=true;
@@ -10851,6 +10864,7 @@ function openComposeNote(toUid,toName){
   const n=sel.value,q=$("noteQty");if(!q)return;
   q.disabled=!n;
   if(!n){q.value="1";q.max="1";return}
+  if(n.startsWith("o:")){q.value="1";q.max="1";q.disabled=true;return}
   const max=Math.max(1,count(n));q.max=String(max);if(+q.value>max)q.value=String(max);
  };
  const pb=$("pb");if(pb)pb.onclick=e=>{if(e.target.closest("#noteSend"))sendNote(toUid,toName)};
@@ -10859,15 +10873,18 @@ async function sendNote(toUid,toName){
  if(!toUid||toUid===uid)return;
  const text=String(($("noteText")||{}).value||"").trim().slice(0,300);
  if(!text)return toast("쪽지 내용을 입력해 주세요.");
- const itemName=($("noteItem")||{}).value||"";
- let qty=Math.max(1,Math.floor(+($("noteQty")||{}).value||1));
- if(itemName){qty=Math.min(qty,count(itemName));if(qty<1)return toast("첨부할 아이템이 없습니다.")}
+ const selVal=($("noteItem")||{}).value||"";
+ let gearObj=null;
+ if(selVal.startsWith("o:")){gearObj=noteAttachObjs[+selVal.slice(2)];if(!gearObj||me.inv.indexOf(gearObj)<0)return toast("첨부할 장비가 소지품에 없습니다. 창을 다시 열어 주세요.")}
+ const itemName=gearObj?nm(gearObj):selVal;
+ let qty=gearObj?1:Math.max(1,Math.floor(+($("noteQty")||{}).value||1));
+ if(itemName&&!gearObj){qty=Math.min(qty,count(itemName));if(qty<1)return toast("첨부할 아이템이 없습니다.")}
  const gold=Math.max(0,Math.min(+me.gold||0,Math.floor(+($("noteGold")||{}).value||0)));
  const btn=$("noteSend");if(btn)btn.disabled=true;
- const removed=itemName?takeItems(itemName,qty):[];
+ const removed=gearObj?takeItems(itemName,1,gearObj):itemName?takeItems(itemName,qty):[];
  if(itemName&&!removed.length){if(btn)btn.disabled=false;return toast("첨부할 아이템이 없습니다.")}
  if(gold>0){me.gold=Math.max(0,(+me.gold||0)-gold);bag()}
- const payload={from:uid,fromName:me.name||"나",text,at:Date.now(),read:false,item:removed.length?{n:itemName,q:removed.length}:null,gold};
+ const payload={from:uid,fromName:me.name||"나",text,at:Date.now(),read:false,item:removed.length?(gearObj?{n:itemName,q:1,dur:Math.max(0,+gearObj.dur||0),max:Math.max(1,+gearObj.max||1)}:{n:itemName,q:removed.length}):null,gold};
  const mid=push(ref(realtimeDB,"mail/"+toUid)).key;
  try{
   await set(ref(realtimeDB,"mail/"+toUid+"/"+mid),payload);
