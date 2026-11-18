@@ -934,9 +934,13 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .codex-badge.miss{background:var(--line);color:var(--dim)}
 #gameRoot .codex-empty{padding:24px 10px;text-align:center;color:var(--dim);font-size:12px}
 #gameRoot .codex-note{font-size:11px;color:var(--dim)}
+#gameRoot .codex-miss-summary{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:2px 0 8px;padding:8px 10px;border:1px dashed var(--line);border-radius:8px;background:var(--panel2);font-size:12px;line-height:18px;color:var(--text)}
+#gameRoot .codex-miss-summary .codex-miss-roles{color:var(--accent-text);font-weight:600}
+#gameRoot .codex-miss-summary .codex-miss-grades{color:var(--dim)}
+#gameRoot .codex-miss-summary .ok{color:var(--ok)}
 #gameRoot .codex-monsters{margin-top:18px;border-top:1px solid var(--line);padding-top:14px}
-#gameRoot .codex-card.locked{cursor:default;border-left-color:var(--line);opacity:.58}
-#gameRoot .codex-card.locked:hover{background:var(--panel)}
+#gameRoot .codex-card.locked{cursor:pointer;border-left-color:var(--line);opacity:.75}
+#gameRoot .codex-card.locked:hover{background:var(--panel2)}
 @media (max-width:820px){#gameRoot .codex-body{grid-template-columns:1fr}#gameRoot .codex-list{max-height:360px}#gameRoot .codex-detail{position:static}}
 
 /* 칭호 */
@@ -7572,38 +7576,51 @@ function codexMonsterItems(){
  const q=String(codexMonsterQuery||"").trim().toLowerCase();
  return MONSTERS.filter(m=>{
   const got=!!me.codexMonsters[m.name];
-  if(!got)return false;
   if(!q)return true;
-  return [m.name,m.grade,m.role,m.style,m.note].some(v=>String(v||"").toLowerCase().includes(q));
+  // 미조우 몬스터는 이름을 숨기고 등급/역할로만 검색되게 한다.
+  return (got?[m.name,m.grade,m.role,m.style,m.note]:[m.grade,m.role]).some(v=>String(v||"").toLowerCase().includes(q));
  }).sort((a,b)=>{
   const ga=ITEM_GRADES.indexOf(a.grade),gb=ITEM_GRADES.indexOf(b.grade),ra=ga<0?99:ga,rb=gb<0?99:gb;
   if(ra!==rb)return ra-rb;
+  const oa=me.codexMonsters[a.name]?1:0,ob=me.codexMonsters[b.name]?1:0;
+  if(oa!==ob)return oa-ob;
   if(+a.starMin!==+b.starMin)return +a.starMin-+b.starMin;
   return String(a.name).localeCompare(String(b.name),"ko");
  });
 }
 function codexMonsterCard(m){
- const got=!!me.codexMonsters[m.name],col=CODEX_GRADE_COLOR[m.grade]||"#8a8776";
- if(!got)return `<div class="codex-card miss locked" style="--codex-grade:#8a8776"><span class="codex-grade">???</span><span class="codex-name">???</span><span class="codex-meta">미조우</span><span class="codex-st">정보 없음</span></div>`;
- return `<button type="button" class="codex-card got${codexMonsterSelected===m.name?" sel":""}" data-codex-monster="${esc(m.name)}" style="--codex-grade:${col}"><span class="codex-grade">${esc(m.grade)}</span><span class="codex-name">${esc(m.name)}</span><span class="codex-meta">${esc(m.role)} · ★${safeNum(m.starMin,1)}~${safeNum(m.starMax,1)}</span><span class="codex-st">✓ 조우 완료</span></button>`;
+ const got=!!me.codexMonsters[m.name],col=CODEX_GRADE_COLOR[m.grade]||"#8a8776",sel=codexMonsterSelected===m.name?" sel":"";
+ if(!got)return `<button type="button" class="codex-card miss locked${sel}" data-codex-monster="${esc(m.name)}" style="--codex-grade:${col}"><span class="codex-grade">${esc(m.grade)}</span><span class="codex-name">???</span><span class="codex-meta">${esc(m.role)}</span><span class="codex-st">미조우</span></button>`;
+ return `<button type="button" class="codex-card got${sel}" data-codex-monster="${esc(m.name)}" style="--codex-grade:${col}"><span class="codex-grade">${esc(m.grade)}</span><span class="codex-name">${esc(m.name)}</span><span class="codex-meta">${esc(m.role)} · ★${safeNum(m.starMin,1)}~${safeNum(m.starMax,1)}</span><span class="codex-st">✓ 조우 완료</span></button>`;
 }
 function codexMonsterDetail(m){
- if(!m)return `<div class="codex-empty">아직 마주친 몬스터가 없습니다.<br><span class="dim">조우하면 정보가 공개됩니다.</span></div>`;
- if(!me.codexMonsters[m.name])return `<div class="codex-empty">아직 마주치지 않은 몬스터입니다.<br><span class="dim">조우하면 정보가 공개됩니다.</span></div>`;
+ if(!m)return `<div class="codex-empty">몬스터를 선택하세요.</div>`;
+ if(!me.codexMonsters[m.name]){
+  const rows=[["등급",m.grade],["역할",m.role]];
+  return `<div class="codex-dhead"><h3>???</h3><span class="codex-badge miss">미조우</span></div><div class="codex-dsub">${esc(m.grade)} · ${esc(m.role)}</div><p class="codex-desc">아직 마주치지 않은 몬스터입니다. 조우하면 이름·능력치·전투 스타일이 공개됩니다.</p><div class="codex-stat">${rows.map(([l,v])=>`<span><em>${esc(l)}</em><b>${esc(v)}</b></span>`).join("")}</div><div class="codex-locked">이 칸은 미조우 몬스터입니다.</div>`;
+ }
  const rows=[["등급",m.grade],["역할",m.role],["출현 별",`★${safeNum(m.starMin,1)} ~ ★${safeNum(m.starMax,1)}`],["조우",m.encounter||"-"],["권장 파티",m.party||"-"],["HP",fmt1(m.hp)],["공격력",fmt1(m.atk)],["방어력",fmt1(m.def)],["명중",fmt1(m.acc)],["회피",fmt1(m.eva)],["치명타",fmt1(m.crit)+"%"],["속도",fmt1(m.speed)],["경험치",fmt1(m.xp)]];
  return `<div class="codex-dhead"><h3>${esc(m.name)}</h3><span class="codex-badge got">조우 완료</span></div><div class="codex-dsub">${esc(m.grade)} · ${esc(m.role)} · ${esc(m.id||"")}</div><p class="codex-desc">${esc(m.note||"설명이 없습니다.")}</p><div class="codex-effect"><b>전투 스타일</b> · ${esc(m.style||"-")}</div><div class="codex-stat">${rows.map(([l,v])=>`<span><em>${esc(l)}</em><b>${esc(v)}</b></span>`).join("")}</div>`;
 }
 function codexMonsterRefresh(){
  if(!$("codexMonsterList"))return;
  const list=codexMonsterItems(),all=MONSTERS,got=all.filter(m=>me.codexMonsters[m.name]).length;
- if(!list.some(m=>m.name===codexMonsterSelected))codexMonsterSelected=(list.find(m=>me.codexMonsters[m.name])||{}).name||null;
+ if(!list.some(m=>m.name===codexMonsterSelected))codexMonsterSelected=(list.find(m=>me.codexMonsters[m.name])||list[0]||{}).name||null;
  $("codexMonsterList").innerHTML=list.length?list.map(codexMonsterCard).join(""):`<div class="codex-empty">검색 결과가 없습니다.</div>`;
- if(!codexMonsterQuery){
-  const unknown=all.length-got;
-  if(unknown>0)$("codexMonsterList").innerHTML+=`<div class="codex-card miss locked" style="--codex-grade:#8a8776"><span class="codex-grade">???</span><span class="codex-name">미조우 몬스터</span><span class="codex-meta">${unknown}종</span><span class="codex-st">정보 없음</span></div>`;
- }
  $("codexMonsterDetail").innerHTML=codexMonsterDetail(codexMonsterSelected?all.find(m=>m.name===codexMonsterSelected):null);
  const c=$("codexMonsterCount");if(c)c.textContent=`${got} / ${all.length} 조우`;
+ const ms=$("codexMonsterMissing");
+ if(ms){
+  const miss=all.filter(m=>!me.codexMonsters[m.name]);
+  if(!miss.length){ms.innerHTML=`<b class="ok">모든 몬스터 조우 완료</b>`}
+  else{
+   const role={},grade={};
+   miss.forEach(m=>{const r=m.role==="보스"?"보스":m.role==="정예"?"정예":"일반";role[r]=(role[r]||0)+1;grade[m.grade]=(grade[m.grade]||0)+1});
+   const roleText=["일반","정예","보스"].filter(r=>role[r]).map(r=>`${r} ${role[r]}`).join(" · ");
+   const gradeText=ITEM_GRADES.filter(g=>grade[g]).map(g=>`${g} ${grade[g]}`).join(" · ");
+   ms.innerHTML=`<b>미조우 ${miss.length}종</b><span class="codex-miss-roles">역할 · ${roleText}</span><span class="codex-miss-grades">등급 · ${gradeText}</span>`;
+  }
+ }
 }
 function codexRender(){
  codexLoad();codexScan();
@@ -7611,9 +7628,9 @@ function codexRender(){
  if(!codexSelected||!list.some(d=>d.name===codexSelected))codexSelected=list[0]?list[0].name:null;
  const got=ITEM_DATA.filter(d=>me.codexItems[d.name]).length;
  const mlist=codexMonsterItems();
- if(!codexMonsterSelected||!mlist.some(m=>m.name===codexMonsterSelected))codexMonsterSelected=(mlist.find(m=>me.codexMonsters[m.name])||{}).name||null;
+ if(!codexMonsterSelected||!mlist.some(m=>m.name===codexMonsterSelected))codexMonsterSelected=(mlist.find(m=>me.codexMonsters[m.name])||mlist[0]||{}).name||null;
  const mgot=MONSTERS.filter(m=>me.codexMonsters[m.name]).length;
- $("codexBody").innerHTML=`<div class="codex"><div class="codex-head"><b class="codex-title">아이템 도감</b><span class="codex-count" id="codexCount">${got} / ${ITEM_DATA.length} 수집</span><input type="search" id="codexSearch" class="codex-search" placeholder="아이템 이름·분류·효과 검색" value="${esc(codexQuery)}" autocomplete="off"><div class="codex-filters" id="codexFilters">${[["all","전체"],["got","수집 완료"],["miss","미수집"]].map(([k,l])=>`<button type="button" class="codex-filter" data-codex-filter="${k}" aria-selected="${codexFilter===k}">${l}</button>`).join("")}</div></div><div class="codex-body"><div class="codex-list" id="codexList">${list.length?list.map(codexCard).join(""):`<div class="codex-empty">검색 결과가 없습니다.</div>`}</div><div class="codex-detail" id="codexDetail">${codexDetail(codexSelected?ITEM_BY_NAME[codexSelected]:null)}</div></div><div class="codex-note">수집한 아이템만 획득처 태그가 표시됩니다.</div><div class="codex-monsters"><div class="codex-head"><b class="codex-title">몬스터 도감</b><span class="codex-count" id="codexMonsterCount">${mgot} / ${MONSTERS.length} 조우</span><input type="search" id="codexMonsterSearch" class="codex-search" placeholder="조우한 몬스터 이름·등급·특성 검색" value="${esc(codexMonsterQuery)}" autocomplete="off"></div><div class="codex-body"><div class="codex-list" id="codexMonsterList"></div><div class="codex-detail" id="codexMonsterDetail"></div></div><div class="codex-note">마주친 몬스터만 정보가 공개됩니다.</div></div></div>`;
+ $("codexBody").innerHTML=`<div class="codex"><div class="codex-head"><b class="codex-title">아이템 도감</b><span class="codex-count" id="codexCount">${got} / ${ITEM_DATA.length} 수집</span><input type="search" id="codexSearch" class="codex-search" placeholder="아이템 이름·분류·효과 검색" value="${esc(codexQuery)}" autocomplete="off"><div class="codex-filters" id="codexFilters">${[["all","전체"],["got","수집 완료"],["miss","미수집"]].map(([k,l])=>`<button type="button" class="codex-filter" data-codex-filter="${k}" aria-selected="${codexFilter===k}">${l}</button>`).join("")}</div></div><div class="codex-body"><div class="codex-list" id="codexList">${list.length?list.map(codexCard).join(""):`<div class="codex-empty">검색 결과가 없습니다.</div>`}</div><div class="codex-detail" id="codexDetail">${codexDetail(codexSelected?ITEM_BY_NAME[codexSelected]:null)}</div></div><div class="codex-note">수집한 아이템만 획득처 태그가 표시됩니다.</div><div class="codex-monsters"><div class="codex-head"><b class="codex-title">몬스터 도감</b><span class="codex-count" id="codexMonsterCount">${mgot} / ${MONSTERS.length} 조우</span><input type="search" id="codexMonsterSearch" class="codex-search" placeholder="몬스터 이름·등급·역할 검색" value="${esc(codexMonsterQuery)}" autocomplete="off"></div><div class="codex-miss-summary" id="codexMonsterMissing"></div><div class="codex-body"><div class="codex-list" id="codexMonsterList"></div><div class="codex-detail" id="codexMonsterDetail"></div></div><div class="codex-note">마주친 몬스터만 정보가 공개됩니다.</div></div></div>`;
  const si=$("codexSearch");
  if(si)si.oninput=()=>{codexQuery=si.value;codexRefreshList()};
  $("codexFilters").onclick=e=>{const b=e.target.closest("[data-codex-filter]");if(!b)return;codexFilter=b.dataset.codexFilter;document.querySelectorAll("#codexFilters [data-codex-filter]").forEach(x=>x.setAttribute("aria-selected",String(x.dataset.codexFilter===codexFilter)));codexRefreshList()};
