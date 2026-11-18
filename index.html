@@ -7086,7 +7086,7 @@ function autoBattle(mon,party,opts={}){try{codexMarkMonster(mon&&mon.name)}catch
    const[label,atk,acc,skill]=picks[0];f.skill=skill;
    const wslot=st[skill+"WeaponSlot"],labelShown=wslot?label:`맨손 ${label}`;
    if(Math.random()*100>=battleHit(acc,m.eva)){L(`${f.name}의 ${labelShown} 공격이 빗나갔다.`);continue}
-   const crit=Math.random()*100<st[skill+"CritChance"],dmg=battleDamageRange(st[skill+"AtkMin"],st[skill+"AtkMax"],m.def,crit,st[skill+"CritDamage"]);battle.lastCrit=crit;
+   const crit=Math.random()*100<st[skill+"CritChance"],dmg=battleDamageRange(st[skill+"AtkMin"],st[skill+"AtkMax"],m.def,crit,st[skill+"CritDamage"]);if(battle)battle.lastCrit=crit;
    m.hp=Math.max(0,m.hp-dmg);L(`${f.name}의 ${labelShown} 공격! ${dmg} 피해${crit?" (치명타)":""}`);
    if(f.self&&wslot)wearEquip(wslot,crit?wearRange(.3,.5):wearRange(.1,.2));
    if(m.hp<=0)break;
