@@ -1127,8 +1127,16 @@ const negotiateOf=c=>{try{return Math.max(0,+(statusMods(c).negotiate)||0)}catch
 const talkBuyMult=c=>Math.max(.5,1-0.005*skillLvOf(c,"talk")-negotiateOf(c)/100);  // 교섭: 구매가 레벨당 -0.5% (Lv 20: -10%) + 상태 교섭 %
 const talkSellMult=c=>1+0.01*skillLvOf(c,"talk")+negotiateOf(c)/100;          // 교섭: 판매가 레벨당 +1% (Lv 20: +20%) + 상태 교섭 %
 const searchUpChance=c=>0.01*skillLvOf(c,"search");         // 탐색: 드롭 1개마다 레벨당 1% 확률로 한 등급 위 (Lv 20: 20%)
+const searchFindPct=c=>0.5*skillLvOf(c,"search");          // 탐색: 아이템 발견 +0.5%/Lv (Lv 20: +10%)
+const searchDoubleChance=c=>{const lv=skillLvOf(c,"search");return lv>=10?0.01*(lv-9):0}; // 탐색: Lv10+ 드롭 1개가 2개로 나올 확률 (Lv10 1% ~ Lv20 11%)
+const searchToolSaveChance=c=>0.01*skillLvOf(c,"search"); // 탐색: 탐사·채집 도구 내구도 절약 1%/Lv (Lv20 20%)
+const SEARCH_SAVE_TOOLS=new Set(["탐사 책","나침반","낡은 지도서","낚싯대","고급 낚싯대","곡괭이","고급 곡괭이","채광 렌즈"]);
 const survivalMove=c=>{const lv=skillLvOf(c,"survival");return 0.5*Math.min(lv,10)+1*Math.max(0,lv-10)}; // 생존: Lv 1~10 +0.5%, 11~20 +1% (Lv 20: +15%)
-const survivalCheatChance=c=>{const lv=skillLvOf(c,"survival");return lv>=15?0.10+0.02*(lv-15):0}; // 생존 Lv 15+: HP 0일 때 10~20%로 HP 1 생존
+const survivalTrapRed=c=>2.5*skillLvOf(c,"survival"); // 생존: 함정 피해 -2.5%/Lv (Lv 20: -50%)
+const survivalExpDmgRed=c=>0.01*skillLvOf(c,"survival"); // 생존: 원정 피해 -1%/Lv (Lv 20: -20%)
+const survivalEnvResist=c=>1.5*skillLvOf(c,"survival"); // 생존: 기상 상태이상 저항 +1.5%/Lv (Lv 20: 30%)
+const survivalCampPct=c=>0.5*skillLvOf(c,"survival"); // 생존: 야영 회복 +0.5%/Lv (Lv 20: +10%)
+const survivalCheatChance=c=>{const lv=skillLvOf(c,"survival");return lv>=10?0.10+0.01*(lv-15):0}; // 생존: Lv 10~20, Lv15 10%, Lv20 15%
 const P2P_TALK_MAX=5;                                          // 유저 간 거래 교섭 경험치: 하루 5번까지
 // 실제 전투 공격력 범위: 평균 공격력의 70%~120%
 const ATK_ROLL_MIN=.70,ATK_ROLL_MAX=1.20;
@@ -1346,11 +1354,16 @@ function charDetailHtml(c){
     ${r("받는 피해 감소",`${fmt1((st.dmgRed||0)*100)}%`)}
     ${r("함정 피해 감소",`${fmt1(st.trapDamageRed||0)}%`)}
     ${r("아이템 발견",`${fmt1(st.itemFind||0)}%`)}
+    ${r("2개 발견 확률",`${fmt1(searchDoubleChance(c)*100)}%`)}
+    ${r("도구 내구도 절약",`${fmt1(searchToolSaveChance(c)*100)}%`)}
     ${r("이동 속도",`${fmt1(st.moveSpeed||0)}%`)}
     ${r("받는 피해 증가",`${fmt1(st.dmgTakenPct||0)}%`)}
     ${r("HP 회복 효율",`${fmt1(st.healPct||0)}%`)}
     ${r("낮은 HP 피해 감소",`${fmt1((st.lowHpRed||0)*100)}%`)}
     ${r("원정 피해 감소",`${fmt1((st.expDmgRed||0)*100)}%`)}
+    ${r("환경 상태이상 저항",`${fmt1(st.survivalEnvResist||0)}%`)}
+    ${r("야영 회복 보너스",`${fmt1(survivalCampPct(c))}%`)}
+    ${r("구사일생",`${fmt1(survivalCheatChance(c)*100)}%`)}
     ${r("조우 감소",`${fmt1((st.encounterRed||0)*100)}%`)}
     ${flagText?r("행동 제한",esc(flagText)):""}
    </div>
@@ -2413,14 +2426,15 @@ function calcStats(c){
   vitDmgRed,
   lowHpRed:traitLowHp,
   encounterRed:Math.min(.8,Math.max(0,traitEnc-(mods.encounterPct||0)/100+(tools.encounterRed||0)/100)), // 상태의 encounterPct: 음수면 조우 감소
-  expDmgRed:Math.min(.5,traitExpDmg),
+  expDmgRed:Math.min(.5,traitExpDmg+survivalExpDmgRed(c)),
   dmgTakenPct:mods.dmgTakenPct||0,
   resistPct:(mods.resistPct||0)+equipResist+tools.resistPct,
-  trapDamageRed:equipTrapRed,
+  trapDamageRed:Math.min(80,equipTrapRed+survivalTrapRed(c)),
+  survivalEnvResist:survivalEnvResist(c),
   healPct:(mods.healPct||0)+tools.hpHealPct,
   hpRegenPct:mods.hpRegenPct||0,
   mpRegenPct:(mods.mpRegenPct||0)+equipMpRegen,
-  itemFind:Math.max(-50,Math.min(100,equipItemFind+(mods.dropPct||0)+tools.itemFind)),
+  itemFind:Math.max(-50,Math.min(100,equipItemFind+(mods.dropPct||0)+tools.itemFind+searchFindPct(c))),
   moveSpeed:Math.max(-50,Math.min(70,equipMove+(mods.movePct||0)+tools.moveSpeed+survivalMove(c))),
   weightRed:equipWeightRed,
   hungerRed:equipHungerRed+tools.hungerRed+(jt.hungerRed||0),
@@ -3226,7 +3240,7 @@ function resolveExp(partial=false,why){
   if(ch>=2)try{applyStatus("exhaustion")}catch(err){}
  }else me.expChain={n:0,lastEnd:0};
   // 탈수: 폭염 지역에서 장기 탐사를 마쳤는데 생수가 없으면 (2026-11-10)
-  if(!partial&&e.kind==="long"){try{const wx=weatherAt(e.cont||me.cont,e.area||me.area).id;if(wx==="heat"&&!(me.inv||[]).some(x=>nm(x)==="생수"))applyStatus("dehydration")}catch(err){}}
+  if(!partial&&e.kind==="long"){try{const wx=weatherAt(e.cont||me.cont,e.area||me.area).id;if(wx==="heat"&&!(me.inv||[]).some(x=>nm(x)==="생수")&&envPass(false))applyStatus("dehydration")}catch(err){}}
  if(me.expMeta&&typeof me.expMeta==="object"){me.expMeta.kind=e.kind;me.expMeta.end=endedAt;if(!isFinite(+me.expMeta.start))me.expMeta.start=endedAt-e.min*60000}
  const cfg=ctx.cfg,idx=Math.max(0,[30,60,120,180].indexOf(e.min));
  const areaObj=ctx.areaObj,tier=ctx.tier,party=ctx.party;
@@ -3856,12 +3870,13 @@ function rollLoot(star,source,monsterGrade=null,areaObj=null,minutes=null){
  star=Math.max(1,Math.min(12,+star||1));
  const tag=areaDropTag(areaObj),base=monsterGrade||rollRegionGrade(star),out=[];
  const find=Math.max(0,Math.min(50,(calcStats(me).itemFind||0)));
- const SEARCH_ORDER=["일반","고급","희귀","영웅","전설","신화"],upP=searchUpChance(me);
+ const SEARCH_ORDER=["일반","고급","희귀","영웅","전설","신화"],upP=searchUpChance(me),doubleP=searchDoubleChance(me);
  const add=(category,src=source)=>{let g=adjustGrade(base,String(category).split(":")[0],src,minutes),n=null;
   const capFood=c=>{if(c==="소모품:요리"&&SEARCH_ORDER.indexOf(g)>SEARCH_ORDER.indexOf(GATHER_FOOD_MAX))g=GATHER_FOOD_MAX};capFood(category);
   // 탐색 기능: 레벨당 1% 확률로 한 등급 위 아이템 (그 등급에 후보가 없으면 원래 등급)
   if(upP>0&&Math.random()<upP){const i=SEARCH_ORDER.indexOf(g);if(i>=0&&i<SEARCH_ORDER.length-1&&!(category==="소모품:요리"&&SEARCH_ORDER[i+1]!==g&&SEARCH_ORDER.indexOf(SEARCH_ORDER[i+1])>SEARCH_ORDER.indexOf(GATHER_FOOD_MAX)))n=pickItem(category,SEARCH_ORDER[i+1],tag,src)}
-  if(!n)n=pickItem(category,g,tag,src);if(n)out.push(n)};
+  if(!n)n=pickItem(category,g,tag,src);
+  if(n){out.push(n);if(doubleP>0&&Math.random()<doubleP){const n2=pickItem(category,g,tag,src);if(n2)out.push(n2)}}};
  if(source==="fieldNamed"){
   add("재료");
   if(Math.random()<.30)add("장비");
@@ -3954,6 +3969,7 @@ function wearTool(name,amount){
  let x=me.inv.find(y=>y&&typeof y==="object"&&nm(y)===name&&+y.dur>0);
  if(!x){const i=me.inv.findIndex(y=>typeof y==="string"&&nm(y)===name);if(i>=0){me.inv[i]=normalizeItem(me.inv[i]);x=me.inv[i]}}
  if(!x||!(+x.dur>0))return;
+ if(SEARCH_SAVE_TOOLS.has(name)&&Math.random()<searchToolSaveChance(me))return;
  const loss=amount!=null?Math.max(0,+amount):(0.5+Math.random()*0.5);
  x.dur=Math.max(0,Math.round((+x.dur-loss)*10)/10);
  if(x.dur<=0)toast(`‘${name}’의 내구도가 다 되었습니다. 대장간에서 수리할 수 있습니다.`);
@@ -4211,10 +4227,10 @@ async function lightCampfire(x){
  groundRender();
 }
 function restGain(hp,mp){
- const rest=Math.max(-.5,Math.min(.5,traitTotal("rest"))),st=calcStats(me),tools=toolMods();
+ const rest=Math.max(-.5,Math.min(.5,traitTotal("rest"))),st=calcStats(me),tools=toolMods(),campPct=(campfireActive()||count("텐트")>0)?survivalCampPct(me)/100:0;
  return {
-  hp:Math.max(0,Math.round(hp*(1+traitTotal("sleepHp")+rest+(st.hpRegenPct||0)/100+(tools.restHpPct||0)/100))),
-  mp:Math.max(0,Math.round(mp*(1+traitTotal("sleepMp")+rest+(st.mpRegenPct||0)/100+(tools.restMpPct||0)/100)))
+  hp:Math.max(0,Math.round(hp*(1+traitTotal("sleepHp")+rest+(st.hpRegenPct||0)/100+(tools.restHpPct||0)/100+campPct))),
+  mp:Math.max(0,Math.round(mp*(1+traitTotal("sleepMp")+rest+(st.mpRegenPct||0)/100+(tools.restMpPct||0)/100+campPct)))
  };
 }
 function restLeft(){return me.rest?Math.max(0,me.rest.end-Date.now()):0}
@@ -6514,12 +6530,12 @@ function weatherAt(cont,area,t=Date.now()){
 }
 const curWeather=()=>weatherAt(me.cont,me.area);
 const weatherEndText=w=>{const h=new Date(w.end+9*3600000).getUTCHours();return `${h<12?"오전":"오후"} ${h%12||12}시까지`};
-let lastWeatherKey="";
+let lastWeatherKey="",weatherStatusBlockKey="";
 function weatherSync(){
  const now=Date.now(),w=curWeather(),key=`${me.cont}|${me.area}|${w.id}|${w.end}`;
  for(const id of WEATHER_STATUS)if(id!==w.st&&fxHas(id))removeStatus(id,{silent:true});
- if(w.st){const f=(me.fx||[]).find(f=>f&&f.id===w.st);if(!f||Math.abs((+f.exp||0)-w.end)>60000){removeStatus(w.st,{silent:true});applyStatus(w.st,{silent:true,durationMin:Math.max(1,(w.end-now)/60000)})}}
- if(lastWeatherKey&&key!==lastWeatherKey&&w.st)toast(`날씨: ${w.n} — ‘${STATUS_DB[w.st].n}’ 상태가 되었다.`);
+ if(w.st){const f=(me.fx||[]).find(f=>f&&f.id===w.st);if(!f||Math.abs((+f.exp||0)-w.end)>60000){removeStatus(w.st,{silent:true});if(!(w.st==="heatstroke"&&weatherStatusBlockKey===key)){if(w.st==="heatstroke"&&!envPass(false))weatherStatusBlockKey=key;else applyStatus(w.st,{silent:true,durationMin:Math.max(1,(w.end-now)/60000)})}}}
+ if(lastWeatherKey&&key!==lastWeatherKey&&w.st&&fxHas(w.st))toast(`날씨: ${w.n} — ‘${STATUS_DB[w.st].n}’ 상태가 되었다.`);
  if(key!==lastWeatherKey){lastWeatherKey=key;try{$("loc").textContent=locText()+" · "+w.n;stage();desc()}catch(e){}}
 }
 // 상태 자동 판정 (15초마다): 평온·동료의 격려·수면 부족·공황
@@ -6528,6 +6544,14 @@ const PANIC_MP=20;
 const fxHas=id=>(me.fx||[]).some(f=>f&&f.id===id);
 // 따뜻한 몸: 한기·동상·빙결 확률 ×(1-coldResist%)
 const coldPass=()=>{try{return Math.random()>=Math.min(100,Math.max(0,statusMods(me).coldResist||0))/100}catch(e){return true}};
+// 생존 기능: 기상 상태이상 저항. cold=true면 따뜻한 몸의 한기 저항도 합산한다.
+function envPass(cold){
+ try{
+  const st=calcStats(me),coldRes=cold?Math.max(0,+(statusMods(me).coldResist||0)):0;
+  const resist=Math.min(80,coldRes+(st.survivalEnvResist||0));
+  return Math.random()>=resist/100;
+ }catch(e){return true}
+}
 function statusTriggers(){
  try{
   weatherSync();
@@ -6542,9 +6566,9 @@ function statusTriggers(){
  {const w=curWeather(),k=`${me.cont}|${me.area}|${w.id}`;
    if(!wxStay||wxStay.key!==k||me.travel)wxStay={key:k,since:now,chill:false,next:now+3*3600000};
    const stay=now-wxStay.since;
-   if(w.id==="rain"&&stay>=3600000&&!wxStay.chill){wxStay.chill=true;if(!fxHas("chill")&&coldPass())applyStatus("chill")} // 폭우 1시간
+   if(w.id==="rain"&&stay>=3600000&&!wxStay.chill){wxStay.chill=true;if(!fxHas("chill")&&envPass(true))applyStatus("chill")} // 폭우 1시간
    if((w.id==="cold"||w.id==="heat")&&now>=wxStay.next){wxStay.next=now+3600000; // 한파·폭염 3시간 이후 1시간마다 25%
-    const sid=w.id==="cold"?"frostbite":"heatburn";if(!fxHas(sid)&&Math.random()<.25&&(sid!=="frostbite"||coldPass()))applyStatus(sid)}}
+    const sid=w.id==="cold"?"frostbite":"heatburn";if(!fxHas(sid)&&Math.random()<.25&&envPass(sid==="frostbite"))applyStatus(sid)}}
   // 감염: 상처를 6시간 치료하지 않으면 그 뒤 1시간마다 10% / 질병: 감염을 24시간 방치하면
   {const wd=(me.fx||[]).find(f=>f&&f.id==="wound");
    if(wd&&!fxHas("infection")&&now-(+wd.at||now)>=6*3600000&&now>=(+wd.infNext||0)){wd.infNext=now+3600000;if(Math.random()<.10)applyStatus("infection")}
@@ -7730,7 +7754,17 @@ function clearPartyLocal(msg){
  partyProposal=null;proposalRunId=null;proposalPromptId=null;proposalPromptLabel=null;partyExpedition=null;
  me.partyId=null;me.partyLeader=null;partyData=null;partyAppliedBattle=null;
  partyRender();try{renderExpLogBtn()}catch(e){}try{renderProposalPanels()}catch(e){}
- if(msg)toast(msg);
+ if(msg&&authUidState()==="same")toast(msg);
+}
+function stopPartyWatch(){
+ if(partyUnsub){try{partyUnsub()}catch(e){}partyUnsub=null}
+ if(partyProposalUnsub){try{partyProposalUnsub()}catch(e){}partyProposalUnsub=null}
+ if(partyExpUnsub){try{partyExpUnsub()}catch(e){}partyExpUnsub=null}
+ if(partyRidesUnsub){try{partyRidesUnsub()}catch(e){}partyRidesUnsub=null}partyRides={};
+ if(partyInviteUnsub){try{partyInviteUnsub()}catch(e){}partyInviteUnsub=null}
+ if(partyJoinReqUnsub){try{partyJoinReqUnsub()}catch(e){}partyJoinReqUnsub=null}
+ if(partyJoinResUnsub){try{partyJoinResUnsub()}catch(e){}partyJoinResUnsub=null}
+ partyData=null;
 }
 const isPermDenied=e=>/permission/i.test(String(e&&(e.code||e.message)||""));
 // 다른 캐릭터의 파티가 실제로 있는지 확인 → {ok, leader}. 규칙 미게시로 읽기가 막히면 리더 프로필로 대조
@@ -7781,6 +7815,7 @@ function subscribeParty(){
  if(!me.partyId){subscribePartyProposal();subscribePartyExpedition();try{subscribePartyRides()}catch(e){}return}
  subscribePartyProposal();subscribePartyExpedition();try{subscribePartyRides()}catch(e){}
  partyUnsub=onValue(ref(realtimeDB,"parties/"+me.partyId),s=>{
+  if(authUidState()!=="same")return;
   const v=s.val();
   if(!v){clearPartyLocal(partyData&&partyData.leader!==uid?"파티가 해산되었다.":"");return}
   if(!v.members||!v.members[uid]){clearPartyLocal("파티에서 내보내졌다.");return}
@@ -7788,7 +7823,7 @@ function subscribeParty(){
   if(prevLeader&&v.leader&&prevLeader!==v.leader&&prevLeader!==uid){const nl=v.members[v.leader];toast(v.leader===uid?"파티 리더가 되었다.":`${(nl&&nl.name)||"파티원"}이(가) 새 파티 리더가 되었다.`)}
   partyData=v;me.partyLeader=v.leader||null;partyRender();
   if(v.battle&&v.leader!==uid)renderPartyBattle(v.battle);
- },err=>{console.warn("party",err);if(isPermDenied(err))clearPartyLocal(partyData?"파티에서 내보내졌다.":"")});
+ },err=>{console.warn("party",err);if(authUidState()!=="same")return;if(isPermDenied(err))clearPartyLocal(partyData?"파티에서 내보내졌다.":"")});
 }
 async function leaveParty(){
  const pid=me.partyId;if(!pid)return;
@@ -8636,7 +8671,7 @@ $("npcGrid").onclick=e=>{
  if(a==="admin-aff"){if(!opts.admin)return;addAffection(npcKey(npcOpen),AFFECTION_MAX);npcRender();toast("호감도를 100으로 설정했습니다. (관리자)");guardBadgeCheck(npcOpen);return}
  if(a==="gift")return npcGiftOpen(npcOpen);
  if(a==="quest")return questOffersOpen(npcOpen);
- if(a==="deliver"){const d=questDeliverFor(npcOpen);if(d)questComplete(d.id,true);return}
+ if(a==="deliver"){const d=questDeliverFor(npcOpen);if(d)questComplete(questActiveKey(d),true);return}
  if(a==="chat"){const ch=npcLines(npcOpen).chat;if(!ch.length)return;npcLine=npcPick(ch,npcLine);const el=npcPanel.querySelector(".npc-line");if(el)el.textContent=npcLine;return}
  if(a==="proxy"){const src=$(b.dataset.proxy);
   if(["trade","atrade","soletrade","etrade","strade","innTrade"].includes(b.dataset.proxy)){const L=npcLines(npcOpen),inf=npcInfo(npcOpen),key=npcKey(npcOpen),type=NPC_TYPE[npcOpen],sp=affectionOf(key)>=AFFECTION_MAX&&!!SPECIAL_POOL[type];const line=sp&&L.special?L.special:L.shop;npcTradeSpeech=inf?{name:inf[1],line:line||"",key,type,special:sp}:null}
@@ -8716,6 +8751,9 @@ function questReady(a,q){
  if(q.k==="hunt")return (a.kills||0)>=q.hunt.n;
  return false;
 }
+// 배달은 의뢰한 NPC(출발지)마다 별개 의뢰로 취급한다.
+function questKey(q,from){return q.k==="deliver"?`${q.id}|${from}`:q.id}
+function questActiveKey(a){const q=QUEST_BY_ID[a.id];return a.key||(q?questKey(q,a.from):a.id)}
 function questProgressHtml(a,q){
  if(q.k==="give")return q.req.map(([n,c])=>{const h=questHave(n),lock=isItemLocked(n)&&count(n)>0;return `<span class="${h>=c?"q-ok":""}">${esc(n)} ${Math.min(h,c)}/${c}${lock?' <small class="dim">(잠금)</small>':""}</span>`}).join("");
  if(q.k==="hunt")return `<span class="${(a.kills||0)>=q.hunt.n?"q-ok":""}">${esc(q.hunt.label)} ${Math.min(a.kills||0,q.hunt.n)}/${q.hunt.n}</span>`;
@@ -8728,18 +8766,18 @@ function questRender(){
  const st=questState();
  $("qcnt").textContent=`${st.active.length} / ${QUEST_MAX}`;
  if(!st.active.length){box.innerHTML=`<p class="dim q-empty">받은 의뢰가 없다. 수도의 NPC에게 말을 걸어 [의뢰]를 확인하자.</p>`;return}
- box.innerHTML=st.active.map(a=>{const q=QUEST_BY_ID[a.id],ok=questReady(a,q);
+ box.innerHTML=st.active.map(a=>{const q=QUEST_BY_ID[a.id],ok=questReady(a,q),ak=questActiveKey(a);
   return `<div class="q-row"><div class="q-head"><span class="q-tier t${q.t}">${QUEST_TIER_NAME[q.t]}</span><b>${esc(q.title)}</b></div>
 <div class="q-from dim">${esc(questWho(a.from))}</div>
 <div class="q-desc">${esc(q.desc)}</div>
 <div class="q-prog">${questProgressHtml(a,q)}</div>
 <div class="q-rw dim">보상 · ${esc(questRewardText(q))}</div>
-<div class="q-btns">${q.k==="deliver"?`<small class="dim">받는 사람과 대화해서 전해야 완료된다.</small>`:`<button type="button" class="btn sm2" data-qdone="${esc(a.id)}"${ok?"":" disabled"}>완료</button>`}<button type="button" class="sm2" data-qdrop="${esc(a.id)}">포기</button></div></div>`}).join("");
+<div class="q-btns">${q.k==="deliver"?`<small class="dim">받는 사람과 대화해서 전해야 완료된다.</small>`:`<button type="button" class="btn sm2" data-qdone="${esc(ak)}"${ok?"":" disabled"}>완료</button>`}<button type="button" class="sm2" data-qdrop="${esc(ak)}">포기</button></div></div>`}).join("");
 }
 $("qlist").onclick=e=>{
  const d=e.target.closest("[data-qdone]");if(d&&!d.disabled)return questComplete(d.dataset.qdone,false);
- const x=e.target.closest("[data-qdrop]");if(x){const q=QUEST_BY_ID[x.dataset.qdrop];if(!q)return;
-  pop("의뢰 포기",`<p>「${esc(q.title)}」 의뢰를 포기할까요?</p><p class="dim">${q.k==="hunt"?"토벌 진행도가 사라진다. ":""}${q.k==="deliver"?"배달 물건은 의뢰한 사람에게 돌아간다. ":""}오늘 같은 NPC에게서 다시 받을 수 있다.</p>`,[{t:"포기",c:"bad",fn:()=>{const st=questState();st.active=st.active.filter(a=>a.id!==q.id);questRender();try{npcRender()}catch(e){}questSave();toast(`「${q.title}」 의뢰를 포기했다.`)}},{t:"취소"}])}
+ const x=e.target.closest("[data-qdrop]");if(x){const key=x.dataset.qdrop,st=questState(),a=st.active.find(v=>questActiveKey(v)===key);if(!a)return;const q=QUEST_BY_ID[a.id];if(!q)return;
+  pop("의뢰 포기",`<p>「${esc(q.title)}」 의뢰를 포기할까요?</p><p class="dim">${q.k==="hunt"?"토벌 진행도가 사라진다. ":""}${q.k==="deliver"?"배달 물건은 의뢰한 사람에게 돌아간다. ":""}오늘 같은 NPC에게서 다시 받을 수 있다.</p>`,[{t:"포기",c:"bad",fn:()=>{const s2=questState();s2.active=s2.active.filter(v=>questActiveKey(v)!==key);questRender();try{npcRender()}catch(e){}questSave();toast(`「${q.title}」 의뢰를 포기했다.`)}},{t:"취소"}])}
 };
 // ---- NPC 대화창 [의뢰] ----
 function questOffersOpen(id){
@@ -8747,7 +8785,7 @@ function questOffersOpen(id){
  const offers=questOffers(me.cont,type),st=questState(),from=npcKey(id),day=today();
  if(!offers.length)return toast("지금은 의뢰가 없다.");
  const rows=offers.map(q=>{
-  const act=st.active.some(a=>a.id===q.id),done=st.done[q.id]===day;
+  const qk=questKey(q,from),act=st.active.some(a=>questActiveKey(a)===qk),done=st.done[qk]===day;
   const need=q.k==="give"?`납품 · ${questItemsText(q.req)}`:q.k==="hunt"?`토벌 · ${q.hunt.label} ×${q.hunt.n}`:`배달 · ${q.pkg} → ${questWho(questDest(day,from,q.id))}`;
   const btn=done?`<button type="button" class="btn sm2" disabled>오늘 완료</button>`:act?`<button type="button" class="btn sm2" disabled>수락함</button>`:`<button type="button" class="btn sm2" data-qacc="${esc(q.id)}">수락</button>`;
   return `<div class="q-offer"><div class="q-head"><span class="q-tier t${q.t}">${QUEST_TIER_NAME[q.t]} ${QUEST_TIER_STAR[q.t]}</span><b>${esc(q.title)}</b></div><div class="q-desc">${esc(q.desc)}</div><div class="q-need">${esc(need)}</div><div class="q-rw dim">보상 · ${esc(questRewardText(q))}</div><div class="q-btns">${btn}</div></div>`;
@@ -8758,12 +8796,12 @@ function questOffersOpen(id){
 function questAccept(id,qid){
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 의뢰를 받을 수 없습니다.");
  const q=QUEST_BY_ID[qid],type=NPC_TYPE[id];if(!q||!type)return;
- const st=questState(),from=npcKey(id),day=today();
+ const st=questState(),from=npcKey(id),day=today(),qk=questKey(q,from);
  if(!questOffers(me.cont,type).some(x=>x.id===qid))return toast("오늘은 받을 수 없는 의뢰입니다.");
- if(st.active.some(a=>a.id===qid))return toast("이미 받은 의뢰입니다.");
- if(st.done[qid]===day)return toast("오늘 이미 완료한 의뢰입니다.");
+ if(st.active.some(a=>questActiveKey(a)===qk))return toast("이미 받은 의뢰입니다.");
+ if(st.done[qk]===day)return toast("오늘 이미 완료한 의뢰입니다.");
  if(st.active.length>=QUEST_MAX)return toast(`의뢰는 최대 ${QUEST_MAX}개까지 받을 수 있습니다.`);
- const a={id:qid,from,day,at:Date.now(),kills:0};
+ const a={id:qid,key:qk,from,day,at:Date.now(),kills:0};
  if(q.k==="deliver")a.to=questDest(day,from,qid);
  st.active.push(a);questRender();questSave();
  toast(q.k==="deliver"?`「${q.title}」 수락 · ${q.pkg}을(를) 받았다.`:`「${q.title}」 의뢰를 수락했다.`);
@@ -8771,19 +8809,19 @@ function questAccept(id,qid){
 }
 // 배달: 받는 사람 NPC 대화창에 [배달하기]
 function questDeliverFor(id){const key=npcKey(id);return questState().active.find(a=>{const q=QUEST_BY_ID[a.id];return q&&q.k==="deliver"&&a.to===key})||null}
-function questComplete(qid,viaNpc){
+function questComplete(qkey,viaNpc){
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 의뢰를 완료할 수 없습니다.");
- const st=questState(),a=st.active.find(x=>x.id===qid),q=QUEST_BY_ID[qid];if(!a||!q)return;
+ const st=questState(),a=st.active.find(x=>questActiveKey(x)===qkey),q=a&&QUEST_BY_ID[a.id];if(!a||!q)return;
  if(q.k==="deliver"&&!viaNpc)return toast("받는 사람과 대화해서 전해야 합니다.");
  if(q.k!=="deliver"&&!questReady(a,q))return toast("아직 조건을 채우지 못했습니다.");
  if(q.sk==="combat"){
-  pop("의뢰 완료",`<p>「${esc(q.title)}」</p><p class="dim">기능 경험치 +${q.sxp}을(를) 받을 기능을 고르세요.</p>`,[...QUEST_COMBAT.map(([k,l])=>({t:l,c:"",fn:()=>questFinish(qid,k)})),{t:"취소"}]);
+  pop("의뢰 완료",`<p>「${esc(q.title)}」</p><p class="dim">기능 경험치 +${q.sxp}을(를) 받을 기능을 고르세요.</p>`,[...QUEST_COMBAT.map(([k,l])=>({t:l,c:"",fn:()=>questFinish(qkey,k)})),{t:"취소"}]);
   return;
  }
- questFinish(qid,q.sk||null);
+ questFinish(qkey,q.sk||null);
 }
-function questFinish(qid,skill){
- const st=questState(),a=st.active.find(x=>x.id===qid),q=QUEST_BY_ID[qid];if(!a||!q)return;
+function questFinish(qkey,skill){
+ const st=questState(),a=st.active.find(x=>questActiveKey(x)===qkey),q=a&&QUEST_BY_ID[a.id];if(!a||!q)return;
  itemReason(`의뢰 완료 · ${q.id} ${q.title}`);
  if(q.k!=="deliver"&&!questReady(a,q))return toast("아직 조건을 채우지 못했습니다.");
  const taken=[];
@@ -8797,7 +8835,7 @@ function questFinish(qid,skill){
  }
  me.gold+=q.gold;gainPlayerXP(q.xp);
  if(skill&&q.sxp)gainSkillXP(skill,q.sxp);
- st.active=st.active.filter(x=>x.id!==qid);st.done[qid]=today();
+ st.active=st.active.filter(x=>questActiveKey(x)!==qkey);st.done[qkey]=today();
  try{applyStatus("goodNews",{silent:true})}catch(e){}
  bag();try{renderStatus();barsRender()}catch(e){}questRender();try{if(npcOpen)npcRender()}catch(e){}
  questSave();
@@ -9812,7 +9850,13 @@ function renderStatus(){
   ["상태 이상 저항",fmt1(st.resistPct||0)+"%"],
   ["받는 피해 감소",fmt1((st.dmgRed||0)*100)+"%"],
   ["함정 피해 감소",fmt1(st.trapDamageRed||0)+"%"],
+  ["원정 피해 감소",fmt1((st.expDmgRed||0)*100)+"%"],
+  ["환경 상태이상 저항",fmt1(st.survivalEnvResist||0)+"%"],
+  ["야영 회복 보너스",fmt1(survivalCampPct(me))+"%"],
+  ["구사일생",fmt1(survivalCheatChance(me)*100)+"%"],
   ["아이템 발견",fmt1(st.itemFind||0)+"%"],
+  ["2개 발견 확률",fmt1(searchDoubleChance(me)*100)+"%"],
+  ["도구 내구도 절약",fmt1(searchToolSaveChance(me)*100)+"%"],
   ["이동 속도",fmt1(st.moveSpeed||0)+"%"]
  ].map(([l,v])=>row(l,v)).join("");
  const vitals=[
@@ -10079,7 +10123,7 @@ render();bag();renderAll();clock();
  _ids.push(setTimeout(()=>{try{applyItemRefund()}catch(e){console.warn(e)}},300));
  _ids.push(setTimeout(()=>{try{if(affectionDecay()&&npcOpen)npcRender()}catch(e){}},400));
  if(me.expedition)setTimeout(checkExpAct,400);
-return{stop(){try{if(_npcResize)window.removeEventListener("resize",_npcResize);_npcResize=null}catch(e){};try{if(tutActive)tutClose(false)}catch(e){};try{resetWhisperTab()}catch(e){};_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);document.removeEventListener("visibilitychange",onPresenceVisible);document.removeEventListener("visibilitychange",onGameHiddenSave);window.removeEventListener("pagehide",flushGameSave);window.removeEventListener("focus",checkExpAct);accountHold=false;syncHold=false;if(rosterUnsub)rosterUnsub();if(campfireUnsub)try{campfireUnsub()}catch(e){}if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};if(whisperPingUnsub)try{whisperPingUnsub()}catch(e){};if(partyProposalUnsub)try{partyProposalUnsub()}catch(e){};if(partyExpUnsub)try{partyExpUnsub()}catch(e){};if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(mailUnsub)try{mailUnsub()}catch(e){};mailUnsub=null;mailOpen=false;mailSelected=null;if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}guildView.open=false;if(guildView.profilesUnsub){try{guildView.profilesUnsub()}catch(e){}guildView.profilesUnsub=null}if(friendView.profilesUnsub){try{friendView.profilesUnsub()}catch(e){}friendView.profilesUnsub=null}if(friendView.linksUnsub){try{friendView.linksUnsub()}catch(e){}friendView.linksUnsub=null}if(friendView.reqsUnsub){try{friendView.reqsUnsub()}catch(e){}friendView.reqsUnsub=null}friendView.open=false;if(presenceRef)remove(presenceRef).catch(()=>{})}};
+return{stop(){try{if(_npcResize)window.removeEventListener("resize",_npcResize);_npcResize=null}catch(e){};try{if(tutActive)tutClose(false)}catch(e){};try{resetWhisperTab()}catch(e){};_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);document.removeEventListener("visibilitychange",onPresenceVisible);document.removeEventListener("visibilitychange",onGameHiddenSave);window.removeEventListener("pagehide",flushGameSave);window.removeEventListener("focus",checkExpAct);accountHold=false;syncHold=false;if(rosterUnsub)rosterUnsub();if(campfireUnsub)try{campfireUnsub()}catch(e){}if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};if(whisperPingUnsub)try{whisperPingUnsub()}catch(e){};try{stopPartyWatch()}catch(e){};if(partyProposalUnsub)try{partyProposalUnsub()}catch(e){};if(partyExpUnsub)try{partyExpUnsub()}catch(e){};if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(mailUnsub)try{mailUnsub()}catch(e){};mailUnsub=null;mailOpen=false;mailSelected=null;if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}guildView.open=false;if(guildView.profilesUnsub){try{guildView.profilesUnsub()}catch(e){}guildView.profilesUnsub=null}if(friendView.profilesUnsub){try{friendView.profilesUnsub()}catch(e){}friendView.profilesUnsub=null}if(friendView.linksUnsub){try{friendView.linksUnsub()}catch(e){}friendView.linksUnsub=null}if(friendView.reqsUnsub){try{friendView.reqsUnsub()}catch(e){}friendView.reqsUnsub=null}friendView.open=false;if(presenceRef)remove(presenceRef).catch(()=>{})}};
 
 
 }
