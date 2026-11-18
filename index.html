@@ -371,6 +371,8 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .ch:hover{background:var(--panel2)}
 #gameRoot .ch small{margin-left:auto;color:var(--dim);font-size:12px;line-height:18px}
 #gameRoot .roster .js-name{color:var(--name-color,var(--text))}
+#gameRoot .ch .js-name[data-uid]{cursor:pointer}
+#gameRoot .ch .js-name[data-uid]:hover{text-decoration:underline;text-underline-offset:2px}
 #gameRoot .dot{width:8px;height:8px;background:var(--name-color,var(--ok))}
 
 /* chat — 이름과 본문을 한 줄에, 시간은 오른쪽 위 고정 */
@@ -5069,6 +5071,7 @@ const guildDraft={notice:"",noticeTitle:"",post:"",postTitle:"",msg:"",vault:""}
 const guildRef=gid=>ref(realtimeDB,"guilds/"+gid);
 const clearGuildMembership=(id,gid)=>runTransaction(ref(realtimeDB,"guildMembership/"+id),v=>v===gid?null:undefined).catch(()=>{});
 const gArr=v=>Array.isArray(v)?v.slice():(v&&typeof v==="object"?Object.values(v):[]);
+const guildWhValid=x=>x!=null&&((typeof x==="string"&&!!x)||(typeof x==="object"&&typeof x.n==="string"&&!!x.n));
 const guildMembers=g=>Object.entries(g&&g.members&&typeof g.members==="object"?g.members:{});
 const guildRole=g=>guildRoleOf(g,uid);
 const guildIsLeader=g=>guildRole(g)==="leader";
@@ -5595,7 +5598,7 @@ function whSortEntries(items,recent){
 }
 function guildWhData(g){
  const wh=g.warehouse&&typeof g.warehouse==="object"?g.warehouse:{};
- const level=Math.max(0,Math.floor(+wh.level||0)),cap=30*(level+1),items=gArr(wh.items);
+ const level=Math.max(0,Math.floor(+wh.level||0)),cap=30*(level+1),items=gArr(wh.items).filter(guildWhValid);
  const q=String(guildView.whQuery||"").trim().toLowerCase();
  const filtered=q?items.filter(it=>nm(it).toLowerCase().includes(q)):items;
  const sorted=whSortEntries(filtered,guildView.whRecent||[]);
@@ -5607,9 +5610,10 @@ function guildWhData(g){
  for(const it of pageItems){const key=WH_KEY(it);if(gmap.has(key))gmap.get(key).q++;else{const o={key,n:nm(it),q:1,it};gmap.set(key,o);groups.push(o)}}
  return {wh,cap,items,q,filtered,pages,page,groups};
 }
+function guildWhSpaceText(g){const wh=g&&g.warehouse&&typeof g.warehouse==="object"?g.warehouse:{};const cap=30*(Math.max(0,Math.floor(+wh.level||0))+1),cur=gArr(wh.items).filter(guildWhValid).length;return `${cur}/${cap}칸${cur>cap?` · ${cur-cap}칸 초과`:""}`}
 function guildWhCountText(g){
  const d=guildWhData(g),perms=g.permissions&&typeof g.permissions==="object"?g.permissions:{},minTake=perms.warehouseWithdraw||GUILD_PERM_DEFAULTS.warehouseWithdraw;
- return `${d.q?`검색 ${d.filtered.length}개 · 전체 `:""}${d.items.length} / ${d.cap}칸 · 빼기 ${guildRankName(g,minTake)} 이상`;
+ return `${d.q?`검색 ${d.filtered.length}개 · 전체 `:""}${d.items.length} / ${d.cap}칸${d.items.length>d.cap?` · ${d.items.length-d.cap}칸 초과`:""} · 빼기 ${guildRankName(g,minTake)} 이상`;
 }
 function guildWhListHtml(g){
  const d=guildWhData(g),canTake=guildPerm(g,"warehouseWithdraw");
@@ -5818,12 +5822,12 @@ async function depositGuildItems(name,qty){
  const wh=guildView.data.warehouse||{},cap=30*(Math.max(0,Math.floor(+wh.level||0))+1);
  guildDepositBusy=true;
  try{
-  let ok=false,nextItems=null;
-  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/items"),arr=>{const list=gArr(arr);if(list.length+n>cap)return;for(let i=0;i<n;i++)list.push(name);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v)}}catch(e){ok=false}
-  if(!ok)return toast("창고 공간이 부족합니다.");
+  let ok=false,nextItems=null,added=0;
+  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/items"),arr=>{added=0;const list=gArr(arr).filter(guildWhValid),room=Math.max(0,cap-list.length);if(room<=0)return;added=Math.min(n,room);for(let i=0;i<added;i++)list.push(name);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v).filter(guildWhValid)}}catch(e){ok=false}
+  if(!ok||added<=0)return toast(`창고가 가득 찼습니다. (${guildWhSpaceText(guildView.data)})`);
   whTouchRecent(guildView.whRecent,`s:${name}`);guildView.invRecent=(guildView.invRecent||[]).filter(k=>k!==`s:${name}`);guildView.page=0;
-  const removed=takeItems(name,n);
-  if(removed.length<n)console.warn("guild deposit remove mismatch",name,n,removed.length);
+  const removed=takeItems(name,added);
+  if(removed.length<added)console.warn("guild deposit remove mismatch",name,added,removed.length);
   if(guildView.data&&nextItems){
    const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};
    gd.warehouse.items=nextItems;
@@ -5831,7 +5835,8 @@ async function depositGuildItems(name,qty){
   bag();
   if(guildView.open)try{guildRender()}catch(e){}
   try{opts.save(cp(snap()))}catch(e){}
-  toast(`${name} ×${removed.length||n}을(를) 창고에 넣었습니다.`);
+  const moved=removed.length||added;
+  toast(moved<n?`${name} ×${moved}만 창고에 넣었습니다. ${n-moved}개는 소지품에 남았습니다.`:`${name} ×${moved}을(를) 창고에 넣었습니다.`);
  }finally{guildDepositBusy=false}
 }
 async function guildDepositIndex(idx){
@@ -5848,8 +5853,8 @@ async function depositGuildItem(idx){
  try{
   const name=nm(cur),item=cp(cur),wh=guildView.data.warehouse||{},cap=30*(Math.max(0,Math.floor(+wh.level||0))+1);
   let ok=false,nextItems=null;
-  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/items"),arr=>{const list=gArr(arr);if(list.length>=cap)return;list.push(item);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v)}}catch(e){ok=false}
-  if(!ok)return toast("창고가 가득 찼습니다.");
+  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/items"),arr=>{const list=gArr(arr).filter(guildWhValid);if(list.length>=cap)return;list.push(item);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v).filter(guildWhValid)}}catch(e){ok=false}
+  if(!ok)return toast(`창고가 가득 찼습니다. (${guildWhSpaceText(guildView.data)})`);
   whTouchRecent(guildView.whRecent,WH_KEY(item));guildView.invRecent=(guildView.invRecent||[]).filter(k=>k!==WH_KEY(item));guildView.page=0;
   // 같은 이름의 다른 인스턴스가 아니라, 클릭한 바로 그 아이템을 우선 제거한다.
   let now=me.inv[idx]===cur?idx:me.inv.indexOf(cur);
@@ -5867,7 +5872,7 @@ async function depositGuildItem(idx){
  }finally{guildDepositBusy=false}
 }
 let guildWithdrawBusy=false;
-function whKeyItems(key){return gArr((guildView.data&&guildView.data.warehouse||{}).items).filter(x=>WH_KEY(x)===key)}
+function whKeyItems(key){return gArr((guildView.data&&guildView.data.warehouse||{}).items).filter(guildWhValid).filter(x=>WH_KEY(x)===key)}
 function whKeyLabel(sample){return nm(sample)+(typeof sample==="object"?` (내구도 ${fmt1(sample.dur)}/${safeNum(sample.max,0)})`:"")}
 function guildWithdrawKey(key){
  if(!guildView.data)return;
@@ -5884,14 +5889,21 @@ async function withdrawGuildItems(key,qty,label){
  if(guildWithdrawBusy)return toast("처리 중입니다. 잠시만 기다려 주세요.");
  const max=whKeyItems(key).length,n=Math.max(1,Math.min(Math.floor(+qty||1),max));
  if(!max)return toast("아이템이 없습니다.");
+ const sample=whKeyItems(key)[0];
+ let fit=n;
+ if(typeof sample==="string"){
+  const same=me.inv.some(x=>typeof x==="string"&&nm(x)===nm(sample));
+  if(!same)fit=Math.min(fit,Math.max(0,cap()-usedSlots()));
+ }else fit=Math.min(fit,Math.max(0,cap()-usedSlots()));
+ if(fit<1)return toast("소지품 칸이 부족합니다.");
  const gid=guildView.gid;let out=[],nextItems=null;
  guildWithdrawBusy=true;
  try{
   let ok=false;
   try{const res=await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse/items"),arr=>{
-   out=[];const list=gArr(arr),keep=[];
-   for(const it of list){if(out.length<n&&WH_KEY(it)===key)out.push(cp(it));else keep.push(it)}
-   if(out.length<n)return;
+   out=[];const list=gArr(arr).filter(guildWhValid),keep=[];
+   for(const it of list){if(out.length<fit&&WH_KEY(it)===key)out.push(cp(it));else keep.push(it)}
+   if(out.length<fit)return;
    nextItems=keep;return keep;
   });ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v)}}catch(e){ok=false}
   if(!ok)return toast("아이템을 꺼내지 못했습니다.");
@@ -5908,7 +5920,7 @@ async function withdrawGuildItems(key,qty,label){
   bag();
   if(guildView.open)try{guildRender()}catch(e){}
   try{opts.save(cp(snap()))}catch(e){}
-  toast(`${label||key} ×${out.length}을(를) 꺼냈습니다.`);
+  toast(fit<n?`${label||key} ×${out.length}만 꺼냈습니다. ${n-out.length}개는 창고에 남았습니다.`:`${label||key} ×${out.length}을(를) 꺼냈습니다.`);
  }finally{guildWithdrawBusy=false}
 }
 async function guildWithdraw(name){
@@ -5922,8 +5934,8 @@ function migrateGuildWarehouseDurability(gid,g){
  if(!gid||!g||guildDuraMigrated.has(gid))return;
  guildDuraMigrated.add(gid);
  const normList=src=>{
-  let changed=false;
-  const out=src.map(x=>{
+  let changed=false;const raw=src.filter(guildWhValid);if(raw.length!==src.length)changed=true;
+  const out=raw.map(x=>{
    const wasObj=x!=null&&typeof x==="object",oldMax=wasObj?(+x.max||0):0,oldDur=wasObj&&x.dur!=null?x.dur:null;
    const r=normalizeItem(cp(x));
    if(r!=null&&typeof r==="object"){
@@ -8514,7 +8526,7 @@ function partyRender(){
  const list=online||[{name:me.name,job:me.job,lv:me.lv,color:me.color,self:true},...me.party];
  $("pcnt").textContent=`${list.length} / 5`;
  if($("partyClear"))$("partyClear").textContent=partyData?(partyData.leader===uid?"파티 해산":"파티 탈퇴"):"해산";
- $("partyList").innerHTML=list.map((p,i)=>{const c=p.self?me.color:(/^#[0-9a-fA-F]{6}$/.test(p.color||"")?p.color:"#2F6FB0");const kick=online&&partyData.leader===uid&&!p.self?`<button class="ic" data-party-lead="${esc(p.uid)}" title="리더 넘기기">👑</button><button class="ic" data-party-kick="${esc(p.uid)}" title="내보내기">×</button>`:(!online&&!p.self?`<button class="ic" data-px="${i-1}" title="내보내기">×</button>`:"");return `<div class="ch"><span class="dot" style="--name-color:${c}"></span><span class="js-name" style="--name-color:${c}">${esc(displayName(p.uid,p.name||"동료"))}${p.self?" (나)":""}${p.leader?" 👑":""}</span><small>Lv${safeNum(p.lv,1)} ${esc(p.job||"모험가")}</small>${kick}</div>`}).join("");
+ $("partyList").innerHTML=list.map((p,i)=>{const c=p.self?me.color:(/^#[0-9a-fA-F]{6}$/.test(p.color||"")?p.color:"#2F6FB0"),pid=p.uid||(p.self?uid:""),nameAttr=pid?` data-uid="${esc(pid)}" data-u="${esc(p.name||"")}" title="캐릭터 정보 보기"`:"";const kick=online&&partyData.leader===uid&&!p.self?`<button class="ic" data-party-lead="${esc(p.uid)}" title="리더 넘기기">👑</button><button class="ic" data-party-kick="${esc(p.uid)}" title="내보내기">×</button>`:(!online&&!p.self?`<button class="ic" data-px="${i-1}" title="내보내기">×</button>`:"");return `<div class="ch"><span class="dot" style="--name-color:${c}"></span><span class="js-name"${nameAttr} style="--name-color:${c}">${esc(displayName(p.uid,p.name||"동료"))}${p.self?" (나)":""}${p.leader?" 👑":""}</span><small>Lv${safeNum(p.lv,1)} ${esc(p.job||"모험가")}</small>${kick}</div>`}).join("");
  try{renderProposalPanels()}catch(e){}
  try{refreshRisk()}catch(e){}
 }
@@ -8760,7 +8772,7 @@ function transferPartyLeader(target){
   {t:"넘기기",c:"",fn:async()=>{try{await update(ref(realtimeDB,"parties/"+me.partyId),{leader:target});toast(`${nm}에게 파티 리더를 넘겼다.`)}catch(e){toast("리더 변경 실패 · Firebase 규칙을 확인해 주세요.")}}},
   {t:"취소"}]);
 }
-$("partyList").onclick=e=>{const L=e.target.closest("[data-party-lead]");if(L){transferPartyLeader(L.dataset.partyLead);return}const k=e.target.closest("[data-party-kick]"),b=e.target.closest("[data-px]");if((k||b)&&actionLock("휴식 중에는 파티를 관리할 수 없습니다."))return;if(k&&partyData&&partyData.leader===uid){remove(ref(realtimeDB,"parties/"+me.partyId+"/members/"+k.dataset.partyKick)).catch(()=>{});return}if(b){me.party.splice(+b.dataset.px,1);partyRender();toast("파티에서 내보냈다.")}};
+$("partyList").onclick=e=>{const nmEl=e.target.closest(".js-name[data-uid]");if(nmEl&&nmEl.dataset.uid){openPlayerProfile(nmEl.dataset.uid,nmEl.dataset.u);return}const L=e.target.closest("[data-party-lead]");if(L){transferPartyLeader(L.dataset.partyLead);return}const k=e.target.closest("[data-party-kick]"),b=e.target.closest("[data-px]");if((k||b)&&actionLock("휴식 중에는 파티를 관리할 수 없습니다."))return;if(k&&partyData&&partyData.leader===uid){remove(ref(realtimeDB,"parties/"+me.partyId+"/members/"+k.dataset.partyKick)).catch(()=>{});return}if(b){me.party.splice(+b.dataset.px,1);partyRender();toast("파티에서 내보냈다.")}};
 partyRender();
 if(uid){subscribePartyInvites();subscribePartyJoinRequests();subscribePartyJoinResults();subscribeGuildInvites();}
 if(me.partyId){subscribeParty();verifyParty()}
