@@ -939,6 +939,55 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .codex-card.locked:hover{background:var(--panel)}
 @media (max-width:820px){#gameRoot .codex-body{grid-template-columns:1fr}#gameRoot .codex-list{max-height:360px}#gameRoot .codex-detail{position:static}}
 
+/* 칭호 */
+#gameRoot .char-title{font-size:12px;line-height:16px;font-weight:700;color:var(--accent-text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;margin-bottom:2px}
+#gameRoot .char-title:hover{text-decoration:underline}
+#gameRoot .titles{display:flex;flex-direction:column;gap:10px;min-height:0}
+#gameRoot .titles-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+#gameRoot .titles-title{font-size:16px;font-weight:700}
+#gameRoot .titles-count{font-size:12px;color:var(--dim);margin-left:4px}
+#gameRoot .titles-search{flex:1;min-width:180px;height:36px;padding:0 12px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font:inherit;font-size:13px}
+#gameRoot .titles-search::placeholder{color:var(--dim)}
+#gameRoot .titles-filters{display:flex;gap:4px}
+#gameRoot .titles-filter{height:30px;padding:0 10px;border:1px solid var(--line);border-radius:7px;background:var(--panel2);color:var(--dim);font:inherit;font-size:12px;cursor:pointer}
+#gameRoot .titles-filter[aria-selected="true"]{border-color:var(--accent);color:var(--accent-text);background:var(--accent-soft)}
+#gameRoot .titles-cat{height:30px;border:1px solid var(--line);border-radius:7px;background:var(--panel2);color:var(--text);font:inherit;font-size:12px;padding:0 6px}
+#gameRoot .titles-test{height:30px;padding:0 9px;border:1px dashed var(--line);border-radius:7px;background:transparent;color:var(--dim);font:inherit;font-size:11px;cursor:pointer}
+#gameRoot .titles-body{display:grid;grid-template-columns:minmax(0,1.08fr) minmax(310px,.92fr);gap:12px;align-items:start;min-height:0}
+#gameRoot .titles-list{display:flex;flex-direction:column;gap:6px;max-height:590px;overflow:auto;padding-right:4px}
+#gameRoot .title-card{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:center;text-align:left;padding:9px 10px;border:1px solid var(--line);border-left:4px solid var(--title-grade,var(--line));border-radius:8px;background:var(--panel);color:var(--text);font:inherit;cursor:pointer;min-width:0}
+#gameRoot .title-card:hover{background:var(--panel2)}
+#gameRoot .title-card.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset;background:var(--panel2)}
+#gameRoot .title-card.miss{opacity:.7}
+#gameRoot .title-grade{display:inline-flex;align-items:center;height:19px;padding:0 6px;border-radius:5px;font-size:10px;font-weight:700;color:#fff;background:var(--title-grade,var(--dim));white-space:nowrap}
+#gameRoot .title-main{min-width:0;display:flex;flex-direction:column;gap:2px}
+#gameRoot .title-nm{font-size:13px;font-weight:700;line-height:18px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#gameRoot .title-cond{font-size:11px;line-height:15px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#gameRoot .title-st{font-size:11px;font-weight:700;color:var(--dim);white-space:nowrap}
+#gameRoot .title-card.got .title-st{color:var(--ok)}
+#gameRoot .title-card.equipped .title-st{color:var(--accent-text)}
+#gameRoot .title-detail{position:sticky;top:10px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);padding:15px;min-height:270px}
+#gameRoot .title-dhead{display:flex;align-items:flex-start;gap:8px;flex-wrap:wrap;margin-bottom:4px}
+#gameRoot .title-dhead h3{margin:0;font-size:20px;line-height:27px;letter-spacing:-.03em}
+#gameRoot .title-dsub{font-size:12px;color:var(--dim);margin-bottom:10px}
+#gameRoot .title-dcond{padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--panel);font-size:12px;line-height:19px;margin:8px 0}
+#gameRoot .title-dcond b{color:var(--accent-text)}
+#gameRoot .title-progress{margin:7px 0 0;padding:7px 9px;border:1px solid var(--line);border-radius:7px;background:var(--panel);display:flex;flex-direction:column;gap:2px}
+#gameRoot .title-prow{display:flex;justify-content:space-between;gap:10px;font-size:11px;line-height:17px;color:var(--dim)}
+#gameRoot .title-prow b{font-weight:600;color:var(--text)}
+#gameRoot .title-prow.done b{color:var(--ok)}
+#gameRoot .title-tags{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0 0}
+#gameRoot .title-tag{display:inline-flex;align-items:center;min-height:22px;padding:1px 7px;border:1px solid var(--line);border-radius:6px;background:var(--panel);font-size:11px;color:var(--text)}
+#gameRoot .title-tag.on{border-color:var(--ok);color:var(--ok)}
+#gameRoot .title-tag.eq{border-color:var(--accent);color:var(--accent-text)}
+#gameRoot .title-locked{padding:10px;border:1px dashed var(--line);border-radius:8px;color:var(--dim);font-size:12px;line-height:18px;text-align:center;margin:8px 0}
+#gameRoot .title-actions{display:flex;justify-content:flex-end;gap:6px;margin-top:12px}
+#gameRoot .title-empty{padding:24px 10px;text-align:center;color:var(--dim);font-size:12px}
+#gameRoot .title-note{font-size:11px;color:var(--dim)}
+#gameRoot .title-setting{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0}
+#gameRoot .title-setting b{font-size:13px}
+@media (max-width:820px){#gameRoot .titles-body{grid-template-columns:1fr}#gameRoot .titles-list{max-height:380px}#gameRoot .title-detail{position:static}}
+
 </style>
 </head>
 <body>
@@ -952,6 +1001,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
   <div class="prof">
    <div class="avatar" id="avatar" title="클릭해서 프로필 사진 변경"></div>
    <div class="info">
+    <div class="char-title" id="charTitle" hidden></div>
     <div class="name" id="name" role="button" tabindex="0" title="내 캐릭터 정보 보기" style="cursor:pointer"></div>
     <div class="char-sub" id="charSub"></div>
     <div class="char-guild" id="charGuild"></div>
@@ -978,6 +1028,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
    <button class="tab" role="tab" aria-selected="true" data-t="map">지도</button>
    <button class="tab" role="tab" aria-selected="false" data-t="inv">소지품</button>
    <button class="tab" role="tab" aria-selected="false" data-t="stat">상태</button>
+   <button class="tab" role="tab" aria-selected="false" data-t="titles">칭호</button>
    <button class="tab" role="tab" aria-selected="false" data-t="codex">도감</button>
    <button class="tab" role="tab" aria-selected="false" data-t="guild" id="guildTabBtn" hidden>길드</button>
    <button class="tab" role="tab" aria-selected="false" data-t="friends" id="friendsTabBtn">친구</button>
@@ -985,6 +1036,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
   <div class="view" id="v-guild" hidden><div class="g-tabtitle" id="gtabTitle">길드</div><div id="gtabBody" class="g-host"><div class="g-empty">불러오는 중…</div></div></div>
   <div class="view" id="v-friends" hidden><div class="g-tabtitle" id="ftabTitle">친구</div><div id="ftabBody" class="g-host"><div class="g-empty">불러오는 중…</div></div></div>
   <div class="view" id="v-codex" hidden><div id="codexBody"></div></div>
+  <div class="view" id="v-titles" hidden><div id="titleBody"></div></div>
   <div class="view" id="v-map">
    <div class="maphead"><button class="back" id="back" hidden>← 대지역 지도</button><span id="maptitle"></span><small id="mapsub"></small></div>
    <div class="banner" id="banner" hidden><span id="btxt"></span><button class="back" id="travelCancel" hidden>이동 취소</button><button class="back" id="skip">테스트: 즉시 도착</button></div>
@@ -2047,6 +2099,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.skillPts=Math.max(0,Math.floor(+c.skillPts||0));
  o.crafted=Array.isArray(c.crafted)?c.crafted.filter(x=>typeof x==="string").slice(-600):[];
  o.codexItems=c.codexItems&&typeof c.codexItems==="object"&&!Array.isArray(c.codexItems)?Object.fromEntries(Object.entries(c.codexItems).filter(([n,t])=>n&&isFinite(+t)).slice(-600).map(([n,t])=>[String(n),+t])):{};
+ o.titles=c.titles&&typeof c.titles==="object"?{earned:c.titles.earned&&typeof c.titles.earned==="object"?c.titles.earned:{},equipped:typeof c.titles.equipped==="string"?c.titles.equipped:null,counters:c.titles.counters&&typeof c.titles.counters==="object"?c.titles.counters:{},retroLogs:!!c.titles.retroLogs}:{earned:{},equipped:null,counters:{},retroLogs:false};
  o.codexMonsters=c.codexMonsters&&typeof c.codexMonsters==="object"&&!Array.isArray(c.codexMonsters)?Object.fromEntries(Object.entries(c.codexMonsters).filter(([n,t])=>n&&isFinite(+t)).slice(-120).map(([n,t])=>[String(n),+t])):{};
  o.speedPotionGrant=!!c.speedPotionGrant;o.speedPotionGrant2=!!c.speedPotionGrant2;o.dunBoxGrant1=!!c.dunBoxGrant1;o.mpGrant50=!!c.mpGrant50;o.partyBattleSeen=typeof c.partyBattleSeen==="string"?c.partyBattleSeen.slice(0,80):"";o.itemLogSeq=Math.max(0,Math.floor(+c.itemLogSeq||0));o.rideSeen=typeof c.rideSeen==="string"?c.rideSeen.slice(-600):"";o.inbox=Array.isArray(c.inbox)?c.inbox.filter(x=>x&&typeof x==="object"&&x.k).slice(0,40):[];o.outReqs=Array.isArray(c.outReqs)?c.outReqs.filter(x=>x&&typeof x==="object"&&x.rid).slice(-30):[];o.pendingRun=c.pendingRun&&typeof c.pendingRun==="object"&&c.pendingRun.id?{id:String(c.pendingRun.id).slice(0,60),kind:c.pendingRun.kind==="dungeon"?"dungeon":"long",min:+c.pendingRun.min||30,startAt:+c.pendingRun.startAt||0,runLeader:c.pendingRun.runLeader||null,partyId:c.pendingRun.partyId||null,at:+c.pendingRun.at||0}:null;
  o.friends=c.friends&&typeof c.friends==="object"?Object.fromEntries(Object.entries(c.friends).filter(([id,f])=>id&&f&&typeof f==="object").slice(0,120).map(([id,f])=>[String(id),{name:String(f.name||"").slice(0,16),nick:String(f.nick||"").slice(0,16),rel:String(f.rel||"").slice(0,12),at:+f.at||0,pending:!!f.pending}])):{};
@@ -2209,7 +2262,7 @@ async function play(){accountHold=false;syncHold=false;
    }
   }
   const active=cur&&!revived&&+cur.until>Date.now()?cur:null;
-  game=startGame(c,{admin:me.admin,uid:me.uid,save,downed:active,
+  game=startGame(c,{admin:me.admin,uid:me.uid,save,downed:active,accountTitles:acc.titles||null,accountMeta:acc.titlesMeta||null,
    exit:s=>{resumeSet(false);game&&game.stop();game=null;save(s);$("gameRoot").hidden=true;$("authRoot").hidden=false;go("lobby")},
    die:async payload=>{resumeSet(false);await finalizeDeath(me.uid,acc,payload);game&&game.stop();game=null;$("gameRoot").hidden=true;$("authRoot").hidden=false;go("create")}});
   $("authRoot").hidden=true;$("gameRoot").hidden=false;resumeSet(true)}
@@ -2727,6 +2780,7 @@ const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||cha
  statPts:Math.max(0,Math.floor(+char.statPts||0)),skillPts:Math.max(0,Math.floor(+char.skillPts||0)),
  crafted:cp(Array.isArray(char.crafted)?char.crafted:[]),
  codexItems:(char.codexItems&&typeof char.codexItems==="object"&&!Array.isArray(char.codexItems))?cp(char.codexItems):{},
+ titles:(char.titles&&typeof char.titles==="object")?{earned:cp(char.titles.earned||{}),equipped:typeof char.titles.equipped==="string"?char.titles.equipped:null,counters:cp(char.titles.counters||{}),retroLogs:!!char.titles.retroLogs}:{earned:{},equipped:null,counters:{},retroLogs:false},
  codexMonsters:(char.codexMonsters&&typeof char.codexMonsters==="object"&&!Array.isArray(char.codexMonsters))?cp(char.codexMonsters):{},
  party:cp((Array.isArray(char.party)?char.party:[]).map(normAlly).filter(Boolean).slice(0,4)),
  partyId:typeof char.partyId==="string"?char.partyId:null,
@@ -2766,6 +2820,7 @@ function logChar(type,text,data){
   const slot=seq%LOG_SLOTS;
   const entry={at:Date.now(),type:String(type||"event").slice(0,24),text:String(text||"").slice(0,240),name:String(me.name||"").slice(0,16)};
   if(data&&typeof data==="object"&&Object.keys(data).length)entry.data=cp(data);
+  try{titleOnLog(type,text,data)}catch(e){}
   S.setLog(uid,charId,slot,entry).catch(()=>{});
  }catch(e){}
 }
@@ -3164,8 +3219,11 @@ function expSharedApply(e,ctx,ev){
  const used=+ev.pot[uid]||0;rt.used+=used;
  for(let i=0;i<used;i++){const ix=me.inv.findIndex(x=>{const k=nm(x);return isHpPotion(k)&&!isPotionAutoLocked(k)});if(ix<0)break;itemReason("전투 중 자동 포션 (파티)",true);me.inv.splice(ix,1)}
  try{const st=calcStats(me),sk=["melee","ranged","magic"].sort((x,y)=>(st[y+"Atk"]||0)-(st[x+"Atk"]||0))[0],ws=st[sk+"WeaponSlot"];if(ws)wearEquip(ws,Math.min(3,ev.rounds*.15));if(b>a)wearEquip("armor",Math.min(3,.3+(b-a)/Math.max(1,me.hp[1])))}catch(err){}
- const selfAlive=a>0,partyWin=!!ev.win;
- rt.battles.push({name:mon.name,role:mon.role,win:partyWin&&selfAlive,rounds:ev.rounds,log:ev.log});if(rt.battles.length>12)rt.battles.shift();
+ const selfAlive=a>0,partyWin=!!ev.win,won=partyWin&&(selfAlive||ev.boss);
+ rt.battles.push({name:mon.name,role:mon.role,win:won,rounds:ev.rounds,log:ev.log});if(rt.battles.length>12)rt.battles.shift();
+ rt.wins=(+rt.wins||0)+(won?1:0);rt.streak=won?(+rt.streak||0)+1:0;rt.maxStreak=Math.max(+rt.maxStreak||0,+rt.streak||0);
+ if(won&&(ev.boss||mon.role==="보스")){rt.bossWins=(+rt.bossWins||0)+1;rt.bossNames=Array.isArray(rt.bossNames)?rt.bossNames:[];if(rt.bossNames.length<40&&!rt.bossNames.includes(mon.name))rt.bossNames.push(mon.name)}
+ if(won&&(ev.boss||mon.role==="보스")){const hits=(ev.log||[]).filter(t=>/공격!/.test(String(t)));const last=hits[hits.length-1];if(last&&/치명타/.test(String(last)))rt.critBoss=true}
  rt.dmg+=Math.max(0,before-me.hp[0]);
  if(partyWin&&(selfAlive||ev.boss)){
   if(!selfAlive)me.hp[0]=1; // 보스전에서 쓰러졌지만 파티가 이김 → HP 1
@@ -3200,7 +3258,7 @@ function expInitRT(e,legacy){
  if(e.sim&&e.sim.members){}
  else if(!legacy){for(let i=0;i<n;i++)encAt.push(start+Math.floor((.05+.9*Math.random())*e.min*60000));encAt.sort((a,b)=>a-b)}
  else{const total=Math.max(1,Math.round(e.min/30)),k=legacy.partial?Math.max(0,Math.round(n*(legacy.segs/total))):n;encAt=Array(k).fill(start)}
- e.rt={encAt,encDone:0,segDone:0,found:[],lost:0,enc:0,gain:0,sxp:0,dmg:0,used:0,battles:[],defeated:false,bossDefeat:false,hpBefore:+me.hp[0]||0,hungerBefore:+me.hunger[0]||0,mpBefore:+me.mp[0]||0,allyHp:{}};
+ e.rt={encAt,encDone:0,segDone:0,found:[],lost:0,enc:0,gain:0,sxp:0,dmg:0,used:0,battles:[],wins:0,bossWins:0,bossNames:[],streak:0,maxStreak:0,defeated:false,bossDefeat:false,hpBefore:+me.hp[0]||0,hungerBefore:+me.hunger[0]||0,mpBefore:+me.mp[0]||0,allyHp:{}};
  return e.rt;
 }
 // Firebase는 빈 배열·빈 객체를 저장하지 않아서, 다시 불러온 rt에는 found/battles/encAt/allyHp가 빠져 있을 수 있다 → 채워 넣기 (2026-11-13)
@@ -3237,6 +3295,9 @@ function expRunBattle(e,ctx,mon,source,isBoss,at){
  syncParty();
  const tag=mon.role==="정예"?"[정예] ":mon.role==="보스"?"[보스] ":"",leaderAlive=res.party[0].hp>0,win=res.win&&leaderAlive;
  rt.battles.push({name:mon.name,role:mon.role,win,rounds:res.rounds,log:res.log.slice(-60)});if(rt.battles.length>12)rt.battles.shift();
+ rt.wins=(+rt.wins||0)+(win?1:0);rt.streak=win?(+rt.streak||0)+1:0;rt.maxStreak=Math.max(+rt.maxStreak||0,+rt.streak||0);
+ if(win&&(isBoss||mon.role==="보스")){rt.bossWins=(+rt.bossWins||0)+1;rt.bossNames=Array.isArray(rt.bossNames)?rt.bossNames:[];if(rt.bossNames.length<40&&!rt.bossNames.includes(mon.name))rt.bossNames.push(mon.name)}
+ if(win&&(isBoss||mon.role==="보스")){const hits=(res.log||[]).filter(t=>/공격!/.test(String(t)));const last=hits[hits.length-1];if(last&&/치명타/.test(String(last)))rt.critBoss=true}
  rt.dmg+=Math.max(0,before-party[0].hp);
  if(win){
   const xp=Math.max(1,Math.floor(+(mon.xp||40)||0));rt.gain+=xp;gainPlayerXP(xp);
@@ -3389,7 +3450,7 @@ function resolveExp(partial=false,why){
  me.hp[0]=Math.max(0,Math.min(me.hp[1],me.hp[0]||0));
  const mpBefore=rt.mpBefore; // 허기·정신력은 expAdvance()에서 30분마다 반영 (장기 1시간마다 -2, 던전 30분마다 -1)
  const mpAfter=+me.mp[0]||0,hpUsed=Math.max(0,hpBefore-me.hp[0]),hungerUsed=Math.max(0,hungerBefore-me.hunger[0]),mpUsed=Math.max(0,mpBefore-mpAfter);
- const settle={minutes:partial?Math.max(1,Math.floor(elapsed)):e.min,battles:battleLogs.length,wins:battleLogs.filter(b=>b.win).length,used,loot:found.slice(),chest:!!box,defeated:!!defeated,at:endedAt,hpUsed,hungerUsed,mpUsed};
+ const settle={minutes:partial?Math.max(1,Math.floor(elapsed)):e.min,battles:battleLogs.length,wins:(+rt.wins||battleLogs.filter(b=>b.win).length),bossWins:+rt.bossWins||0,bossNames:rt.bossNames||[],maxStreak:+rt.maxStreak||0,critBoss:!!rt.critBoss,used,loot:found.slice(),chest:!!box,defeated:!!defeated,at:endedAt,hpUsed,hungerUsed,mpUsed};
  if(me.expMeta&&typeof me.expMeta==="object")me.expMeta.settle=settle;
  if(proposalId&&me.partyId&&participants){
   const runPath="parties/"+me.partyId+"/expedition";
@@ -3408,7 +3469,7 @@ function resolveExp(partial=false,why){
  }
  barsRender();renderStatus();bag();renderAll();
  const fxNow=(me.fx||[]).map(f=>f&&(f.label||f.n)),fxAdded=fxNow.filter(x=>x&&!fxBefore.includes(x)),fxRemoved=fxBefore.filter(x=>x&&!fxNow.includes(x));
- logChar("expedition",`${cfg.label} ${partial?"중도 귀환":"완료"} · 계획 ${e.min}분 · 아이템 ${found.length}개 · 조우 ${enc}회 · HP ${hpBefore} → ${me.hp[0]}/${me.hp[1]} · 정신력 ${mpBefore} → ${mpAfter} · 허기 ${hungerBefore} → ${me.hunger[0]}/${me.hunger[1]}`,{kind:e.kind,min:e.min,elapsed:Math.floor(elapsed),partial,area:(areaObj&&areaObj.name)||e.area,found,lost,encounters:enc,battles:battleLogs.length,wins:battleLogs.filter(b=>b.win).length,dmg,mpCost:Math.max(0,mpBefore-mpAfter),mpBefore,mpAfter,box,defeated,before:hpBefore,after:me.hp[0],hp:me.hp.slice(),mp:me.mp.slice(),hungerBefore,hungerAfter:me.hunger[0],hunger:me.hunger.slice(),xp:gain,skillXp:skillGain,fx:fxNow,fxAdded,fxRemoved,expLogs:(me.expLogs||[]).slice(-10)});
+ logChar("expedition",`${cfg.label} ${partial?"중도 귀환":"완료"} · 계획 ${e.min}분 · 아이템 ${found.length}개 · 조우 ${enc}회 · HP ${hpBefore} → ${me.hp[0]}/${me.hp[1]} · 정신력 ${mpBefore} → ${mpAfter} · 허기 ${hungerBefore} → ${me.hunger[0]}/${me.hunger[1]}`,{kind:e.kind,min:e.min,elapsed:Math.floor(elapsed),partial,area:(areaObj&&areaObj.name)||e.area,cont:me.cont,partySize:partySize(),overweight2:(()=>{try{return calcStats(me).weightPenalty>=2}catch(x){return false}})(),hungerLow:+me.hunger[0]<=5,night:!!e.night,partyJobs:new Set([me.job,...((partyData&&partyData.members?Object.values(partyData.members):[]).map(x=>x&&x.job).filter(Boolean))]).size,found,lost,encounters:enc,battles:battleLogs.length,wins:(+rt.wins||battleLogs.filter(b=>b.win).length),bossWins:+rt.bossWins||0,bossNames:rt.bossNames||[],maxStreak:+rt.maxStreak||0,critBoss:!!rt.critBoss,dmg,mpCost:Math.max(0,mpBefore-mpAfter),mpBefore,mpAfter,box,defeated,before:hpBefore,after:me.hp[0],hp:me.hp.slice(),mp:me.mp.slice(),hungerBefore,hungerAfter:me.hunger[0],hunger:me.hunger.slice(),xp:gain,skillXp:skillGain,fx:fxNow,fxAdded,fxRemoved,expLogs:(me.expLogs||[]).slice(-10)});
  // clearProposal(); — 2026-11-14: 늦게 접속한 파티원이 공동 스냅샷을 읽을 수 있게 제안을 남겨 둔다(끝난 제안은 proposalStale로 숨김)
  // HP·허기 0으로 쓰러져도 탐사 정산 화면은 보여 준다. 쓰러짐 상태는 먼저 적용한다.
  const collapsed=me.hp[0]<=0||me.hunger[0]<=0;
@@ -3550,6 +3611,7 @@ function cureChance(d,self=false,remainMs=null){
 }
 function applyStatus(x,opts={}){
  const d=statusDefOf(x);if(!d)return null;
+ try{if(d.t==="debuff"){titleSetAdd("status.debuffs",d.id);if(d.id==="hypothermia"||d.id==="heatstroke")titleFlag("status."+d.id)}}catch(e){}
  const now=Date.now(),dur=opts.durationMin!=null?Math.max(0,+opts.durationMin):d.min,ef=opts.ef?{...opts.ef}:null,label=opts.label||d.n;
  me.fx=Array.isArray(me.fx)?me.fx:[];me.fx.forEach(f=>fixFxEntry(f,now));
  if(d.meal)me.fx=me.fx.filter(f=>{const od=STATUS_DB[f.id];return !(od&&od.meal&&f.id!==d.id)});
@@ -3771,22 +3833,26 @@ function fxRender(){$("fxcnt").textContent=`${Math.min(me.fx.length,10)} / 10`;
  // 상태창: 버프/디버프로 묶은 태그형 (2026-11-11)
  const FXI={전투:'<path d="M14.5 17.5 3 6V3h3l11.5 11.5"/><path d="m13 19 6-6"/><path d="m16 16 4 4"/><path d="m19 21 2-2"/>',탐색:'<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',부상:'<rect x="3" y="8" width="18" height="8" rx="4" transform="rotate(-45 12 12)"/><path d="M10.5 10.5h.01M13.5 13.5h.01M10.5 13.5h.01M13.5 10.5h.01"/>',환경:'<path d="M17.5 19H8a5 5 0 1 1 1.2-9.86A6 6 0 0 1 20 11.5 3.75 3.75 0 0 1 17.5 19z"/>',음식:'<path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M8 7c0-1 1-1.5 1-2.5M12 7c0-1 1-1.5 1-2.5M16 7c0-1 1-1.5 1-2.5"/>',일상:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',아이템:'<path d="M9 3h6M10 3v6L5 18a2 2 0 0 0 1.8 3h10.4A2 2 0 0 0 19 18l-5-9V3"/><path d="M7.5 14h9"/>',추모:'<path d="M12 3c1.5 2 2 3 2 4a2 2 0 0 1-4 0c0-1 .5-2 2-4z"/><rect x="9" y="11" width="6" height="10" rx="1"/>'};
  const fxIcon=f=>{let sub="탐색";try{const d=statusDefOf(f);sub=f.id==="dishBuff"?"음식":(d&&d.sub)||"탐색"}catch(e){}return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${FXI[sub]||FXI["탐색"]}</svg>`};
- const fxPill=(f,i)=>`<button type="button" class="fxp ${f.t==="buff"?"buff":"debuff"}" data-fx="${i}" title="${esc(f.label||f.n)} · ${esc(fxRemainText(f))}">${fxIcon(f)}<span>${esc(f.label||f.n)}${f.stacks>1?` ×${f.stacks}`:""}</span><i>${esc(fxRemainText(f))}</i></button>`;
+ const fxPill=(f,i)=>`<button type="button" class="fxp ${f.t==="buff"?"buff":"debuff"}" data-fx="${i}" data-fxkey="${esc(f.id||f.label||f.n||i)}" title="${esc(f.label||f.n)} · ${esc(fxRemainText(f))}">${fxIcon(f)}<span>${esc(f.label||f.n)}${f.stacks>1?` ×${f.stacks}`:""}</span><i>${esc(fxRemainText(f))}</i></button>`;
  const fxB=[],fxD=[];me.fx.slice(0,10).forEach((f,i)=>(f.t==="buff"?fxB:fxD).push(fxPill(f,i)));
  const fxGrp=(t,a)=>a.length?`<div><div class="fxh">${t}<b>${a.length}</b></div><div class="fxw">${a.join("")}</div></div>`:"";
  $("fx").className="fx fxG";
  $("fx").innerHTML=(fxB.length||fxD.length)?fxGrp("버프",fxB)+fxGrp("디버프",fxD):`<div class="fxe">걸린 상태가 없습니다.</div>`}
 fxRender();
-$("fx").onclick=e=>{const s=e.target.closest("[data-fx]");if(!s)return;const f=me.fx[+s.dataset.fx];if(f)openStatusDetail(f)};
+$("fx").onclick=e=>{const s=e.target.closest("[data-fx]");if(!s)return;e.__fxHandled=true;const f=fxFind(s.dataset.fxkey,s.dataset.fx);if(f)openStatusDetail(f);else toast("상태 효과 정보를 찾을 수 없습니다.")};
+function fxFind(key,idx){const arr=Array.isArray(me.fx)?me.fx:[];const k=key!=null?String(key):"";let f=k?arr.find(x=>x&&((x.id!=null&&String(x.id)===k)||((x.label||x.n)!=null&&String(x.label||x.n)===k))):null;if(!f&&idx!=null&&isFinite(+idx))f=arr[+idx];return f||null}
+document.addEventListener("click",e=>{try{if(e.__fxHandled)return;const s=e.target&&e.target.closest&&e.target.closest("#fx [data-fx],#v-stat [data-fxopen]");if(!s)return;const f=fxFind(s.dataset.fxkey,s.dataset.fx!=null?s.dataset.fx:s.dataset.fxopen);e.__fxHandled=true;if(f)openStatusDetail(f);else toast("상태 효과 정보를 찾을 수 없습니다.")}catch(_){}});
 function openStatusDetail(f){
- const d=statusDefOf(f);if(!d)return;
- const label=f.label||d.n,desc=f.descCustom||d.d;
+ const known=statusDefOf(f);
+ const d=known||{n:(f&&(f.label||f.n))||"상태 효과",t:(f&&f.t)||"buff",sub:"",d:"",ef:{},maxStacks:1,min:0};
+ const label=(f&&f.label)||d.n||"상태 효과",desc=(f&&f.descCustom)||d.d||"";
  const tr=statusTreatment(d),req=tr.item?`${tr.item} ×1`:tr.action||"해제 방법 없음";
  const release=d.t==="debuff"?`<p><b>해제</b> ${esc(req)}</p>`:"";
  const buttons=[];
  if(d.t==="debuff"&&tr.item)buttons.push({t:`치료하기 (${tr.item})`,c:"",fn:()=>openCure([d.n],null)});
  buttons.push({t:"닫기"});
- pop(label,`<p><b>설명</b> ${esc(desc)}</p><p><b>분류</b> ${esc(d.sub||"-")} · ${d.t==="buff"?"버프":"상태이상"}</p><p><b>효과</b> ${esc(fxEffectsText(d,Math.max(1,+f.stacks||1),f.ef))}</p><p><b>남은 시간</b> ${esc(fxRemainText(f))}</p>${release}${f.stacks>1?`<p class="dim">중첩 ${f.stacks} / ${d.maxStacks||1}</p>`:""}`,buttons);
+ const fxLine=known?`<p><b>효과</b> ${esc(fxEffectsText(d,Math.max(1,+f.stacks||1),f.ef))}</p>`:`<p><b>효과</b> 저장된 상태 효과 정보가 없습니다. 새로고침 후 다시 확인해 주세요.</p>`;
+ pop(label,`<p><b>설명</b> ${esc(desc||(known?"":"상세 설명이 없습니다."))}</p><p><b>분류</b> ${esc(d.sub||"-")} · ${d.t==="buff"?"버프":"상태이상"}</p>${fxLine}<p><b>남은 시간</b> ${esc(fxRemainText(f||{}))}</p>${release}${f&&+f.stacks>1?`<p class="dim">중첩 ${f.stacks} / ${d.maxStacks||1}</p>`:""}`,buttons);
 }
 const avEl=$("avatar");
 function renderAvatar(){
@@ -4084,7 +4150,7 @@ function wearEquip(slot,amount){
  if(before<=0)return;
  const n=nm(item),after=Math.max(0,Math.round((before-Math.max(0,+amount||0))*10)/10);
  item.dur=after;
- if(after<=0){toast(`‘${n}’이(가) 부서졌습니다. 대장간에서 수리하세요.`);try{bag()}catch(e){}}
+ if(after<=0){toast(`‘${n}’이(가) 부서졌습니다. 대장간에서 수리하세요.`);try{titleFlag("durability.broken")}catch(e){};try{bag()}catch(e){}}
  else if(before>item.max*0.2&&after<=item.max*0.2)toast(`‘${n}’의 내구도가 20% 이하입니다. 수리를 준비하세요.`);
 }
 function wearEquippedByName(name,amount){
@@ -4600,6 +4666,7 @@ async function attemptRevive(targetUid,targetName,d){
   try{
    await S.requestRevive(targetUid,{from:uid,fromName:me.name,at:Date.now()});
    awardAction("heal",ACTION_XP.revive,"일반","heal");
+   try{titleAdd("revive.others")}catch(e){}
    try{admClose()}catch(e){}
    modal("소생 성공",`${targetName||"대상"} 님을 소생시켰습니다.`);
   }catch(e){console.warn(e);toast("소생 요청을 보내지 못했습니다. Firebase 규칙을 확인해 주세요.")}
@@ -4759,6 +4826,7 @@ function finishRead(){
  const ix=me.inv.indexOf(r.n);
  if(ix<0){checkRead();bag();renderAll();try{opts.save(cp(snap()))}catch(e){};toast("비술이 사라져 읽기를 마치지 못했습니다.");return}
  me.inv.splice(ix,1);
+ try{titleSetAdd("books.read",r.n)}catch(e){}
  const ups=gainSkillXP(r.skill,r.xp);
  try{renderStatus()}catch(e){}
  bag();renderAll();checkRead();try{opts.save(cp(snap()))}catch(e){}
@@ -4907,6 +4975,7 @@ function recipes(focus,msg,query=""){
   if(!success){
    let back=0;
    if(returnChance>0)used.forEach(x=>{if(x!=null&&Math.random()<returnChance){me.inv.push(x);back++}});
+   try{if(!isCook){titleAdd("craft.fail");if(back)titleAdd("craft.materialReturn",back)}}catch(e){}
    itemReason(`${isCook?"요리":"제작"} 실패 · ${r.out}${back?` (재료 ${back}개 반환)`:""}`);
    toast(`‘${r.out}’ ${isCook?"요리":"제작"} 실패${back?` · 재료 ${back}개 반환`:""}`);
    sfx("bad");bag();recipes(focus,`‘${esc(r.out)}’ ${isCook?"요리":"제작"} 실패 · 성공률 ${fmt1(cc.pct)}%${back?` · 재료 ${back}개 반환`:""}`,q);return;
@@ -4916,6 +4985,8 @@ function recipes(focus,msg,query=""){
   if(saveChance>0&&Math.random()<saveChance){me.inv.push(Object.keys(r.ing)[0])}
   const skill=isCook?"cook":"craft",first=!me.crafted.includes(r.out);
   if(first)me.crafted.push(r.out);
+  try{if(isCook)titleAdd("cook.total");else{titleAdd("craft.total");if(ri.grade==="신화")titleFlag("craft.mythic")}}catch(e){}
+  try{if(!isCook&&r.out==="세계의 검")titleFlag("craft.worldSword");if(isCook&&r.out==="성스러운 만찬")titleFlag("cook.holyFeast")}catch(e){}
   awardAction(skill,first?ACTION_XP.newRecipe:ACTION_XP.craft,ri.grade||"일반",skill);
   if(ri.grade&&ITEM_GRADES.indexOf(ri.grade)>=ITEM_GRADES.indexOf("희귀"))tryGoodTrait("손재주");
   itemReason(`${isCook?"요리":"제작"} 성공 · ${r.out}`);
@@ -4941,6 +5012,7 @@ function openSettings(){const dark=isDark();
  <h4 class="sh">프로필</h4>
  <div class="set-field"><label for="setIntro">소개말</label><textarea id="setIntro" maxlength="80" placeholder="자신을 소개하는 한마디">${esc(me.intro||"")}</textarea></div>
  <div class="row" style="justify-content:flex-end"><button type="button" class="btn sm" data-save-profile>프로필 저장</button></div>
+ <h4 class="sh">칭호</h4><div class="title-setting"><b>${esc(titleEquippedText()||"없음")}</b><button type="button" class="btn alt sm" data-opentitles>칭호 변경</button></div>
  <h4 class="sh">효과음</h4><div class="srow2"><button class="mode" data-sfx="1" aria-pressed="${sfxOn}">켜기</button><button class="mode" data-sfx="0" aria-pressed="${!sfxOn}">끄기</button></div>
  <h4 class="sh">튜토리얼</h4><div class="row"><button type="button" class="btn alt sm" data-tutrestart>튜토리얼 다시 보기</button></div>
   ${me.isAdmin?`<h4 class="sh">관리자</h4><div class="row"><button type="button" class="btn alt sm" data-clearchat>채팅 전체 초기화</button></div>`:""}
@@ -4951,6 +5023,7 @@ function openSettings(){const dark=isDark();
   else if(b.dataset.sfx!=null){sfxOn=b.dataset.sfx==="1";try{localStorage.setItem("alive_sfx",sfxOn?"1":"0")}catch(x){}}
   else if(b.dataset.ub!=null){me.blocked.splice(+b.dataset.ub,1);render()}
   else if(b.hasAttribute("data-save-profile")){saveProfile()}
+   else if(b.hasAttribute("data-opentitles")){try{$("pop").hidden=true}catch(e){};setTab("titles");return}
    else if(b.hasAttribute("data-tutrestart")){try{$("pop").hidden=true}catch(e){};try{tutStart(true)}catch(e){};return}
    else if(b.hasAttribute("data-clearchat")){pop("채팅 전체 초기화",`<p>현장·세계·공지·길드·귓속말의 모든 메시지를 삭제합니다. 되돌릴 수 없습니다.</p>`,[{t:"초기화",c:"bad",fn:resetAllChat},{t:"취소",fn:openSettings}]);return}
    else return;openSettings()};
@@ -5185,6 +5258,7 @@ function startGuildTab(){
   const g=s.val();
   if(!g){guildView.data=null;gHost().innerHTML=`<div class="g-empty">길드가 해산되었거나 찾을 수 없습니다.</div>`;return}
   guildView.data=g;
+  try{applyGuildTitleCache(g)}catch(e){}
   try{migrateGuildWarehouseDurability(gid,g)}catch(e){console.warn("guild warehouse durability",e)}
   // 글을 쓰는 중이면 다시 그리지 않음 (입력 중 내용이 날아가는 것 방지)
   const ae=document.activeElement;if(ae&&gHost().contains(ae)&&/^(INPUT|TEXTAREA)$/.test(ae.tagName)&&ae.value)return;
@@ -5635,6 +5709,8 @@ function guildManageHtml(g){
  const settings=leader?`<div class="g-sec"><div class="g-sech">길드 설정</div><div class="g-set">
   <label>공개 여부</label><select id="gSetOpen"><option value="1" ${g.open!==false?"selected":""}>공개</option><option value="0" ${g.open===false?"selected":""}>미공개</option></select>
   <label>가입 방법</label><select id="gSetJoin">${opt("auto",g.joinMode)}${opt("approve",g.joinMode||"approve")}${opt("closed",g.joinMode)}</select>
+  <label>길드장 칭호</label><input id="gTitleLeader" maxlength="20" value="${esc((g.titles&&g.titles.leader)||"길을 여는 자")}" placeholder="길을 여는 자">
+  <label>길드원 칭호</label><input id="gTitleMember" maxlength="20" value="${esc((g.titles&&g.titles.member)||"길드의 문")}" placeholder="길드의 문">
   <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px"><button class="sm2" data-gdisband>길드 해산</button><button class="sm2" data-gsettings>설정 저장</button></div>
  </div></div>`:"";
  return memberList+detail+appHtml+settings;
@@ -5971,7 +6047,16 @@ async function guildSaveSettings(){
  const open=!($("gSetOpen")&&$("gSetOpen").value==="0");
  const joinMode=$("gSetJoin")&&$("gSetJoin").value;
  if(!["auto","approve","closed"].includes(joinMode))return;
- try{await update(guildRef(guildView.gid),{open,joinMode});toast("길드 설정을 저장했습니다.")}catch(e){toast("설정 저장에 실패했습니다.")}
+ const leaderTitle=String(($("gTitleLeader")||{}).value||"").trim().slice(0,20)||"길을 여는 자";
+ const memberTitle=String(($("gTitleMember")||{}).value||"").trim().slice(0,20)||"길드의 문";
+ const titles={leader:leaderTitle,member:memberTitle};
+ try{
+  await update(guildRef(guildView.gid),{open,joinMode,titles});
+  guildTitleCache.leader=leaderTitle;guildTitleCache.member=memberTitle;
+  if(guildView.data)guildView.data.titles=titles;
+  try{updateProfileTitle()}catch(e){}
+  toast("길드 설정과 칭호 이름을 저장했습니다.")
+ }catch(e){toast("설정 저장에 실패했습니다.")}
 }
 async function guildTick(){
  if(!uid)return;
@@ -5984,13 +6069,14 @@ async function guildTick(){
    }else{
     const name=String(g.name||"");
     if(name&&me.guild!==name){me.guild=name;try{updateProfileCard()}catch(e){};try{opts.save(cp(snap()))}catch(e){}}
+    try{applyGuildTitleCache(g)}catch(e){}
     try{migrateGuildWarehouseDurability(old,g)}catch(e){console.warn("guild warehouse durability",e)}
    }
   }else{
    const s=await get(ref(realtimeDB,"guildMembership/"+uid));
    if(s.exists()){
     const gid=String(s.val()||""),gs=await get(guildRef(gid)),g=gs.val();
-    if(g&&g.members&&g.members[uid]){me.guildId=gid;me.guild=String(g.name||"");try{updateProfileCard()}catch(e){};try{opts.save(cp(snap()))}catch(e){};try{renderGuildBox()}catch(e){};toast(`‘${me.guild}’ 길드에 가입되었습니다.`);try{migrateGuildWarehouseDurability(gid,g)}catch(e){console.warn("guild warehouse durability",e)}}
+    if(g&&g.members&&g.members[uid]){me.guildId=gid;me.guild=String(g.name||"");try{updateProfileCard()}catch(e){};try{opts.save(cp(snap()))}catch(e){};try{renderGuildBox()}catch(e){};toast(`‘${me.guild}’ 길드에 가입되었습니다.`);try{applyGuildTitleCache(g)}catch(e){};try{migrateGuildWarehouseDurability(gid,g)}catch(e){console.warn("guild warehouse durability",e)}}
     else clearGuildMembership(uid,gid);
    }
   }
@@ -6203,6 +6289,7 @@ async function graveTake(gid,i){
  if(!starvationActionCost())return;
  try{await S.claimGraveItem(gid,String(i),uid)}catch(e){return toast("이미 누군가 가져간 유품입니다.")}
  addItem(item);bag();
+ try{titleAdd("grave.takes")}catch(e){}
  if(!graveVisit||graveVisit.gid!==gid)graveVisit={gid,effect:null};
  const takenByMe=Object.values(gr.taken||{}).filter(v=>v&&v.uid===uid).length+1;
  const chance=Math.min(90,20*takenByMe);
@@ -6218,6 +6305,7 @@ async function graveMourn(gid,kind){
  let type="none";
  if(Math.random()*100<35)type=Math.random()<.5?"sad":"mourn";
  try{await S.setGraveEffect(gid,uid,type)}catch(e){return toast("추모 기록을 남기지 못했습니다.")}
+ try{titleAdd("grave.mourns")}catch(e){}
  if(!graveVisit||graveVisit.gid!==gid)graveVisit={gid,effect:type};else graveVisit.effect=type;
  if(type==="sad")applyStatus("sad");
  else if(type==="mourn")applyStatus("mourn");
@@ -6267,6 +6355,7 @@ function checkPetLeave(){
 function petLeave(reason){
  if(!me.pet)return;
  me.pet=null;me.petAdoptLockUntil=Date.now()+PET_ADOPT_LOCK_MS;
+ try{titleFlag("pet.left")}catch(e){}
  petHungerCarry=0;petAffectionCarry=0;
  try{rideRender()}catch(e){}
  try{opts.save(cp(snap()))}catch(e){}
@@ -6354,7 +6443,7 @@ function adoptPet(species,name){
       <div class="pet-actions one"><button class="btn alt" data-vt="${i}" ${t>=3?"disabled":""} title="각설탕 1개 소모">훈련하기</button></div>
      </article>`;
    }).join("")||`<span class="dim">탈것이 없다.</span>`;
-   $("ride").innerHTML=`<h2>동행 <span class="cnt">${(p?1:0)+me.vehicles.length}</span></h2>${pet}${vs}<div class="pet-hint">훈련·개조 1회당 이동 속도 +3% · 각설탕 / 마법 개조석 1개 소모</div>`}
+   $("ride").innerHTML=`<h2>동행 <span class="cnt">${(p?1:0)+me.vehicles.length}</span></h2>${pet}${vs}<div class="pet-hint">훈련·개조 1회당 이동 속도 +3% · 각설탕 / 마법 개조석 1개 소모</div>`;try{updateProfileTitle()}catch(e){}}
   function askName(init,cb){pop("이름 변경",`<input id="rnIn" maxlength="10" value="${esc(init)}">`,[{t:"변경",c:"",fn:()=>{const v=$("rnIn").value.trim();if(v)cb(v.slice(0,10))}},{t:"취소"}])}
   let rideTapAt=0;
   $("ride").onclick=e=>{const t=e.target.closest("button");if(!t)return;
@@ -6639,7 +6728,7 @@ function cancelTravel(ret,origin,label){
  toast(`이동을 취소했습니다. 출발한 곳까지 약 ${ret}분 걸립니다.`);
 }
 $("travelCancel").onclick=openTravelCancel;
-function arrive(){sfx("ok");playCompleteSound();const d=me.travel.dest,walkMin=Math.max(0,+me.travel.min||0);me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub??null;const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:(d.sub??null);addWalkMinutes(walkMin);bag();renderAll();try{render()}catch(e){};try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){};try{opts.save(cp(snap()))}catch(e){}}
+function arrive(){sfx("ok");playCompleteSound();const d=me.travel.dest,walkMin=Math.max(0,+me.travel.min||0),fromCont=me.cont,travelMode=me.travel.mode,travelRide=me.travel.ride;me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub??null;try{if(travelMode==="air")titleFlag("explore.airship");if(travelRide){const rr=(typeof partyRides!=="undefined"&&partyRides)?partyRides[travelRide]:null;if(rr&&rr.mode==="air"&&(1+Object.keys(rr.riders||{}).length)>=5)titleFlag("explore.airRide5")}titleSetAdd("explore.continents",me.cont);titleSetAdd("explore.areas",me.cont+"|"+me.area);if(me.area==="cap")titleSetAdd("explore.capitals",me.cont);if(me.cont==="마왕성")titleFlag("explore.majwangEntered");if(fromCont==="마왕성"&&me.cont!=="마왕성")titleFlag("explore.majwangReturned")}catch(e){}const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:(d.sub??null);addWalkMinutes(walkMin);bag();renderAll();try{render()}catch(e){};try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){};try{opts.save(cp(snap()))}catch(e){}}
 T(()=>{if(me.travel){Date.now()>=me.travel.end?arrive():renderAll()}},1000);
 T(checkExpAct,1000);
 // ---- 날씨 (2026-11-10) ----
@@ -6974,7 +7063,7 @@ function autoBattle(mon,party,opts={}){try{codexMarkMonster(mon&&mon.name)}catch
    const[label,atk,acc,skill]=picks[0];f.skill=skill;
    const wslot=st[skill+"WeaponSlot"],labelShown=wslot?label:`맨손 ${label}`;
    if(Math.random()*100>=battleHit(acc,m.eva)){L(`${f.name}의 ${labelShown} 공격이 빗나갔다.`);continue}
-   const crit=Math.random()*100<st[skill+"CritChance"],dmg=battleDamageRange(st[skill+"AtkMin"],st[skill+"AtkMax"],m.def,crit,st[skill+"CritDamage"]);
+   const crit=Math.random()*100<st[skill+"CritChance"],dmg=battleDamageRange(st[skill+"AtkMin"],st[skill+"AtkMax"],m.def,crit,st[skill+"CritDamage"]);battle.lastCrit=crit;
    m.hp=Math.max(0,m.hp-dmg);L(`${f.name}의 ${labelShown} 공격! ${dmg} 피해${crit?" (치명타)":""}`);
    if(f.self&&wslot)wearEquip(wslot,crit?wearRange(.3,.5):wearRange(.1,.2));
    if(m.hp<=0)break;
@@ -7093,7 +7182,7 @@ function allyStrikes(){
   const[label,atk,acc,skill]=picks[0];a.skill=skill;
   const wslot=st[skill+"WeaponSlot"],labelShown=wslot?label:`맨손 ${label}`;
   if(Math.random()*100>=battleHit(acc,m.eva)){battleLog(`${a.name}의 ${labelShown} 공격이 빗나갔다.`);continue}
-  const crit=Math.random()*100<st[skill+"CritChance"],dmg=battleDamageRange(st[skill+"AtkMin"],st[skill+"AtkMax"],m.def,crit,st[skill+"CritDamage"]);
+  const crit=Math.random()*100<st[skill+"CritChance"],dmg=battleDamageRange(st[skill+"AtkMin"],st[skill+"AtkMax"],m.def,crit,st[skill+"CritDamage"]);battle.lastCrit=crit;
   m.hp=Math.max(0,m.hp-dmg);
   battleLog(`${a.name}의 ${labelShown} 공격! ${dmg} 피해${crit?" (치명타)":""}`);
   if(m.hp<=0)return;
@@ -7199,7 +7288,7 @@ function tryFlee(){
  if(charm){battle.fleeCharmUsed=true;wearTool("비상 탈출 부적");battleLog("비상 탈출 부적의 힘으로 도주했다.");fleeStealthXP();battle.done=true;battleEquipSnapshot=null;tryGoodTrait("날렵함");tryGoodTrait("야생의 감각");pop("도주 성공",battleBody(),[{t:"확인",fn:()=>{battle=null;bag();renderAll()}}],true);return}
  wearTool("밧줄");
  const chance=Math.max(5,Math.min(90,st.flee-(battle.mon.speed-st.speed)*2));
- if(Math.random()*100<chance){battleLog("도주에 성공했다.");fleeStealthXP();battle.done=true;battleEquipSnapshot=null;tryGoodTrait("날렵함");tryGoodTrait("야생의 감각");pop("도주 성공",battleBody(),[{t:"확인",fn:()=>{battle=null;bag();renderAll()}}],true);return}
+ if(Math.random()*100<chance){battleLog("도주에 성공했다.");fleeStealthXP();try{titleAdd("battle.flees")}catch(e){};battle.done=true;battleEquipSnapshot=null;tryGoodTrait("날렵함");tryGoodTrait("야생의 감각");pop("도주 성공",battleBody(),[{t:"확인",fn:()=>{battle=null;bag();renderAll()}}],true);return}
  battleLog("도주에 실패했다.");monsterStrike();
  if(me.hp[0]<=0){finishBattle(false);return}
  renderBattle();
@@ -7233,7 +7322,7 @@ function finishBattle(win){
   const loot=capBattleLoot(rollLoot(battle.star,battle.source,m.grade,battle.areaObj),battle.star),got=[];
   for(const n of loot){registerItem(n);const item=lootObj(n);if(canAdd(item)){addItem(item);got.push(n)}}
   if(got.some(n=>ITEM_GRADES.indexOf((info(n).grade||""))>=ITEM_GRADES.indexOf("희귀")))tryGoodTrait("행운아");
-  logChar("battle",`전투 승리 · ${m.name}`,{monster:m.name,role:m.role,source:battle.source||null,star:battle.star||null,before:battle.startHp??hpBefore,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],mp:me.mp.slice(),hunger:me.hunger.slice(),status:"win",loot:got,xp,badTrait:newBad||null,fx:fxNow,fxAdded,fxRemoved});
+  logChar("battle",`전투 승리 · ${m.name}`,{monster:m.name,role:m.role,source:battle.source||null,star:battle.star||null,before:battle.startHp??hpBefore,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],mp:me.mp.slice(),hunger:me.hunger.slice(),status:"win",partySize:partySize(),boss:!!(battle.boss||["보스","boss"].includes(m.role)),crit:!!battle.lastCrit,loot:got,xp,badTrait:newBad||null,fx:fxNow,fxAdded,fxRemoved});
   bag();renderStatus();barsRender();
   pop("승리",`<p><b>${esc(m.name)}</b>을(를) 쓰러뜨렸다.</p><p>경험치 +${xp}</p>${got.length?`<p><b>획득</b> ${esc(tally(got))}</p>`:'<p class="dim">획득한 아이템은 없다.</p>'}${badLine}`,[{t:"확인",fn:()=>{battle=null;bag();renderAll()}}],true);
  }else{
@@ -7260,7 +7349,7 @@ function exploreUsed(){
  if(me.exploreDay!==k){me.exploreDay=k;me.exploreCount=0}
  return Math.max(0,Math.min(EXPLORE_DAILY_LIMIT,Math.floor(+me.exploreCount||0)));
 }
-$("explore").onclick=()=>{if(actionLock("휴식 중에는 탐사할 수 없습니다."))return;const used=exploreUsed();if(used>=EXPLORE_DAILY_LIMIT)return toast(`오늘의 단기 탐사 한도를 모두 사용했습니다. (${EXPLORE_DAILY_LIMIT}/${EXPLORE_DAILY_LIMIT})`);const left=EXPLORE_COOLDOWN-(Date.now()-(me.lastExplore||0));if(left>0)return toast(`탐사 쿨타임 ${Math.ceil(left/1000)}초`);if(!starvationActionCost())return;me.lastExplore=Date.now();me.exploreDay=exploreDayKey();me.exploreCount=used+1;spendHunger(1);if(me.hunger[0]<=0){checkVitals();return}if(!me.pet&&Date.now()>=(+me.petAdoptLockUntil||0)&&Math.random()<.005){showPetDiscovery();return}let metMonster=false;const tier=battleStars(),areaObj=(()=>{try{return AR(me.area)}catch(e){return null}})(),r=Math.random(),encRed=Math.min(.8,calcStats(me).encounterRed);
+$("explore").onclick=()=>{if(actionLock("휴식 중에는 탐사할 수 없습니다."))return;const used=exploreUsed();if(used>=EXPLORE_DAILY_LIMIT)return toast(`오늘의 단기 탐사 한도를 모두 사용했습니다. (${EXPLORE_DAILY_LIMIT}/${EXPLORE_DAILY_LIMIT})`);const left=EXPLORE_COOLDOWN-(Date.now()-(me.lastExplore||0));if(left>0)return toast(`탐사 쿨타임 ${Math.ceil(left/1000)}초`);if(!starvationActionCost())return;me.lastExplore=Date.now();me.exploreDay=exploreDayKey();me.exploreCount=used+1;spendHunger(1);if(me.hunger[0]<=0){checkVitals();return}if(!me.pet&&Date.now()>=(+me.petAdoptLockUntil||0)&&Math.random()<.005){showPetDiscovery();return}let metMonster=false;try{titleTrackExplore()}catch(e){};const tier=battleStars(),areaObj=(()=>{try{return AR(me.area)}catch(e){return null}})(),r=Math.random(),encRed=Math.min(.8,calcStats(me).encounterRed);
  // 함정도 아이템 획득·전투처럼 탐사 결과 중 하나로 출력한다.
  const trapChance=.05;
  wearTools(["낡은 지도서","은신 도구"]);
@@ -7300,7 +7389,7 @@ $("explore").onclick=()=>{if(actionLock("휴식 중에는 탐사할 수 없습�
    const eq=pickItem("장비",g,areaDropTag(areaObj),"gatherBonus");
    if(eq){const item=lootObj(eq);if(canAdd(item)){addItem(item);got.push(eq)}}
   }
-  if(got.length){const d=ITEM_BY_NAME[got[0]];if(d)awardAction("search",d.grade==="일반"?ACTION_XP.search:ACTION_XP.rareSearch,d.grade,"search")}
+  if(got.length){const d=ITEM_BY_NAME[got[0]];if(d)awardAction("search",d.grade==="일반"?ACTION_XP.search:ACTION_XP.rareSearch,d.grade,"search");try{titleAdd("explore.gathers");const herb=got.filter(n=>n==="약초"||n==="치유초").length;if(herb)titleAdd("gather.herb",herb)}catch(e){}}
   modal("아이템 획득",got.length?`${esc(tally(got))}을(를) 얻었다.`:"쓸 만한 것을 찾지 못했다.")
  }
  else if(r<.6+.25*(1-encRed)){const mon=rollShortMonster(tier,"short");if(mon)metMonster=encounterMonster(mon,{star:tier,source:mon.role==="정예"?"fieldElite":"fieldNormal",areaObj});else modal("아무것도 없음","주변을 샅샅이 뒤졌지만 쓸 만한 것은 없다.")}
@@ -7535,12 +7624,351 @@ function codexRender(){
  codexMonsterRefresh();
 }
 
+const TITLE_DATA=[{"key":"T-001-001","id":"T-001","cat":"능력치·성장","grade":"전설","name":"행운아","cond":"행운 능력치 20 달성","hidden":false,"memo":"stats.luck >= 20. 생성 10점 + 레벨업 20점 중 15점 투자. 계정 최초 1회.","guild":""},{"key":"T-003-002","id":"T-003","cat":"능력치·성장","grade":"전설","name":"성벽을 짊어진 자","cond":"근력 능력치 20 달성","hidden":false,"memo":"stats.str >= 20.","guild":""},{"key":"T-004-003","id":"T-004","cat":"능력치·성장","grade":"전설","name":"천 리 밖의 눈","cond":"지각 능력치 20 달성","hidden":false,"memo":"stats.per >= 20.","guild":""},{"key":"T-005-004","id":"T-005","cat":"능력치·성장","grade":"전설","name":"바람보다 먼저","cond":"민첩 능력치 20 달성","hidden":false,"memo":"stats.agi >= 20.","guild":""},{"key":"T-006-005","id":"T-006","cat":"능력치·성장","grade":"전설","name":"두 번 숨 쉬는 자","cond":"체력 능력치 20 달성","hidden":false,"memo":"stats.vit >= 20.","guild":""},{"key":"T-007-006","id":"T-007","cat":"능력치·성장","grade":"전설","name":"금서를 읽은 자","cond":"지력 능력치 20 달성","hidden":false,"memo":"stats.int >= 20.","guild":""},{"key":"T-008-007","id":"T-008","cat":"능력치·성장","grade":"영웅","name":"균형의 여행자","cond":"모든 능력치 10 이상 달성","hidden":false,"memo":"6개 능력치 전부 >= 10. 총 60 = 레벨 40 필요(생성 10 + 레벨업 20 전부 사용).","guild":""},{"key":"T-009-008","id":"T-009","cat":"능력치·성장","grade":"신화","name":"두 개의 정점","cond":"능력치 2종을 20까지 달성","hidden":false,"memo":"상위 두 능력치 >= 20. 15+15 = 30점, 레벨 40 필요.","guild":""},{"key":"T-010-009","id":"T-010","cat":"능력치·성장","grade":"일반","name":"이름을 얻은 자","cond":"레벨 10 달성","hidden":false,"memo":"level.max >= 10.","guild":""},{"key":"T-011-010","id":"T-011","cat":"능력치·성장","grade":"고급","name":"지역의 이름","cond":"레벨 20 달성","hidden":false,"memo":"level.max >= 20.","guild":""},{"key":"T-012-011","id":"T-012","cat":"능력치·성장","grade":"영웅","name":"전설의 씨앗","cond":"레벨 30 달성","hidden":false,"memo":"level.max >= 30.","guild":""},{"key":"T-013-012","id":"T-013","cat":"능력치·성장","grade":"전설","name":"에버폴의 끝","cond":"레벨 40 달성","hidden":false,"memo":"level.max >= 40. 계정 영구 기록.","guild":""},{"key":"T-015-013","id":"T-015","cat":"기능","grade":"전설","name":"칼날의 정점","cond":"근접 기능 20 달성","hidden":false,"memo":"skills.melee >= 20.","guild":""},{"key":"T-016-014","id":"T-016","cat":"기능","grade":"전설","name":"한 발의 예언","cond":"궁술 기능 20 달성","hidden":false,"memo":"skills.ranged >= 20.","guild":""},{"key":"T-017-015","id":"T-017","cat":"기능","grade":"전설","name":"금서의 주인","cond":"마법 기능 20 달성","hidden":false,"memo":"skills.magic >= 20.","guild":""},{"key":"T-018-016","id":"T-018","cat":"기능","grade":"전설","name":"발자국 없는","cond":"은신 기능 20 달성","hidden":false,"memo":"skills.stealth >= 20.","guild":""},{"key":"T-019-017","id":"T-019","cat":"기능","grade":"전설","name":"상처를 감는 손","cond":"치유 기능 20 달성","hidden":false,"memo":"skills.heal >= 20.","guild":""},{"key":"T-020-018","id":"T-020","cat":"기능","grade":"전설","name":"한 그릇의 기적","cond":"요리 기능 20 달성","hidden":false,"memo":"skills.cook >= 20.","guild":""},{"key":"T-021-019","id":"T-021","cat":"기능","grade":"전설","name":"불과 쇠의 성인","cond":"제작 기능 20 달성","hidden":false,"memo":"skills.craft >= 20.","guild":""},{"key":"T-022-020","id":"T-022","cat":"기능","grade":"전설","name":"협상의 달인","cond":"교섭 기능 20 달성","hidden":false,"memo":"skills.talk >= 20.","guild":""},{"key":"T-023-021","id":"T-023","cat":"기능","grade":"전설","name":"틈새를 읽는 눈","cond":"탐색 기능 20 달성","hidden":false,"memo":"skills.search >= 20.","guild":""},{"key":"T-024-022","id":"T-024","cat":"기능","grade":"전설","name":"잿더미의 생존자","cond":"생존 기능 20 달성","hidden":false,"memo":"skills.survival >= 20.","guild":""},{"key":"T-025-023","id":"T-025","cat":"기능","grade":"영웅","name":"달인의 문턱","cond":"기능 1종 15 달성","hidden":false,"memo":"skills.any15 = true.","guild":""},{"key":"T-026-024","id":"T-026","cat":"기능","grade":"고급","name":"두 가지 재능","cond":"기능 2종 10 이상 달성","hidden":false,"memo":"skills.two10 = true. 기능 총점 20 = 레벨 40.","guild":""},{"key":"T-027-025","id":"T-027","cat":"전투","grade":"일반","name":"풋내기 전사","cond":"첫 전투 승리","hidden":false,"memo":"battle.wins >= 1.","guild":""},{"key":"T-028-026","id":"T-028","cat":"전투","grade":"고급","name":"피 냄새를 아는","cond":"누적 몬스터 100회 처치","hidden":false,"memo":"battle.kills.total >= 100.","guild":""},{"key":"T-029-027","id":"T-029","cat":"전투","grade":"영웅","name":"재앙의 사냥꾼","cond":"누적 몬스터 1,000회 처치","hidden":false,"memo":"battle.kills.total >= 1000.","guild":""},{"key":"T-034-028","id":"T-034","cat":"전투","grade":"신화","name":"심연의 목격자","cond":"몬스터 도감 107종 모두 수집","hidden":false,"memo":"","guild":""},{"key":"T-030-029","id":"T-030","cat":"전투","grade":"고급","name":"보스 슬레이어","cond":"보스 1종 처치","hidden":false,"memo":"battle.bossKills.total >= 1.","guild":""},{"key":"T-031-030","id":"T-031","cat":"전투","grade":"영웅","name":"왕좌를 부순 자","cond":"보스 누적 10회 처치","hidden":false,"memo":"battle.bossKills.total >= 10.","guild":""},{"key":"T-032-031","id":"T-032","cat":"전투","grade":"전설","name":"전설을 베는 검","cond":"전설 등급 보스 1종 처치","hidden":false,"memo":"battle.bossKills.grade.legend >= 1. 적룡·흑룡·리치·심연의 대공·크라켄·히드라·티탄·폭풍의 거인·달을 삼킨 늑대·죽지 않는 왕.","guild":""},{"key":"T-033-032","id":"T-033","cat":"전투","grade":"전설","name":"드래곤 슬레이어","cond":"적룡 또는 흑룡 처치","hidden":false,"memo":"battle.bossKills.names has 적룡 OR 흑룡.","guild":""},{"key":"T-034-033","id":"T-034","cat":"전투","grade":"신화","name":"신을 거스른 자","cond":"신화 등급 보스 1종 처치","hidden":false,"memo":"battle.bossKills.grade.myth >= 1. 세계를 감은 뱀·타락한 태양신·공허의 어머니·최초의 거신·시간의 포식자·종말의 나팔수·잊힌 신·별을 삼킨 자·균열 그 자체.","guild":""},{"key":"T-035-034","id":"T-035","cat":"전투","grade":"신화","name":"모든 왕의 끝","cond":"보스 19종 모두 처치","hidden":false,"memo":"battle.bossKills.unique.size >= 19.","guild":""},{"key":"T-036-035","id":"T-036","cat":"전투","grade":"전설","name":"마왕성의 생존자","cond":"마왕성 ★9 이상 보스 처치 후 귀환","hidden":false,"memo":"explore.majwangBossReturn = true.","guild":""},{"key":"T-037-036","id":"T-037","cat":"전투","grade":"영웅","name":"일격필살","cond":"치명타로 보스 처치","hidden":false,"memo":"battle.critBossKill = true. 보스 최종 타격이 치명타.","guild":""},{"key":"T-038-037","id":"T-038","cat":"전투","grade":"영웅","name":"마지막 불꽃","cond":"HP 1인 상태로 전투 승리","hidden":false,"memo":"battle.winAt1Hp = true.","guild":""},{"key":"T-039-038","id":"T-039","cat":"전투","grade":"고급","name":"백전백도","cond":"도주 100회 성공","hidden":false,"memo":"battle.flees >= 100.","guild":""},{"key":"T-040-039","id":"T-040","cat":"전투","grade":"희귀","name":"죽음에 익숙한","cond":"10회 쓰러짐(사망 포함)","hidden":false,"memo":"battle.downs >= 10. 계정 누적.","guild":""},{"key":"T-041-040","id":"T-041","cat":"전투","grade":"영웅","name":"다시 일어선 자","cond":"다른 플레이어의 소생으로 복귀 1회","hidden":false,"memo":"battle.revivedByOther >= 1.","guild":""},{"key":"T-042-041","id":"T-042","cat":"전투","grade":"전설","name":"무패의 행진","cond":"전투 50연승","hidden":false,"memo":"battle.winStreakMax >= 50. 도주·패배 시 초기화.","guild":""},{"key":"T-043-042","id":"T-043","cat":"전투","grade":"영웅","name":"오전사","cond":"5인 파티로 보스 처치","hidden":false,"memo":"battle.partySize5Boss = true.","guild":""},{"key":"T-044-043","id":"T-044","cat":"전투","grade":"영웅","name":"홀로 서는 자","cond":"1인 파티로 보스 처치","hidden":false,"memo":"battle.soloBoss = true.","guild":""},{"key":"T-045-044","id":"T-045","cat":"탐험","grade":"일반","name":"첫 발걸음","cond":"단기 탐사 1회 완료","hidden":false,"memo":"explore.short.total >= 1.","guild":""},{"key":"T-046-045","id":"T-046","cat":"탐험","grade":"고급","name":"길 위의 사람","cond":"단기 탐사 100회 완료","hidden":false,"memo":"explore.short.total >= 100.","guild":""},{"key":"T-047-046","id":"T-047","cat":"탐험","grade":"영웅","name":"지평선 너머","cond":"단기 탐사 1,000회 완료","hidden":false,"memo":"explore.short.total >= 1000.","guild":""},{"key":"T-048-047","id":"T-048","cat":"탐험","grade":"신화","name":"에버폴의 발자국","cond":"단기 탐사 10,000회 완료","hidden":false,"memo":"explore.short.total >= 10000. 하루 60회 기준 약 167일.","guild":""},{"key":"T-049-048","id":"T-049","cat":"탐험","grade":"고급","name":"네 개의 하늘","cond":"4대륙 모두 방문","hidden":false,"memo":"explore.continents.size >= 4.","guild":""},{"key":"T-050-049","id":"T-050","cat":"탐험","grade":"영웅","name":"수도 순례자","cond":"4대륙 수도 모두 방문","hidden":false,"memo":"explore.capitals.size >= 4.","guild":""},{"key":"T-051-050","id":"T-051","cat":"탐험","grade":"영웅","name":"일몰 없는 여행자","cond":"한 대륙의 모든 대지역 방문","hidden":false,"memo":"explore.continentAreasFull = 대륙 id. 카르도르·솔레니아·엘리시아·아르케인 중 1곳.","guild":""},{"key":"T-052-051","id":"T-052","cat":"탐험","grade":"희귀","name":"재앙의 땅","cond":"마왕성 첫 입장","hidden":false,"memo":"explore.majwangEntered = true.","guild":""},{"key":"T-053-052","id":"T-053","cat":"탐험","grade":"전설","name":"귀환자","cond":"마왕성에서 탐사 완료 후 생환","hidden":false,"memo":"explore.majwangReturned = true.","guild":""},{"key":"T-054-053","id":"T-054","cat":"탐험","grade":"고급","name":"던전의 문","cond":"던전 첫 완료","hidden":false,"memo":"explore.dungeon.total >= 1.","guild":""},{"key":"T-055-054","id":"T-055","cat":"탐험","grade":"영웅","name":"유적 청소부","cond":"던전 50회 완료","hidden":false,"memo":"explore.dungeon.total >= 50.","guild":""},{"key":"T-056-055","id":"T-056","cat":"탐험","grade":"고급","name":"불운아","cond":"함정 30회 발동","hidden":false,"memo":"explore.traps >= 30.","guild":""},{"key":"T-057-056","id":"T-057","cat":"탐험","grade":"영웅","name":"매의 눈","cond":"단기탐사에서 아이템 획득 1,000회","hidden":false,"memo":"explore.gathers >= 1000.","guild":""},{"key":"T-058-057","id":"T-058","cat":"탐험","grade":"희귀","name":"일곱 얼굴의 하늘","cond":"7가지 날씨 모두 경험","hidden":false,"memo":"explore.weathers.size >= 7.","guild":""},{"key":"T-059-058","id":"T-059","cat":"탐험","grade":"고급","name":"하늘길","cond":"비행선 첫 탑승","hidden":false,"memo":"explore.airship = true.","guild":""},{"key":"T-060-059","id":"T-060","cat":"탐험","grade":"희귀","name":"다섯 개의 등","cond":"비행선 5인 동승 완료","hidden":false,"memo":"explore.airRide5 = true. RIDE_SEATS.air = 5.","guild":""},{"key":"T-061-060","id":"T-061","cat":"의뢰","grade":"일반","name":"심부름꾼","cond":"의뢰 1건 완료","hidden":false,"memo":"quests.done >= 1.","guild":""},{"key":"T-062-061","id":"T-062","cat":"의뢰","grade":"고급","name":"단골 손님","cond":"의뢰 50건 완료","hidden":false,"memo":"quests.done >= 50.","guild":""},{"key":"T-063-062","id":"T-063","cat":"의뢰","grade":"영웅","name":"베테랑 의뢰인","cond":"의뢰 100건 완료","hidden":false,"memo":"quests.done >= 100.","guild":""},{"key":"T-064-063","id":"T-064","cat":"의뢰","grade":"영웅","name":"만능 해결사","cond":"초급·중급·숙련·고급 의뢰를 모두 1회 이상 완료","hidden":false,"memo":"quests.tiersDone has 1,2,3,4.","guild":""},{"key":"T-065-064","id":"T-065","cat":"의뢰","grade":"고급","name":"바쁜","cond":"하루에 의뢰 5건 완료","hidden":false,"memo":"quests.dailyDone >= 5. QUEST_MAX = 5.","guild":""},{"key":"T-066-065","id":"T-066","cat":"생활·제작","grade":"일반","name":"첫 망치질","cond":"제작 1회 성공","hidden":false,"memo":"craft.total >= 1.","guild":""},{"key":"T-067-066","id":"T-067","cat":"생활·제작","grade":"고급","name":"장인의 길","cond":"제작 100회 성공","hidden":false,"memo":"craft.total >= 100.","guild":""},{"key":"T-068-067","id":"T-068","cat":"생활·제작","grade":"영웅","name":"공방의 주인","cond":"제작 1,000회 성공","hidden":false,"memo":"craft.total >= 1000.","guild":""},{"key":"T-069-068","id":"T-069","cat":"생활·제작","grade":"신화","name":"신화를 만든 손","cond":"신화 등급 아이템 제작 성공","hidden":false,"memo":"craft.mythic >= 1.","guild":""},{"key":"T-070-069","id":"T-070","cat":"생활·제작","grade":"희귀","name":"재료의 마법사","cond":"제작 실패 후 재료 반환 100회","hidden":false,"memo":"craft.materialReturn >= 100. 제작 Lv10+.","guild":""},{"key":"T-071-070","id":"T-071","cat":"생활·제작","grade":"고급","name":"손이 미끄러진","cond":"제작 실패 50회","hidden":true,"memo":"craft.fail >= 50. 실패도 기록.","guild":""},{"key":"T-072-071","id":"T-072","cat":"생활·제작","grade":"일반","name":"초보 요리사","cond":"요리 1회 성공","hidden":false,"memo":"cook.total >= 1.","guild":""},{"key":"T-073-072","id":"T-073","cat":"생활·제작","grade":"신화","name":"만찬의 주인","cond":"요리 58종 모두 제작","hidden":false,"memo":"cook.recipes.size >= 58. v17 기준 요리 58종.","guild":""},{"key":"T-074-073","id":"T-074","cat":"생활·제작","grade":"전설","name":"신성한 만찬","cond":"신성한 만찬 제작","hidden":false,"memo":"cook.holyFeast = true.","guild":""},{"key":"T-075-074","id":"T-075","cat":"생활·제작","grade":"신화","name":"세계의 검","cond":"세계의 검 제작","hidden":false,"memo":"craft.worldSword = true.","guild":""},{"key":"T-076-075","id":"T-076","cat":"생활·제작","grade":"일반","name":"닳고 닳은","cond":"장비 내구도 0 경험","hidden":true,"memo":"durability.broken >= 1.","guild":""},{"key":"T-077-076","id":"T-077","cat":"생활·제작","grade":"고급","name":"짐꾼","cond":"무게 패널티 2 상태로 탐사 완료","hidden":false,"memo":"explore.overweight2 = true. 무게 패널티 2 = 최대.","guild":""},{"key":"T-078-077","id":"T-078","cat":"생활·제작","grade":"일반","name":"약초꾼","cond":"약초 100개 채집","hidden":false,"memo":"gather.herb >= 100.","guild":""},{"key":"T-079-078","id":"T-079","cat":"생활·제작","grade":"영웅","name":"비급 수집가","cond":"비급 24권 모두 읽기","hidden":false,"memo":"books.read.size >= 24. 초급·중급·고급·전문 × 6기능.","guild":""},{"key":"T-080-079","id":"T-080","cat":"수집·동행","grade":"전설","name":"전설의 수집가","cond":"전설 등급 장비 10종 보유(도감 등록)","hidden":false,"memo":"collect.legendary >= 10.","guild":""},{"key":"T-081-080","id":"T-081","cat":"수집·동행","grade":"신화","name":"신화의 방","cond":"신화 등급 아이템 3종 보유(도감 등록)","hidden":false,"memo":"collect.mythic >= 3.","guild":""},{"key":"T-082-081","id":"T-082","cat":"수집·동행","grade":"신화","name":"수집의 대가","cond":"아이템 416종 모두 도감 등록","hidden":true,"memo":"collect.items.size >= 416. v17 기준.","guild":""},{"key":"T-083-082","id":"T-083","cat":"수집·동행","grade":"일반","name":"\"애완동물 이름\"의 캔따개","cond":"강아지/고양이 입양","hidden":false,"memo":"","guild":""},{"key":"T-085-083","id":"T-085","cat":"수집·동행","grade":"영웅","name":"\"애완동물 이름\"의 동반자","cond":"애완동물 호감도 100 달성","hidden":false,"memo":"pet.affectionMax >= 100.","guild":""},{"key":"T-086-084","id":"T-086","cat":"수집·동행","grade":"희귀","name":"떠나보낸 자","cond":"애완동물이 떠남","hidden":true,"memo":"pet.left = true. 굶주림·애정 0.","guild":""},{"key":"T-087-085","id":"T-087","cat":"수집·동행","grade":"영웅","name":"하늘의 주인","cond":"비행선 개조 3/3 달성","hidden":false,"memo":"vehicle.airTier >= 3.","guild":""},{"key":"T-088-086","id":"T-088","cat":"수집·동행","grade":"영웅","name":"말의 친구","cond":"말 훈련 3/3 달성","hidden":false,"memo":"vehicle.horseTier >= 3.","guild":""},{"key":"T-089-087","id":"T-089","cat":"사회·경제","grade":"일반","name":"첫 친구","cond":"친구 1명 등록","hidden":false,"memo":"social.friends >= 1.","guild":""},{"key":"T-090-088","id":"T-090","cat":"사회·경제","grade":"고급","name":"든든한 벗","cond":"친구 10명","hidden":false,"memo":"social.friends >= 10.","guild":""},{"key":"T-091-089","id":"T-091","cat":"사회·경제","grade":"전설","name":"마당발","cond":"친구 30명","hidden":false,"memo":"social.friends >= 30.","guild":""},{"key":"T-092-090","id":"T-092","cat":"사회·경제","grade":"일반","name":"첫 거래","cond":"1:1 거래 성공","hidden":false,"memo":"social.trades >= 1.","guild":""},{"key":"T-093-091","id":"T-093","cat":"사회·경제","grade":"일반","name":"첫 선물","cond":"NPC에게 선물 1회","hidden":false,"memo":"social.gifts >= 1.","guild":""},{"key":"T-094-092","id":"T-094","cat":"사회·경제","grade":"영웅","name":"휘장의 주인","cond":"NPC 1명 호감도 100 달성","hidden":false,"memo":"npc.maxAffection >= 100.","guild":""},{"key":"T-095-093","id":"T-095","cat":"사회·경제","grade":"신화","name":"사교계의 꽃","cond":"NPC 17명 모두 호감도 100 달성","hidden":false,"memo":"npc.all100 = true. 4대륙 × 4 + 로웨나 = 17.","guild":""},{"key":"T-096-094","id":"T-096","cat":"사회·경제","grade":"전설","name":"성기사의 신뢰","cond":"솔레니아 성기사 플로라 호감도 100 + 휘장 수령","hidden":false,"memo":"npc.guardBadge = true. 솔레니아 경비 유형 NPC 플로라 한정.","guild":""},{"key":"T-098-095","id":"T-098","cat":"사회·경제","grade":"영웅","name":"길을 여는 자","cond":"길드장 전용 칭호(길드에 가입되어있을때만 유지)","hidden":false,"memo":"guild.role == 'leader'.","guild":"leader"},{"key":"T-098-096","id":"T-098","cat":"사회·경제","grade":"영웅","name":"길드의 문","cond":"길드 전용 칭호(길드에 가입되어있을때만 유지)","hidden":false,"memo":"","guild":"member"},{"key":"T-099-097","id":"T-099","cat":"사회·경제","grade":"영웅","name":"치유의 손","cond":"다른 플레이어 100회 치료 성공","hidden":false,"memo":"heal.others >= 100.","guild":""},{"key":"T-100-098","id":"T-100","cat":"사회·경제","grade":"전설","name":"소생자","cond":"다른 플레이어 10회 소생","hidden":false,"memo":"revive.others >= 10.","guild":""},{"key":"T-101-099","id":"T-101","cat":"사회·경제","grade":"영웅","name":"오색 파티","cond":"5가지 직업으로 파티 탐사 완료","hidden":false,"memo":"party.jobs5 = true.","guild":""},{"key":"T-102-100","id":"T-102","cat":"사회·경제","grade":"고급","name":"부자의 길","cond":"100,000G 보유","hidden":false,"memo":"gold.max >= 100000.","guild":""},{"key":"T-103-101","id":"T-103","cat":"사회·경제","grade":"전설","name":"황금의 산","cond":"1,000,000G 보유","hidden":false,"memo":"gold.max >= 1000000.","guild":""},{"key":"T-104-102","id":"T-104","cat":"사회·경제","grade":"희귀","name":"시세의 신","cond":"하루 시세 88%인 날 물건 구매","hidden":true,"memo":"shop.rate88 = true. dailyMarketMod() == 0.88 (dayHash % 28 == 0).","guild":""},{"key":"T-105-103","id":"T-105","cat":"환경·기록·히든","grade":"고급","name":"상처 투성이","cond":"상태이상 10종 경험","hidden":false,"memo":"status.debuffs.size >= 10.","guild":""},{"key":"T-106-104","id":"T-106","cat":"환경·기록·히든","grade":"희귀","name":"얼음과 불","cond":"저체온과 열사병 모두 경험","hidden":false,"memo":"status.hypothermia && status.heatstroke.","guild":""},{"key":"T-107-105","id":"T-107","cat":"환경·기록·히든","grade":"희귀","name":"배고픈 영웅","cond":"허기 5 이하인 상태로 탐사 완료 후 귀환","hidden":false,"memo":"hunger.lowReturn = true. 허기 5 이하. 0이 되면 쓰러지므로 1~5 구간.","guild":""},{"key":"T-108-106","id":"T-108","cat":"환경·기록·히든","grade":"전설","name":"여명을 본 자","cond":"마왕성에서 밤 탐사 완료","hidden":false,"memo":"explore.majwangNight = true.","guild":""},{"key":"T-109-107","id":"T-109","cat":"환경·기록·히든","grade":"희귀","name":"새벽 네 시의 에버폴","cond":"새벽 4시에 접속","hidden":true,"memo":"meta.dawn4 = true. 04:00~04:59 KST.","guild":""},{"key":"T-110-108","id":"T-110","cat":"환경·기록·히든","grade":"고급","name":"오늘도 어김없이","cond":"7일 연속 접속","hidden":false,"memo":"login.streak7 = true.","guild":""},{"key":"T-111-109","id":"T-111","cat":"환경·기록·히든","grade":"영웅","name":"서른 번의 아침","cond":"30일 연속 접속","hidden":false,"memo":"login.streak30 = true.","guild":""},{"key":"T-112-110","id":"T-112","cat":"환경·기록·히든","grade":"전설","name":"세월의 여행자","cond":"캐릭터 생성 100일 경과","hidden":false,"memo":"char.days >= 100.","guild":""},{"key":"T-113-111","id":"T-113","cat":"환경·기록·히든","grade":"영웅","name":"하루의 끝","cond":"하루 단기 탐사 60회 모두 소진","hidden":false,"memo":"explore.short.today >= 60. EXPLORE_DAILY_LIMIT.","guild":""},{"key":"T-114-112","id":"T-114","cat":"환경·기록·히든","grade":"고급","name":"열 송이의 국화","cond":"묘비에서 애도 10회","hidden":false,"memo":"grave.mourns >= 10.","guild":""},{"key":"T-115-113","id":"T-115","cat":"환경·기록·히든","grade":"희귀","name":"유산 상속자","cond":"묘비에서 유품 10회 획득","hidden":true,"memo":"grave.takes >= 10.","guild":""},{"key":"T-116-114","id":"T-116","cat":"환경·기록·히든","grade":"영웅","name":"사신의 사각","cond":"14일동안 한번도 쓰러지지 않음","hidden":false,"memo":"","guild":""},{"key":"T-117-115","id":"T-117","cat":"환경·기록·히든","grade":"일반","name":"마지막 전령","cond":"유언을 1자 이상 남기고 사망","hidden":true,"memo":"death.will = true.","guild":""},{"key":"T-118-116","id":"T-118","cat":"환경·기록·히든","grade":"희귀","name":"부활의 아침","cond":"3회 사망","hidden":true,"memo":"death.count >= 3. 계정 누적.","guild":""},{"key":"T-119-117","id":"T-119","cat":"환경·기록·히든","grade":"희귀","name":"불멸의 등불","cond":"7일동안 한번도 쓰러지지 않음","hidden":true,"memo":"","guild":""},{"key":"T-120-118","id":"T-120","cat":"환경·기록·히든","grade":"영웅","name":"칭호 수집가","cond":"칭호 30개 획득","hidden":false,"memo":"titles.count >= 30.","guild":""},{"key":"T-121-119","id":"T-121","cat":"환경·기록·히든","grade":"신화","name":"발자취의 증명","cond":"칭호 100개 획득","hidden":false,"memo":"titles.count >= 100.","guild":""}];
+const TITLE_BY_KEY=Object.fromEntries(TITLE_DATA.map(t=>[t.key,t]));
+
+// ---- 칭호 ----
+const TITLE_ACCOUNT_IDS=new Set(["T-117","T-118"]);
+const TITLE_GRADE_COLOR={"일반":"#8a8776","고급":"#3f7a4a","희귀":"#3f6fa8","영웅":"#7a4fa8","전설":"#b8862b","신화":"#d2683a"};
+const TITLE_GRADE_ORDER=["일반","고급","희귀","영웅","전설","신화"];
+const TITLE_STAT_LABELS=[["str","근력"],["vit","체력"],["luck","행운"],["int","지력"],["agi","민첩"],["per","지각"]];
+const TITLE_COUNTER_LABELS={"battle.wins":"전투 승리","battle.kills.total":"몬스터 처치","battle.bossKills.total":"보스 처치","battle.bossKills.unique.size":"보스 종류","battle.bossKills.grade.legend":"전설 보스 처치","battle.bossKills.grade.myth":"신화 보스 처치","battle.flees":"도주","battle.downs":"쓰러짐","battle.revivedByOther":"타인 소생","battle.winStreakMax":"최고 연승","explore.short.total":"단기 탐사","explore.short.today":"오늘 단기 탐사","explore.dungeon.total":"던전 탐사","explore.traps":"함정","explore.gathers":"채집","explore.weathers.size":"경험 날씨","explore.continents.size":"방문 대륙","explore.capitals.size":"방문 수도","gather.herb":"약초 채집","craft.total":"제작 성공","craft.fail":"제작 실패","craft.materialReturn":"재료 반환","cook.total":"요리 성공","cook.recipes.size":"요리 레시피","quests.done":"완료 의뢰","quests.dailyDone":"오늘 완료 의뢰","social.friends":"친구","social.trades":"거래","social.gifts":"선물","heal.others":"타인 치료","revive.others":"타인 소생","grave.mourns":"묘비 추모","grave.takes":"묘비 유품","books.read.size":"읽은 비급","durability.broken":"장비 파손","status.debuffs.size":"경험 상태이상","titles.count":"보유 칭호"};
+let titleState={earned:{},account:{},equipped:null,meta:{deaths:0,will:false}},titleStateKey="";
+let titleQuery="",titleFilter="all",titleCat="all",titleSelected=null;
+let guildTitleCache={leader:"길을 여는 자",member:"길드의 문",role:""};
+let titleAccountTitles=opts.accountTitles&&typeof opts.accountTitles==="object"&&!Array.isArray(opts.accountTitles)?opts.accountTitles:{};
+let titleAccountMeta=opts.accountMeta&&typeof opts.accountMeta==="object"?{deaths:Math.max(0,+opts.accountMeta.deaths||0),will:!!opts.accountMeta.will}:{deaths:0,will:false};
+function titleLoad(){
+ if(!me.titles||typeof me.titles!=="object"||Array.isArray(me.titles))me.titles={earned:{},equipped:null,counters:{}};
+ if(!me.titles.earned||typeof me.titles.earned!=="object"||Array.isArray(me.titles.earned))me.titles.earned={};
+ if(!me.titles.counters||typeof me.titles.counters!=="object"||Array.isArray(me.titles.counters))me.titles.counters={};
+ titleState={earned:me.titles.earned,equipped:typeof me.titles.equipped==="string"?me.titles.equipped:null,account:titleAccountTitles,meta:titleAccountMeta};
+}
+function titleSave(){
+ try{me.titles.earned=titleState.earned;me.titles.equipped=titleState.equipped;opts.save({titles:me.titles})}catch(e){}
+}
+let titleSaveTimer=0;
+function titleSaveSoon(){
+ try{
+  if(titleSaveTimer)clearTimeout(titleSaveTimer);
+  titleSaveTimer=setTimeout(()=>{titleSaveTimer=0;titleSave()},2000);
+ }catch(e){}
+}
+function titleSaveAccount(){
+ titleAccountTitles=titleState.account;titleAccountMeta=titleState.meta;
+ try{if(acc){acc.titles=titleAccountTitles;acc.titlesMeta=titleAccountMeta}}catch(e){}
+ if(!uid)return;
+ try{update(ref(realtimeDB,"accounts/"+uid+"/titles"),titleAccountTitles).catch(()=>{})}catch(e){}
+ try{update(ref(realtimeDB,"accounts/"+uid+"/titlesMeta"),titleAccountMeta).catch(()=>{})}catch(e){}
+}
+function titleOwned(t){titleLoad();return !!(t&&(titleState.earned[t.key]||(TITLE_ACCOUNT_IDS.has(t.id)&&titleState.account[t.key])))}
+function titleEarnedCount(){titleLoad();return Object.keys(titleState.earned).length+Object.keys(titleState.account).length}
+function titleEarnedAt(t){if(!t)return 0;return +(titleState.earned[t.key]&&titleState.earned[t.key].at||titleState.account[t.key]&&titleState.account[t.key].at||0)}
+function titleCounters(){titleLoad();return me.titles.counters}
+function titleCounter(key){const c=titleCounters();return c[key]}
+function titleAdd(key,n=1){const c=titleCounters();c[key]=(+c[key]||0)+(+n||1);titleSaveSoon();return c[key]}
+function titleSet(key,v){const c=titleCounters();if(c[key]!==v){c[key]=v;titleSaveSoon()}return v}
+function titleMax(key,v){const c=titleCounters(),n=+v||0,prev=+c[key]||0;if(n>prev){c[key]=n;titleSaveSoon();return n}return prev}
+function titleFlag(key){const c=titleCounters();if(!c[key]){c[key]=true;titleSaveSoon()}return true}
+function titleSetAdd(key,v){const c=titleCounters();let a=Array.isArray(c[key])?c[key]:[];if(v!=null&&!a.includes(v)){a.push(v);titleSaveSoon()}c[key]=a;return a.length}
+function titleEquipped(){titleLoad();return TITLE_BY_KEY[titleState.equipped]||null}
+function titlePetName(){return me.pet&&me.pet.name?String(me.pet.name):"애완동물"}
+function titleGuildName(kind){return guildTitleCache[kind]||(kind==="leader"?"길을 여는 자":"길드의 문")}
+function titleDisplay(t){
+ if(!t)return"";
+ if(t.id==="T-083")return `${titlePetName()}의 캔따개`;
+ if(t.id==="T-085")return `${titlePetName()}의 동반자`;
+ if(t.guild)return titleGuildName(t.guild);
+ return t.name;
+}
+function titleEquippedText(){const t=titleEquipped();return t?titleDisplay(t):""}
+function titleGuildRoleOk(t){
+ if(!t||!t.guild)return true;
+ if(!me.guildId)return false;
+ if(t.guild==="leader")return guildTitleCache.role==="leader";
+ if(t.guild==="member")return guildTitleCache.role==="member";
+ return false;
+}
+function titleMaxAffection(){const a=me.affection||{};return Math.max(0,...Object.values(a).map(v=>+v||0))}
+function titleCodexCount(grade){return Object.keys(me.codexItems||{}).filter(n=>ITEM_BY_NAME[n]&&ITEM_BY_NAME[n].grade===grade).length}
+function titleCanEarn(t){
+ const memo=String(t.memo||""),cond=String(t.cond||""),stats=Array.isArray(me.stats)?me.stats:[];
+ let m;
+ if(m=memo.match(/stats\.(str|agi|int|luck|vit|per)\s*>=\s*(\d+)/))return (+stats[STAT_IDX[m[1]]]||0)>=+m[2];
+ if(/stats\.all10/.test(memo)||/6개 능력치 전부\s*>=\s*10/.test(memo)||/모든 능력치 10/.test(cond))return stats.length>=6&&stats.every(v=>+v>=10);
+ if(/stats\.two20/.test(memo)||/상위 두 능력치\s*>=\s*20/.test(memo)||/능력치 2종을 20/.test(cond))return stats.filter(v=>+v>=20).length>=2;
+ if(m=memo.match(/level\.max\s*>=\s*(\d+)/))return +me.lv>=+m[1];
+ if(m=memo.match(/skills\.([a-z]+)\s*>=\s*(\d+)/))return (+me.skills[m[1]]||0)>=+m[2];
+ if(/skills\.any15/.test(memo))return Object.values(me.skills||{}).some(v=>+v>=15);
+ if(/skills\.two10/.test(memo))return Object.values(me.skills||{}).filter(v=>+v>=10).length>=2;
+ if(m=memo.match(/gold\.max\s*>=\s*(\d+)/))return Math.max(+me.gold||0,+titleCounter("gold.max")||0)>=+m[1];
+ if(m=memo.match(/social\.friends\s*>=\s*(\d+)/))return Object.keys(me.friends||{}).length>=+m[1];
+ if(m=memo.match(/npc\.maxAffection\s*>=\s*(\d+)/))return titleMaxAffection()>=+m[1];
+ if(m=memo.match(/pet\.affectionMax\s*>=\s*(\d+)/))return !!(me.pet&&+me.pet.affection>=+m[1]);
+ if(m=memo.match(/vehicle\.airTier\s*>=\s*(\d+)/)){const v=(me.vehicles||[]).find(x=>x.type==="비행선");return !!(v&&+v.tier>=+m[1])}
+ if(m=memo.match(/vehicle\.horseTier\s*>=\s*(\d+)/)){const v=(me.vehicles||[]).find(x=>x.type==="말");return !!(v&&+v.tier>=+m[1])}
+ if(m=memo.match(/collect\.legendary\s*>=\s*(\d+)/))return titleCodexCount("전설")>=+m[1];
+ if(m=memo.match(/collect\.mythic\s*>=\s*(\d+)/))return titleCodexCount("신화")>=+m[1];
+ if(m=memo.match(/collect\.items\.size\s*>=\s*(\d+)/))return Object.keys(me.codexItems||{}).length>=+m[1];
+ if(m=memo.match(/titles\.count\s*>=\s*(\d+)/))return titleEarnedCount()>=+m[1];
+ if(m=memo.match(/quests\.done\s*>=\s*(\d+)/))return Object.keys((me.quests&&me.quests.done)||{}).length>=+m[1];
+ if(m=memo.match(/char\.days\s*>=\s*(\d+)/))return +me.day>=+m[1];
+ if(/cook\.recipes\.size\s*>=\s*(\d+)/.test(memo)){const n=+(memo.match(/cook\.recipes\.size\s*>=\s*(\d+)/)||[])[1]||0;return (me.crafted||[]).filter(x=>ITEM_BY_NAME[x]&&ITEM_BY_NAME[x].sub==="요리").length>=n}
+ if(t.id==="T-117")return !!titleState.meta.will;
+ if(t.id==="T-118")return (titleState.meta.deaths||0)>=3;
+ if(t.id==="T-083")return !!me.pet;
+ if(t.id==="T-085")return !!(me.pet&&+me.pet.affection>=100);
+ if(t.id==="T-034"&&/도감/.test(cond))return Object.keys(me.codexMonsters||{}).length>=MONSTERS.length;
+ const c=titleCounters();
+ if(m=memo.match(/([a-z][a-z0-9_.]+)\s*>=\s*(\d+)/)){
+  const key=m[1],base=key.endsWith(".size")?key.slice(0,-5):key,raw=titleCounter(base);
+  const cur=key.endsWith(".size")?(Array.isArray(raw)?raw.length:Object.keys(raw||{}).length):(+raw||0);
+  return cur>=+m[2];
+ }
+ if(m=memo.match(/([a-z][a-z0-9_.]+)\s*=\s*true/))return !!titleCounter(m[1]);
+ if(/battle\.bossKills\.names has/.test(memo)){const a=titleCounter("battle.bossKills.names")||[];return a.includes("적룡")||a.includes("흑룡")}
+ if(/quests\.tiersDone has/.test(memo)){const a=titleCounter("quests.tiersDone")||[];return [1,2,3,4].every(v=>a.includes(v))}
+ if(/explore\.continentAreasFull/.test(memo)){const seen=titleCounter("explore.areas")||[];return Object.values(WORLD).some(w=>w.areas&&w.areas.length&&w.areas.every(a=>seen.includes(w.name+"|"+a.id)))}
+ if(/npc\.all100/.test(memo))return Object.keys(me.affection||{}).length>=17&&Object.values(me.affection||{}).every(v=>+v>=100);
+ if(m=memo.match(/explore\.short\.today\s*>=\s*(\d+)/))return (+me.exploreCount||0)>=+m[1];
+ if(m=memo.match(/quests\.dailyDone\s*>=\s*(\d+)/)){const tday=today(),n=Object.values((me.quests&&me.quests.done)||{}).filter(v=>v===tday).length;return n>=+m[1]}
+ if(t.guild==="leader")return titleGuildRoleOk(t);
+ if(t.guild==="member")return titleGuildRoleOk(t);
+ return false;
+}
+function titleCheck(){
+ titleLoad();
+ try{titleMax("gold.max",+me.gold||0)}catch(e){}
+ let added=0,accAdded=false;
+ for(const t of TITLE_DATA){const isAcc=TITLE_ACCOUNT_IDS.has(t.id),box=isAcc?titleState.account:titleState.earned;if(box[t.key])continue;try{if(titleCanEarn(t)){box[t.key]={at:Date.now()};added++;if(isAcc)accAdded=true}}catch(e){}}
+ const eq=titleEquipped(),wasEq=titleState.equipped;
+ if(eq&&eq.guild&&!titleGuildRoleOk(eq))titleState.equipped=null;
+ if(added||titleState.equipped!==wasEq){titleSave();if(accAdded)titleSaveAccount()}
+ if(added)try{toast(`칭호 ${added}개를 획득했습니다.`)}catch(e){}
+ try{updateProfileTitle()}catch(e){}
+ return added;
+}
+function titleAwardAll(){
+ if(!me.isAdmin)return toast("관리자만 사용할 수 있습니다.");
+ titleLoad();const now=Date.now();let accAdded=false;
+ TITLE_DATA.forEach(t=>{const isAcc=TITLE_ACCOUNT_IDS.has(t.id),box=isAcc?titleState.account:titleState.earned;if(!box[t.key]){box[t.key]={at:now};if(isAcc)accAdded=true}});
+ titleSave();if(accAdded)titleSaveAccount();updateProfileTitle();
+ try{toast("모든 칭호를 획득 처리했습니다.")}catch(e){}
+ titleRender();
+}
+function titleDate(t){const at=titleEarnedAt(t);if(!at)return"";try{return new Date(at).toLocaleDateString("ko-KR")}catch(e){return""}}
+function titleList(){
+ const q=String(titleQuery||"").trim().toLowerCase();
+ return TITLE_DATA.filter(t=>{
+  const owned=titleOwned(t);
+  if(titleFilter==="got"&&!owned)return false;
+  if(titleFilter==="miss"&&owned)return false;
+  if(titleCat!=="all"&&t.cat!==titleCat)return false;
+  if(!q)return true;
+  const hay=[owned?titleDisplay(t):t.name,t.cat,t.grade,owned?t.cond:"",t.cond].join(" ").toLowerCase();
+  return hay.includes(q);
+ }).sort((a,b)=>{
+  const ga=TITLE_GRADE_ORDER.indexOf(a.grade),gb=TITLE_GRADE_ORDER.indexOf(b.grade);
+  if(ga!==gb)return ga-gb;
+  if(a.cat!==b.cat)return String(a.cat).localeCompare(String(b.cat),"ko");
+  return String(titleDisplay(a)).localeCompare(String(titleDisplay(b)),"ko");
+ });
+}
+function titleCard(t){
+ const owned=titleOwned(t),equipped=titleState.equipped===t.key,hidden=t.hidden&&!owned;
+ const name=hidden?"???":titleDisplay(t),grade=hidden?"???":t.grade,col=hidden?"#8a8776":(TITLE_GRADE_COLOR[t.grade]||"#8a8776");
+ const state=equipped?"장착 중":owned?"획득":"미획득";
+ return `<button type="button" class="title-card${owned?" got":""}${equipped?" equipped":""}${titleSelected===t.key?" sel":""}" data-title-key="${esc(t.key)}" style="--title-grade:${col}"><span class="title-grade">${esc(grade)}</span><span class="title-main"><span class="title-nm">「${esc(name)}」</span><span class="title-cond">${esc(hidden?"히든 칭호":t.cond||"")}</span></span><span class="title-st">${state}</span></button>`;
+}
+function titleProgress(t){
+ const out=[],memo=String(t.memo||""),stats=Array.isArray(me.stats)?me.stats:[];
+ let m;
+ const push=(label,cur,max,unit="")=>out.push({label,value:`${cur}${unit} / ${max}${unit}`,done:+cur>=+max});
+ if(/stats\.all10/.test(memo)||/6개 능력치 전부/.test(memo)||/모든 능력치 10/.test(String(t.cond||""))){TITLE_STAT_LABELS.forEach(([k,label])=>{const cur=+stats[STAT_IDX[k]]||0;push(label,cur,10)});return out}
+ if(m=memo.match(/stats\.(str|agi|int|luck|vit|per)\s*>=\s*(\d+)/)){const label=(TITLE_STAT_LABELS.find(x=>x[0]===m[1])||[])[1]||m[1];push(label,+stats[STAT_IDX[m[1]]]||0,+m[2]);return out}
+ if(/stats\.two20/.test(memo)||/상위 두 능력치/.test(memo)||/능력치 2종을 20/.test(String(t.cond||""))){const n=stats.filter(v=>+v>=20).length;out.push({label:"20 이상 능력치",value:`${n} / 2`,done:n>=2});return out}
+ if(m=memo.match(/level\.max\s*>=\s*(\d+)/)){push("레벨",me.lv,+m[1]);return out}
+ if(m=memo.match(/skills\.([a-z]+)\s*>=\s*(\d+)/)){const names={melee:"근접",ranged:"궁술",magic:"마법",stealth:"은신",heal:"치유",cook:"요리",craft:"제작",talk:"교섭",search:"탐색",survival:"생존"};push(names[m[1]]||m[1],(+me.skills[m[1]]||0),+m[2]);return out}
+ if(/skills\.any15/.test(memo)){const n=Object.values(me.skills||{}).filter(v=>+v>=15).length;out.push({label:"15 이상 기능",value:`${n} / 1`,done:n>=1});return out}
+ if(/skills\.two10/.test(memo)){const n=Object.values(me.skills||{}).filter(v=>+v>=10).length;out.push({label:"10 이상 기능",value:`${n} / 2`,done:n>=2});return out}
+ if(m=memo.match(/gold\.max\s*>=\s*(\d+)/)){const cur=Math.max(+me.gold||0,+titleCounter("gold.max")||0),need=+m[1];out.push({label:"보유 골드",value:`${cur.toLocaleString()} G / ${need.toLocaleString()} G`,done:cur>=need});return out}
+ if(m=memo.match(/social\.friends\s*>=\s*(\d+)/)){push("친구",Object.keys(me.friends||{}).length,+m[1],"명");return out}
+ if(m=memo.match(/npc\.maxAffection\s*>=\s*(\d+)/)){push("NPC 최고 호감도",titleMaxAffection(),+m[1]);return out}
+ if(m=memo.match(/pet\.affectionMax\s*>=\s*(\d+)/)){push("애완동물 호감도",me.pet?+me.pet.affection||0:0,+m[1]);return out}
+ if(m=memo.match(/vehicle\.airTier\s*>=\s*(\d+)/)){const v=(me.vehicles||[]).find(x=>x.type==="비행선"),cur=v?+v.tier||0:0;out.push({label:"비행선 개조",value:`${cur} / 3`,done:cur>=+m[1]});return out}
+ if(m=memo.match(/vehicle\.horseTier\s*>=\s*(\d+)/)){const v=(me.vehicles||[]).find(x=>x.type==="말"),cur=v?+v.tier||0:0;out.push({label:"말 훈련",value:`${cur} / 3`,done:cur>=+m[1]});return out}
+ if(m=memo.match(/collect\.legendary\s*>=\s*(\d+)/)){push("전설 아이템 도감",titleCodexCount("전설"),+m[1],"종");return out}
+ if(m=memo.match(/collect\.mythic\s*>=\s*(\d+)/)){push("신화 아이템 도감",titleCodexCount("신화"),+m[1],"종");return out}
+ if(m=memo.match(/collect\.items\.size\s*>=\s*(\d+)/)){push("아이템 도감",Object.keys(me.codexItems||{}).length,+m[1],"종");return out}
+ if(m=memo.match(/titles\.count\s*>=\s*(\d+)/)){push("보유 칭호",titleEarnedCount(),+m[1],"개");return out}
+ if(m=memo.match(/quests\.done\s*>=\s*(\d+)/)){push("완료 의뢰",Object.keys((me.quests&&me.quests.done)||{}).length,+m[1],"건");return out}
+ if(m=memo.match(/char\.days\s*>=\s*(\d+)/)){push("생존 일수",me.day,+m[1],"일");return out}
+ if(m=memo.match(/craft\.total\s*>=\s*(\d+)/)){push("제작",+titleCounter("craft.total")||0,+m[1],"회");return out}
+ if(m=memo.match(/cook\.recipes\.size\s*>=\s*(\d+)/)){push("요리 레시피",(me.crafted||[]).filter(x=>ITEM_BY_NAME[x]&&ITEM_BY_NAME[x].sub==="요리").length,+m[1],"개");return out}
+ if(t.id==="T-117"){out.push({label:"유언",value:titleState.meta.will?"남김":"없음",done:!!titleState.meta.will});return out}
+ if(t.id==="T-118"){const d=titleState.meta.deaths||0;out.push({label:"사망 횟수",value:`${d} / 3`,done:d>=3});return out}
+ if(t.id==="T-083"){out.push({label:"애완동물",value:me.pet?me.pet.name:"없음",done:!!me.pet});return out}
+ if(t.id==="T-034"&&/도감/.test(String(t.cond||""))){push("몬스터 도감",Object.keys(me.codexMonsters||{}).length,MONSTERS.length,"종");return out}
+ if(t.guild){out.push({label:"길드",value:me.guildId?(guildTitleCache.role==="leader"?"길드장":guildTitleCache.role==="member"?"길드원":"길드 가입"):"미가입",done:titleGuildRoleOk(t)});return out}
+ if(/explore\.continentAreasFull/.test(memo)){const seen=titleCounter("explore.areas")||[];const done=Object.values(WORLD).some(w=>w.areas&&w.areas.length&&w.areas.every(a=>seen.includes(w.name+"|"+a.id)));out.push({label:"한 대륙 모든 지역 방문",value:done?"달성":"미달성",done});return out}
+ if(/npc\.all100/.test(memo)){const n=Object.values(me.affection||{}).filter(v=>+v>=100).length;out.push({label:"호감도 100 NPC",value:`${n} / 17`,done:n>=17});return out}
+ if(m=memo.match(/explore\.short\.today\s*>=\s*(\d+)/)){out.push({label:"오늘 단기 탐사",value:`${+me.exploreCount||0} / ${m[1]}`,done:(+me.exploreCount||0)>=+m[1]});return out}
+ if(m=memo.match(/quests\.dailyDone\s*>=\s*(\d+)/)){const tday=today(),n=Object.values((me.quests&&me.quests.done)||{}).filter(v=>v===tday).length;out.push({label:"오늘 완료 의뢰",value:`${n} / ${m[1]}`,done:n>=+m[1]});return out}
+ if(m=memo.match(/([a-z][a-z0-9_.]+)\s*>=\s*(\d+)/)){
+  const key=m[1],base=key.endsWith(".size")?key.slice(0,-5):key,raw=titleCounter(base);
+  const cur=key.endsWith(".size")?(Array.isArray(raw)?raw.length:Object.keys(raw||{}).length):(+raw||0);
+  out.push({label:TITLE_COUNTER_LABELS[key]||TITLE_COUNTER_LABELS[base]||base,value:`${cur} / ${m[2]}`,done:cur>=+m[2]});return out;
+ }
+ if(m=memo.match(/([a-z][a-z0-9_.]+)\s*=\s*true/)){const v=!!titleCounter(m[1]);out.push({label:TITLE_COUNTER_LABELS[m[1]]||m[1],value:v?"달성":"미달성",done:v});return out}
+ return out;
+}
+function titleDetail(t){
+ if(!t)return `<div class="title-empty">칭호를 선택하세요.</div>`;
+ const owned=titleOwned(t),equipped=titleState.equipped===t.key,hidden=t.hidden&&!owned;
+ const name=hidden?"???":titleDisplay(t),grade=hidden?"???":t.grade,col=hidden?"#8a8776":(TITLE_GRADE_COLOR[t.grade]||"#8a8776");
+ const roleOk=titleGuildRoleOk(t);
+ const canEquip=owned&&roleOk;
+ const cond=hidden?"히든 칭호 · 조건을 만족하면 공개됩니다.":(t.cond||"조건 없음");
+ const prog=hidden?[]:titleProgress(t);
+ const progress=prog.length?`<div class="title-progress">${prog.map(p=>`<div class="title-prow${p.done?" done":""}"><span>${esc(p.label)}</span><b>${esc(p.value)}</b></div>`).join("")}</div>`:"";
+ const note=t.guild?`<div class="title-note">길드 설정에서 길드장·길드원 칭호 이름을 바꿀 수 있습니다. 현재: 길드장 「${esc(titleGuildName("leader"))}」 · 길드원 「${esc(titleGuildName("member"))}」</div>`:t.id==="T-083"||t.id==="T-085"?`<div class="title-note">현재 애완동물: ${esc(me.pet?me.pet.name:"없음")}</div>`:"";
+ const tags=`<div class="title-tags"><span class="title-tag ${owned?"on":""}">${owned?"획득 완료":"미획득"}</span>${equipped?'<span class="title-tag eq">장착 중</span>':""}${owned&&titleDate(t)?`<span class="title-tag">${esc(titleDate(t))}</span>`:""}${!roleOk&&t.guild?'<span class="title-tag">현재 길드에서 사용 불가</span>':""}</div>`;
+ return `<div class="title-dhead"><h3>「${esc(name)}」</h3><span class="title-grade" style="--title-grade:${col}">${esc(grade)}</span></div><div class="title-dsub">${esc(t.cat)}${t.id?` · ${esc(t.id)}`:""}</div><div class="title-dcond"><b>획득 조건</b><br>${esc(cond)}</div>${progress}${tags}${note}${canEquip?`<div class="title-actions"><button type="button" class="btn sm" data-title-equip="${esc(t.key)}">${equipped?"해제":"장착"}</button></div>`:""}`;
+}
+function titleRefresh(){
+ if(!$("titleList"))return;
+ const list=titleList();
+ if(!list.some(t=>t.key===titleSelected))titleSelected=(titleEquipped()&&list.some(t=>t.key===titleState.equipped)?titleState.equipped:(list[0]?list[0].key:null));
+ $("titleList").innerHTML=list.length?list.map(titleCard).join(""):`<div class="title-empty">검색 결과가 없습니다.</div>`;
+ $("titleDetail").innerHTML=titleDetail(titleSelected?TITLE_BY_KEY[titleSelected]:null);
+ const c=$("titleCount");if(c)c.textContent=`${titleEarnedCount()} / ${TITLE_DATA.length} 획득`;
+}
+function titleRender(){
+ titleLoad();titleCheck();
+ const list=titleList();
+ if(!titleSelected||!list.some(t=>t.key===titleSelected))titleSelected=titleEquipped()&&list.some(t=>t.key===titleState.equipped)?titleState.equipped:(list[0]?list[0].key:null);
+ const cats=[...new Set(TITLE_DATA.map(t=>t.cat))];
+ $("titleBody").innerHTML=`<div class="titles"><div class="titles-head"><b class="titles-title">칭호</b><span class="titles-count" id="titleCount">${titleEarnedCount()} / ${TITLE_DATA.length} 획득</span><input type="search" id="titleSearch" class="titles-search" placeholder="칭호명·조건 검색" value="${esc(titleQuery)}" autocomplete="off"><div class="titles-filters">${[["all","전체"],["got","획득"],["miss","미획득"]].map(([k,l])=>`<button type="button" class="titles-filter" data-title-filter="${k}" aria-selected="${titleFilter===k}">${l}</button>`).join("")}</div><select id="titleCat" class="titles-cat" aria-label="분류"><option value="all">모든 분류</option>${cats.map(c=>`<option value="${esc(c)}" ${titleCat===c?"selected":""}>${esc(c)}</option>`).join("")}</select><button type="button" class="titles-test" id="titleRecheck">조건 재판정</button></div><div class="titles-body"><div class="titles-list" id="titleList"></div><div class="title-detail" id="titleDetail"></div></div><div class="title-note">칭호는 장착해도 능력치 효과가 없습니다. 획득한 칭호는 계정 미리보기 저장소에 보관됩니다.</div></div>`;
+ const si=$("titleSearch");if(si)si.oninput=()=>{titleQuery=si.value;titleRefresh()};
+ $("titleCat").onchange=()=>{titleCat=$("titleCat").value;titleRefresh()};
+ $("titleRecheck").onclick=()=>{const n=titleCheck();if(!n)toast("새로 획득한 칭호가 없습니다.");titleRefresh();};
+ $("titleList").onclick=e=>{const b=e.target.closest("[data-title-key]");if(!b)return;titleSelected=b.dataset.titleKey;titleRefresh()};
+ document.querySelectorAll("#titleBody [data-title-filter]").forEach(b=>b.onclick=()=>{titleFilter=b.dataset.titleFilter;document.querySelectorAll("#titleBody [data-title-filter]").forEach(x=>x.setAttribute("aria-selected",String(x===b)));titleRefresh()});
+ $("titleDetail").onclick=e=>{const b=e.target.closest("[data-title-equip]");if(!b)return;titleEquip(b.dataset.titleEquip)};
+ titleRefresh();
+}
+function titleEquip(key){
+ const t=TITLE_BY_KEY[key];if(!t)return;
+ if(!titleOwned(t))return toast("아직 획득하지 않은 칭호입니다.");
+ if(t.guild&&!titleGuildRoleOk(t))return toast("현재 길드에서 사용할 수 없는 칭호입니다.");
+ titleState.equipped=titleState.equipped===key?null:key;titleSave();updateProfileTitle();titleRefresh();
+ try{toast(titleState.equipped?`「${titleDisplay(t)}」 칭호를 장착했습니다.`:"칭호를 해제했습니다.")}catch(e){}
+}
+function updateProfileTitle(){
+ const el=$("charTitle");if(!el)return;
+ const t=titleEquipped();
+ if(!t||(t.guild&&!titleGuildRoleOk(t))){el.hidden=true;el.textContent="";return}
+ el.hidden=false;el.textContent=`「${titleDisplay(t)}」`;el.style.color=TITLE_GRADE_COLOR[t.grade]||"var(--accent-text)";el.title="클릭해서 칭호 변경";
+}
+function applyGuildTitleCache(g){
+ if(!g)return;
+ const t=g.titles&&typeof g.titles==="object"?g.titles:{};
+ guildTitleCache.leader=String(t.leader||"길을 여는 자").slice(0,20);
+ guildTitleCache.member=String(t.member||"길드의 문").slice(0,20);
+ guildTitleCache.role=g.leader===uid?"leader":(g.members&&g.members[uid]?"member":"");
+ try{updateProfileTitle()}catch(e){}
+ try{if($("v-titles")&&!$("v-titles").hidden)titleRefresh()}catch(e){}
+}
+function titleOnLog(type,text,data){
+ try{
+  const d=data||{};
+  if(type==="battle"){
+   if(d.status==="win"){
+    titleAdd("battle.wins");titleAdd("battle.kills.total");
+    const st=(+titleCounter("battle.winStreak")||0)+1;titleSet("battle.winStreak",st);titleMax("battle.winStreakMax",st);
+    if(+d.hp<=1)titleFlag("battle.winAt1Hp");
+    if(d.boss||d.role==="보스"||/boss/i.test(String(d.role||""))){
+     titleAdd("battle.bossKills.total");
+     const mon=(typeof MONSTERS!=="undefined"?MONSTERS:[]).find(x=>x.name===d.monster),grade=mon&&mon.grade;
+     if(grade==="전설")titleAdd("battle.bossKills.grade.legend");
+     if(grade==="신화")titleAdd("battle.bossKills.grade.myth");
+     titleSetAdd("battle.bossKills.unique",d.monster);titleSetAdd("battle.bossKills.names",d.monster);
+     if(+d.partySize>=5)titleFlag("battle.partySize5Boss");
+     if(+d.partySize===1)titleFlag("battle.soloBoss");
+     if(d.crit)titleFlag("battle.critBossKill");
+    }
+   }else titleSet("battle.winStreak",0);
+  }else if(type==="trap")titleAdd("explore.traps");
+  else if(type==="downed")titleAdd("battle.downs");
+  else if(type==="revive"){if(!d.self)titleAdd("battle.revivedByOther")}
+  else if(type==="expedition"){
+   if(d.kind==="dungeon")titleAdd("explore.dungeon.total");
+   const w=+d.wins||0;
+   if(w){titleAdd("battle.wins",w);titleAdd("battle.kills.total",w)}
+   const bw=+d.bossWins||0;
+   if(bw){titleAdd("battle.bossKills.total",bw);(Array.isArray(d.bossNames)?d.bossNames:[]).forEach(n=>{titleSetAdd("battle.bossKills.unique",n);titleSetAdd("battle.bossKills.names",n);try{const mon=(typeof MONSTERS!=="undefined"?MONSTERS:[]).find(x=>x&&x.name===n);if(mon&&mon.grade==="전설")titleAdd("battle.bossKills.grade.legend");if(mon&&mon.grade==="신화")titleAdd("battle.bossKills.grade.myth")}catch(e){}});if(+d.partySize>=5)titleFlag("battle.partySize5Boss");if(+d.partySize===1)titleFlag("battle.soloBoss")}
+   if(+d.maxStreak)titleMax("battle.winStreakMax",+d.maxStreak);
+   if(d.critBoss)titleFlag("battle.critBossKill");
+   if(d.overweight2)titleFlag("explore.overweight2");
+   if(d.hungerLow)titleFlag("hunger.lowReturn");
+   if(d.majwangBossReturn)titleFlag("explore.majwangBossReturn");
+   if(d.cont==="마왕성"&&+d.bossWins>0&&!d.partial)titleFlag("explore.majwangBossReturn");
+   if(d.cont==="마왕성"&&!d.partial)titleFlag("explore.majwangReturned");
+   if(d.night&&/마왕성/.test(String(d.cont||d.area||"")))titleFlag("explore.majwangNight");
+   if(+d.partyJobs>=5)titleFlag("party.jobs5");
+  }else if(type==="quest"){
+   const q=(typeof QUEST_DATA!=="undefined"?QUEST_DATA:[]).find(x=>x.id===d.quest);
+   if(q&&q.t>=1&&q.t<=4)titleSetAdd("quests.tiersDone",q.t);
+  }else if(type==="will"){
+   if(String(d.will||"").trim()){titleState.meta.will=true;titleSaveAccount()}
+  }else if(type==="death"){
+   titleState.meta.deaths=Math.max(0,+titleState.meta.deaths||0)+1;titleSaveAccount();
+  }else if(type==="session"){
+   titleTrackLogin();
+  }
+ }catch(e){}
+}
+function titleTrackLogin(){
+ const now=new Date(),day=new Intl.DateTimeFormat("sv",{timeZone:"Asia/Seoul"}).format(now),hour=+new Intl.DateTimeFormat("en-GB",{timeZone:"Asia/Seoul",hour:"numeric",hourCycle:"h23"}).format(now);
+ const last=titleCounter("login.day"),streak=(+titleCounter("login.streak")||0);
+ if(last!==day){titleSet("login.day",day);titleSet("login.streak",last?streak+1:1)}
+ const curStreak=+titleCounter("login.streak")||0;
+ if(curStreak>=7)titleFlag("login.streak7");
+ if(curStreak>=30)titleFlag("login.streak30");
+ if(hour===4)titleFlag("meta.dawn4");
+}
+function titleTrackExplore(){
+ titleAdd("explore.short.total");
+ titleSet("explore.short.today",+me.exploreCount||0);
+ titleSetAdd("explore.continents",me.cont);
+ titleSetAdd("explore.areas",me.cont+"|"+me.area);
+ if(me.area==="cap")titleSetAdd("explore.capitals",me.cont);
+ try{titleSetAdd("explore.weathers",curWeather().n)}catch(e){}
+ try{if(calcStats(me).weightPenalty>=2)titleFlag("explore.overweight2")}catch(e){}
+}
+function titleRetroLogs(){
+ if(!uid||!me.titles||me.titles.retroLogs)return;
+ me.titles.retroLogs=true;
+ try{S.getLogs(uid).then(all=>{
+  const slots=all&&all[charId];if(!slots||typeof slots!=="object")return;
+  Object.values(slots).filter(e=>e&&e.type&&isFinite(+e.at)).sort((a,b)=>+a.at-+b.at).forEach(e=>{try{if(e.type!=="session"&&e.type!=="event")titleOnLog(e.type,e.text||"",e.data||{})}catch(x){}});
+  titleCheck();
+  try{opts.save({titles:me.titles})}catch(e){}
+ }).catch(()=>{})}catch(e){}
+}
+updateProfileTitle();
+try{titleCheck();titleTrackLogin()}catch(e){}
+try{titleRetroLogs()}catch(e){}
+const charTitleEl=$("charTitle");if(charTitleEl){charTitleEl.onclick=()=>setTab("titles");charTitleEl.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();setTab("titles")}};charTitleEl.tabIndex=0}
+_ids.push(setInterval(()=>{try{titleCheck()}catch(e){}},15000));
+
 function setTab(t){
  const b=document.querySelector(`#tabs .tab[data-t="${t}"]`);if(!b)return;
  document.querySelectorAll("#tabs .tab").forEach(x=>x.setAttribute("aria-selected",x===b));
- ["map","inv","stat","codex","guild","friends"].forEach(k=>$("v-"+k).hidden=k!==t);
+ ["map","inv","stat","titles","codex","guild","friends"].forEach(k=>$("v-"+k).hidden=k!==t);
  if(t==="guild")startGuildTab();else stopGuildTab();
  if(t==="friends")startFriendsTab();else stopFriendsTab();
+ if(t==="titles")titleRender();
  if(t==="codex")codexRender();
 }
 $("tabs").onclick=e=>{const b=e.target.closest(".tab");if(!b)return;setTab(b.dataset.t)};
@@ -7988,7 +8416,10 @@ function startProposalRun(){
  if(p.proposerUid!==uid&&late<4000)return;
  if(late>PROPOSAL_JOIN_WINDOW){
   if(me.pendingRun&&me.pendingRun.id===p.id){startRunTx(p,participants,+p.startAt);return}
-  if(proposalMissedId!==p.id){proposalMissedId=p.id;toast("출발 시간이 지나 참가하지 못했다.");renderProposalPanels()}
+  // 참가 의사(제안자 본인 또는 함께 가기 응답)가 없는 파티원에게는 지난 제안 알림을 띄우지 않는다.
+  const myResp=p.responses&&p.responses[uid],requested=p.proposerUid===uid||!!(myResp&&myResp.yes);
+  if(requested&&proposalMissedId!==p.id){proposalMissedId=p.id;toast("출발 시간이 지나 참가하지 못했다.");renderProposalPanels()}
+  else proposalMissedId=p.id;
   return;
  }
  startRunTx(p,participants,Date.now());
@@ -8848,6 +9279,7 @@ function guardBadgeCheck(id){
  const item=lootObj("성기사의 휘장");
  if(!canAdd(item)){toast(`${inf?inf[1]:"경비병"}이(가) 줄 것이 있다고 한다. 소지품을 비우고 다시 말을 걸어 주세요.`);return}
  addItem(item);me.badgeGiven[key]=true;bag();
+ try{titleFlag("npc.guardBadge")}catch(e){}
  try{opts.save(cp(snap()))}catch(e){}
  pop("성기사의 휘장",`<p><b>${esc(inf?inf[0]+" "+inf[1]:"")}</b></p><p>“${esc(line)}”</p><p class="dim" style="margin-top:10px"><b>성기사의 휘장</b>을 받았다.</p>`,[{t:"확인"}]);
 }
@@ -8945,6 +9377,7 @@ function npcGiveGift(id,n){
  if(affectionOf(key)>=AFFECTION_MAX)return toast(`${inf[1]}의 호감도가 이미 가득 찼습니다.`);
  const rm=takeItems(n,1);if(!rm.length)return toast("보유하지 않았다.");
  addAffection(key,v);bag();
+ try{titleAdd("social.gifts")}catch(e){}
  const lines=npcLines(id).gift||[];npcLine=lines[giftTier(v)]||lines[0]||"";
  if(npcOpen===id){npcRender()}
  toast(`${inf[1]}에게 ${n}을(를) 선물했다.`);
@@ -9232,6 +9665,7 @@ $("tl").onclick=e=>{
   if(!starvationActionCost())return;
   if(!addItem(lootObj(n)))return tmsg("가방이 가득 찼다.");
   me.gold-=unit;bought.push(tag);
+  try{if(dailyMarketMod()===0.88)titleFlag("shop.rate88")}catch(e){}
   tmsg(`${n} 구입 (-${unit} G)`);
   awardAction("talk",ACTION_XP.trade,info(n).grade||"일반","talk");
   if(unit>=50)tryGoodTrait("상인의 촉");
@@ -9251,6 +9685,7 @@ $("tl").onclick=e=>{
    if(!added)return tmsg("가방이 가득 찼다.");
    const paid=unit*added;
    me.gold-=paid;
+   try{if(dailyMarketMod()===0.88)titleFlag("shop.rate88")}catch(e){}
    tmsg(`${n} ×${added} 구입 (-${paid} G)`);
    awardAction("talk",ACTION_XP.trade,info(n).grade||"일반","talk");
    if(paid>=50)tryGoodTrait("상인의 촉");
@@ -9370,7 +9805,7 @@ $("cl").onclick=async e=>{
  const self=!cureCtx.target,chance=cureChance(d,self,remain),success=Math.random()*100<chance,heal=success?cureHealRoll(d.id):0;
  if(cureCtx.target){
   const sent=await requestHeal(cureCtx.target,d.n,chance,success,heal,tr.item||"");
-  if(sent){if(tr.item&&count(tr.item)>0)consume(tr.item,1);bag();}
+  if(sent){if(success)try{titleAdd("heal.others")}catch(e){};if(tr.item&&count(tr.item)>0)consume(tr.item,1);bag();}
   return;
  }
  if(!free&&tr.item)consume(tr.item,1);bag();
@@ -9472,6 +9907,7 @@ function settleTrade(v){
  const key=tradePair+":"+((v&&v.at)||"")+":done";
  if(tradeDone.has(key))return;
  tradeDone.add(key);
+ try{titleAdd("social.trades")}catch(e){}
  const otherId=v.a===uid?v.b:v.a,theirs=tradeOffer(v,otherId),myGold=tradeGold(v,uid),theirGold=tradeGold(v,otherId);
  let forced=0;
  theirs.forEach(x=>{const it=cp(x);if(DELETED_ITEMS.has(nm(it)))return;if(!addItem(it)){me.inv.push(it);forced++}});
@@ -10079,7 +10515,7 @@ if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(u
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
 T(itemLogTick,2000);setTimeout(itemLogTick,0);
 function savePartyBattleSeen(){try{opts.save(cp(snap()))}catch(e){}}
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,codexItems:me.codexItems||{},codexMonsters:me.codexMonsters||{},speedPotionGrant:me.speedPotionGrant,dunBoxGrant1:!!me.dunBoxGrant1,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,rideSeen:me.rideSeen||"",inbox:me.inbox||[],outReqs:me.outReqs||[],friends:me.friends||{},party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,codexItems:me.codexItems||{},codexMonsters:me.codexMonsters||{},titles:me.titles||{earned:{},equipped:null,counters:{}},speedPotionGrant:me.speedPotionGrant,dunBoxGrant1:!!me.dunBoxGrant1,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,rideSeen:me.rideSeen||"",inbox:me.inbox||[],outReqs:me.outReqs||[],friends:me.friends||{},party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
 // 기존 캐릭터 1회 지급: 이동속도 증가 포션 20개
 const SPEED_POTION_GRANT_CUTOFF=Date.parse("2026-11-07T23:59:59+09:00");
 if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
@@ -10193,7 +10629,7 @@ function renderStatus(){
   row("무게 패널티","-"+st.weightPenalty,st.weightPenalty>0?"warn":"ok")
  ].join("");
  const skills=SKILL_KEYS.map(k=>{const lv=Math.max(0,Math.min(SKILL_MAX,+(me.skills[k]||0))),draft=+(skillDraft[k]||0),final=Math.min(SKILL_MAX,lv+draft),sneed=SKILL_XP_TABLE[final]||0,pct=final>=SKILL_MAX?100:Math.min(100,((me.skillXp[k]||0)/(sneed||1))*100),btns=canSkill?`<button class="pt" data-sk="${k}" data-d="-1" title="-1" ${draft<=0?"disabled":""}>−</button><button class="pt" data-sk="${k}" data-d="1" title="+1" ${skillLeft<=0||final>=SKILL_MAX?"disabled":""}>+</button>`:"";const traitNote=k==="magic"&&jobKey()==="마법사"?' title="직업 특성 마법 +5 포함"':"";return `<div class="strow skrow"><span${traitNote}>${SKILL_NAMES[k]}</span><span class="skbar"><i style="width:${pct}%"></i></span><b class="${draft?"pending":""}">${final}${btns}</b></div>`}).join("");
- const fxRows=me.fx.map((f,i)=>{const d=statusDefOf(f);return `<div class="strow" data-fxopen="${i}" style="cursor:pointer" title="클릭해서 상세 보기"><span><b class="${f.t==="buff"?"up":"dn"}">${esc(f.label||f.n)}</b>${f.stacks>1?` <small class="dim">×${safeNum(f.stacks,1)}</small>`:""} <small class="dim">${esc(d?d.sub:"")}</small></span><span><small class="dim">${esc(fxRemainText(f))}</small> <span class="dim" style="font-size:11px">상세 ›</span></span></div>`}).join("")||`<span class="dim">상태 효과가 없다.</span>`;
+ const fxRows=me.fx.map((f,i)=>{const d=statusDefOf(f);return `<div class="strow" data-fxopen="${i}" data-fxkey="${esc(f.id||f.label||f.n||i)}" style="cursor:pointer" title="클릭해서 상세 보기"><span><b class="${f.t==="buff"?"up":"dn"}">${esc(f.label||f.n)}</b>${f.stacks>1?` <small class="dim">×${safeNum(f.stacks,1)}</small>`:""} <small class="dim">${esc(d?d.sub:"")}</small></span><span><small class="dim">${esc(fxRemainText(f))}</small> <span class="dim" style="font-size:11px">상세 ›</span></span></div>`}).join("")||`<span class="dim">상태 효과가 없다.</span>`;
  const fxSection=`<h2 style="margin-top:14px">상태 효과 <span class="cnt">${me.fx.length} / 10</span></h2><div>${fxRows}</div><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn alt sm2" id="statusCureBtn">치료하기</button></div>`;
  const tm=toolMods(),toolRows=[
   ["조우 감소",tm.encounterRed?`-${fmt1(tm.encounterRed)}%`:""],
@@ -10228,7 +10664,7 @@ $("v-stat").onclick=e=>{const sp=e.target.closest("[data-sp]"),sk=e.target.close
  if(sk){stageSkill(sk.dataset.sk,+sk.dataset.d);return}
  if(e.target.closest("#statConfirm")){confirmAlloc();return}
  if(e.target.closest("#statReset")){resetAlloc();return}
- if(fx){openStatusDetail(me.fx[+fx.dataset.fxopen]);return}
+ if(fx){e.__fxHandled=true;const f=fxFind(fx.dataset.fxkey,fx.dataset.fxopen);if(f)openStatusDetail(f);else toast("상태 효과 정보를 찾을 수 없습니다.");return}
  if(e.target.closest("#statusCureBtn")){openCure();return}
 };
 function grantTrait(name,chance=.02){
