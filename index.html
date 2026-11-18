@@ -711,6 +711,9 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .g-settings-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px}
 #gameRoot .g-settings-grid label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--dim)}
 #gameRoot .g-settings-grid input{width:100%;box-sizing:border-box;background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:7px 8px;border-radius:6px;font:inherit;font-size:12px}
+#gameRoot .g-set{display:grid;grid-template-columns:auto minmax(0,1fr);gap:8px 10px;align-items:center}
+#gameRoot .g-set label{font-size:12px;color:var(--dim);white-space:nowrap}
+#gameRoot .g-set>div{grid-column:1/-1}
 #gameRoot .g-perm{display:flex;flex-direction:column;gap:4px}
 #gameRoot .g-perm-row{display:flex;align-items:center;gap:6px;font-size:12px;line-height:18px;flex-wrap:wrap}
 #gameRoot .g-perm-row>span:first-child{flex:1 1 90px;color:var(--text)}
@@ -5706,6 +5709,12 @@ function guildManageHtml(g){
   <div class="g-sub">권한 설정 <span class="dim">(선택한 등급 이상 가능)</span></div>
   <div class="g-perm">${guildPermRow(g,"memberManage",["vice","elite","member"])}${guildPermRow(g,"vaultDeposit")}${guildPermRow(g,"vaultWithdraw")}${guildPermRow(g,"warehouseDeposit")}${guildPermRow(g,"warehouseWithdraw")}</div>
   <div class="g-cost" style="margin-top:6px">출금 권한은 입금 권한 이상, 창고 빼기는 넣기 권한 이상으로 자동 조정됩니다.</div>
+  <div class="g-sub">길드 칭호 <span class="dim">(길드장·길드원이 장착할 수 있는 이름)</span></div>
+  <div class="g-settings-grid">
+   <label>길드장 칭호<input id="gTitleLeader" maxlength="20" value="${esc((g.titles&&g.titles.leader)||"길을 여는 자")}" placeholder="길을 여는 자"></label>
+   <label>길드원 칭호<input id="gTitleMember" maxlength="20" value="${esc((g.titles&&g.titles.member)||"길드의 문")}" placeholder="길드의 문"></label>
+  </div>
+  <div class="g-cost" style="margin-top:4px">비워 두면 기본값(길을 여는 자 / 길드의 문)으로 저장됩니다. 아래 상세 설정 저장 버튼으로 함께 저장됩니다.</div>
   <div style="text-align:right;margin-top:10px"><button class="sm2" data-gdetails>상세 설정 저장</button></div>
  </div>`:"";
  const appHtml=canManage?`<div class="g-sec"><div class="g-sech">가입 신청 <span class="dim">${apps.length}건</span></div>
@@ -5713,8 +5722,6 @@ function guildManageHtml(g){
  const settings=leader?`<div class="g-sec"><div class="g-sech">길드 설정</div><div class="g-set">
   <label>공개 여부</label><select id="gSetOpen"><option value="1" ${g.open!==false?"selected":""}>공개</option><option value="0" ${g.open===false?"selected":""}>미공개</option></select>
   <label>가입 방법</label><select id="gSetJoin">${opt("auto",g.joinMode)}${opt("approve",g.joinMode||"approve")}${opt("closed",g.joinMode)}</select>
-  <label>길드장 칭호</label><input id="gTitleLeader" maxlength="20" value="${esc((g.titles&&g.titles.leader)||"길을 여는 자")}" placeholder="길을 여는 자">
-  <label>길드원 칭호</label><input id="gTitleMember" maxlength="20" value="${esc((g.titles&&g.titles.member)||"길드의 문")}" placeholder="길드의 문">
   <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:10px"><button class="sm2" data-gdisband>길드 해산</button><button class="sm2" data-gsettings>설정 저장</button></div>
  </div></div>`:"";
  return memberList+detail+appHtml+settings;
@@ -6043,7 +6050,17 @@ async function guildSaveDetails(){
  let adjusted=false;
  if(guildRankValue(permissions.vaultWithdraw)<guildRankValue(permissions.vaultDeposit)){permissions.vaultWithdraw=permissions.vaultDeposit;adjusted=true}
  if(guildRankValue(permissions.warehouseWithdraw)<guildRankValue(permissions.warehouseDeposit)){permissions.warehouseWithdraw=permissions.warehouseDeposit;adjusted=true}
- try{await update(guildRef(guildView.gid),{rankNames,permissions});toast(adjusted?"상세 설정을 저장했습니다. (출금·빼기 권한을 입금·넣기 이상으로 조정했습니다.)":"상세 설정을 저장했습니다.")}catch(e){toast("상세 설정 저장에 실패했습니다.")}
+ const curTitles=g.titles&&typeof g.titles==="object"?g.titles:{};
+ const le=$("gTitleLeader"),meEl=$("gTitleMember");
+ const leaderTitle=le?(String(le.value||"").trim().slice(0,20)||"길을 여는 자"):(String(curTitles.leader||"").slice(0,20)||"길을 여는 자");
+ const memberTitle=meEl?(String(meEl.value||"").trim().slice(0,20)||"길드의 문"):(String(curTitles.member||"").slice(0,20)||"길드의 문");
+ const titles={leader:leaderTitle,member:memberTitle};
+ try{await update(guildRef(guildView.gid),{rankNames,permissions,titles});
+  guildTitleCache.leader=leaderTitle;guildTitleCache.member=memberTitle;
+  if(guildView.data)guildView.data.titles=titles;
+  try{updateProfileTitle()}catch(e){}
+  toast(adjusted?"상세 설정을 저장했습니다. (출금·빼기 권한을 입금·넣기 이상으로 조정했습니다.)":"상세 설정과 길드 칭호를 저장했습니다.")
+ }catch(e){toast("상세 설정 저장에 실패했습니다.")}
 }
 async function guildSaveSettings(){
  const g=guildView.data;if(!g)return;
@@ -6051,15 +6068,9 @@ async function guildSaveSettings(){
  const open=!($("gSetOpen")&&$("gSetOpen").value==="0");
  const joinMode=$("gSetJoin")&&$("gSetJoin").value;
  if(!["auto","approve","closed"].includes(joinMode))return;
- const leaderTitle=String(($("gTitleLeader")||{}).value||"").trim().slice(0,20)||"길을 여는 자";
- const memberTitle=String(($("gTitleMember")||{}).value||"").trim().slice(0,20)||"길드의 문";
- const titles={leader:leaderTitle,member:memberTitle};
  try{
-  await update(guildRef(guildView.gid),{open,joinMode,titles});
-  guildTitleCache.leader=leaderTitle;guildTitleCache.member=memberTitle;
-  if(guildView.data)guildView.data.titles=titles;
-  try{updateProfileTitle()}catch(e){}
-  toast("길드 설정과 칭호 이름을 저장했습니다.")
+  await update(guildRef(guildView.gid),{open,joinMode});
+  toast("길드 설정을 저장했습니다.")
  }catch(e){toast("설정 저장에 실패했습니다.")}
 }
 async function guildTick(){
