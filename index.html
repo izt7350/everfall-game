@@ -387,7 +387,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .log-inner{min-height:100%;display:flex;flex-direction:column;justify-content:flex-end}
 #gameRoot .msg{position:relative;display:block;padding:8px 64px 8px 0;border-bottom:1px solid var(--line);font-size:14px;line-height:20px;color:var(--text);letter-spacing:-0.1px}
 #gameRoot .msg:last-child{border-bottom:0}
-#gameRoot .msg .who{display:inline-block;margin-right:6px;font-weight:500;color:var(--name-color,var(--accent-text));white-space:nowrap}
+#gameRoot .msg .who{display:inline-block;margin-right:6px;font-weight:700;color:var(--name-color,var(--accent-text));white-space:normal;overflow-wrap:anywhere}
 #gameRoot .msg .txt{overflow-wrap:anywhere;white-space:pre-wrap}
 #gameRoot .msg .when{position:absolute;right:0;top:10px;font-size:12px;line-height:18px;color:var(--dim);font-variant-numeric:tabular-nums;white-space:nowrap}
 #gameRoot .msg.notice.editable{cursor:pointer}
@@ -2772,7 +2772,7 @@ const initialMageTrait=hasSavedSkills?(char.mageTraitMagic5===2?2:!!char.mageTra
 const initialPriestTrait=hasSavedSkills?(char.priestTraitHeal5===2?2:0):2;
 const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||char.origin,area:char.area||"cap",sub:char.sub||null,travel:char.travel||null,gold:char.gold??100,
  inv:cp(char.items||[]),equipped:cp(char.equipped||{}),vehicles:cp(char.vehicles||[]),pet:cp(char.pet||null),petAdoptLockUntil:Math.max(0,+char.petAdoptLockUntil||0),ground:cp(char.ground||{}),blocked:cp(char.blocked||[]),
- hp:cp(char.hp||[100,100]),mp:cp(char.mp||[100,100]),hunger:cp(char.hunger||[100,100]),isAdmin:!!opts.admin,speedPotionGrant:!!char.speedPotionGrant,speedPotionGrant2:!!char.speedPotionGrant2,dunBoxGrant1:!!char.dunBoxGrant1,mpGrant50:!!char.mpGrant50,partyBattleSeen:typeof char.partyBattleSeen==="string"?char.partyBattleSeen:"",itemLogSeq:Math.max(0,Math.floor(+char.itemLogSeq||0)),pendingRun:char.pendingRun||null,rideSeen:char.rideSeen||"",inbox:Array.isArray(char.inbox)?char.inbox:[],outReqs:Array.isArray(char.outReqs)?char.outReqs:[],friends:char.friends&&typeof char.friends==="object"?cp(char.friends):{},fx:cp(char.fx||[]),
+ hp:cp(char.hp||[100,100]),mp:cp(char.mp||[100,100]),hunger:cp(char.hunger||[100,100]),isAdmin:!!opts.admin,speedPotionGrant:!!char.speedPotionGrant,speedPotionGrant2:!!char.speedPotionGrant2,dunBoxGrant1:!!char.dunBoxGrant1,mpGrant50:!!char.mpGrant50,partyBattleSeen:typeof char.partyBattleSeen==="string"?char.partyBattleSeen:"",itemLogSeq:Math.max(0,Math.floor(+char.itemLogSeq||0)),pendingRun:char.pendingRun||null,proposalMissedId:char.proposalMissedId?String(char.proposalMissedId):null,rideSeen:char.rideSeen||"",inbox:Array.isArray(char.inbox)?char.inbox:[],outReqs:Array.isArray(char.outReqs)?char.outReqs:[],friends:char.friends&&typeof char.friends==="object"?cp(char.friends):{},fx:cp(char.fx||[]),
  color:/^#[0-9a-fA-F]{6}$/.test(char.color||"")?char.color:"#CB3533",
  photo:okPhoto(char.photo)?char.photo:null,
  traits:cp(Array.isArray(char.traits)?char.traits:(char.trait?[char.trait]:[])),
@@ -8272,7 +8272,7 @@ function dismissProposalPrompt(p){
 }
 function subscribePartyProposal(){
  if(partyProposalUnsub){try{partyProposalUnsub()}catch(e){}partyProposalUnsub=null}
- partyProposal=null;proposalMissedId=null;proposalPromptId=null;proposalPromptLabel=null;
+ partyProposal=null;proposalMissedId=me.proposalMissedId||null;proposalPromptId=null;proposalPromptLabel=null;
  if(!me.partyId){renderProposalPanels();return}
  partyProposalUnsub=onValue(ref(realtimeDB,"partyProposals/"+me.partyId),s=>{
   partyProposal=s.val()||null;partyProposalLoaded=true;
@@ -8396,6 +8396,8 @@ function scheduleProposalStart(){
 // 수락(또는 제안)하면 me.pendingRun에 기억해 두고, 다시 접속했을 때 그 탐사가 실제로 출발했으면 출발 시각으로 거슬러 합류한다.
 let partyExpLoaded=false,partyProposalLoaded=false;
 function setPendingRun(p){if(!p||!p.id)return;me.pendingRun={id:String(p.id),kind:p.kind,min:+p.min,startAt:+p.startAt,runLeader:p.proposerUid||null,partyId:me.partyId||null,at:Date.now()};try{opts.save(cp(snap()))}catch(e){}}
+function markProposalMissed(id){id=String(id||"unknown");proposalMissedId=id;if(me.proposalMissedId!==id){me.proposalMissedId=id;try{opts.save({proposalMissedId:id})}catch(e){}}}
+function proposalMissKey(p){const id=p&&p.id?String(p.id):"";if(id)return id;const who=p&&p.proposerUid?String(p.proposerUid):"?";const at=p&&p.startAt?String(p.startAt):"?";return who+"@"+at}
 function pendingRunEvidence(pr){
  const p=partyProposal;
  if(p&&p.id===pr.id&&p.status==="running")return {ran:true,participants:Array.isArray(p.participants)?p.participants:null};
@@ -8422,7 +8424,7 @@ function enterProposalRun(p,participants,o={}){
  if(!p||proposalRunId===p.id)return;
  // 바빠서 합류하지 못하면 알려준다 (예전에는 조용히 빠져서, 다른 파티원 화면에서는 같이 싸운 것처럼 보였음) — 2026-11-13
  const busy=me.expedition?"이미 탐사 중":me.travel?"이동 중":me.rest?"휴식 중":me.read?"독서 중":(me.downed||me.deadPending)?"쓰러진 상태":"";
- if(busy){if(proposalMissedId!==p.id){proposalMissedId=p.id;pop("파티 탐사 합류 대기",`<p>${busy}이라 아직 파티 ${esc(proposalKindLabel(p.kind))}에 합류하지 못했다.</p><p class="dim">${me.pendingRun&&me.pendingRun.id===p.id?"지금 하던 일이 끝나면 출발 시각부터 함께한 것으로 자동 합류한다.":"다른 파티원들은 당신 없이 출발했다."}</p>`,[{t:"확인"}])}return}
+ if(busy){if(proposalMissedId!==proposalMissKey(p)){markProposalMissed(proposalMissKey(p));pop("파티 탐사 합류 대기",`<p>${busy}이라 아직 파티 ${esc(proposalKindLabel(p.kind))}에 합류하지 못했다.</p><p class="dim">${me.pendingRun&&me.pendingRun.id===p.id?"지금 하던 일이 끝나면 출발 시각부터 함께한 것으로 자동 합류한다.":"다른 파티원들은 당신 없이 출발했다."}</p>`,[{t:"확인"}])}return}
  proposalRunId=p.id;if(me.pendingRun&&me.pendingRun.id===p.id)me.pendingRun=null;
  const runLeader=p.proposerUid||uid;
  (async()=>{
@@ -8455,9 +8457,9 @@ function startProposalRun(){
  if(late>PROPOSAL_JOIN_WINDOW){
   if(me.pendingRun&&me.pendingRun.id===p.id){startRunTx(p,participants,+p.startAt);return}
   // 참가 의사(제안자 본인 또는 함께 가기 응답)가 없는 파티원에게는 지난 제안 알림을 띄우지 않는다.
-  const myResp=p.responses&&p.responses[uid],requested=p.proposerUid===uid||!!(myResp&&myResp.yes);
-  if(requested&&proposalMissedId!==p.id){proposalMissedId=p.id;toast("출발 시간이 지나 참가하지 못했다.");renderProposalPanels()}
-  else proposalMissedId=p.id;
+  const myResp=p.responses&&p.responses[uid],requested=p.proposerUid===uid||!!(myResp&&myResp.yes),missKey=proposalMissKey(p);
+  if(requested&&proposalMissedId!==missKey){markProposalMissed(missKey);toast("출발 시간이 지나 참가하지 못했다.");renderProposalPanels()}
+  else proposalMissedId=missKey;
   return;
  }
  startRunTx(p,participants,Date.now());
@@ -8827,8 +8829,8 @@ document.addEventListener("everfall-theme",decorateNames);
 function render(){
  const lock=(cur==="notice"&&!me.isAdmin)||(cur==="guild"&&!me.guildId)||(cur==="party"&&!me.partyId)||!!me.downed||!!me.deadPending||(cur==="local"&&!!me.travel),noWhisper=cur==="whisper"&&!whisperUser;
  const msgs=(chatData[cur]||[]).filter(m=>cur==="notice"||cur==="whisper"||!me.blocked.includes(m.name)).map(m=>{
-  const realName=m.name||"무명",name=displayName(m.uid,realName),c=colorOf(m.c||(realName===me.name?me.color:"#CB3533")),sys=m.sys==="downed",canEdit=cur==="notice"&&me.isAdmin&&!!m.id,noProfile=isGmLabel(realName)||isGmLabel(name)||!m.uid;
-  return `<div class="msg ${cur==="notice"?"notice":""} ${sys?"sys":""}${canEdit?" editable":""}"${canEdit?` data-msg-edit="${esc(m.id)}" role="button" tabindex="0" title="클릭해서 공지 수정"`:""}>${sys?`<span class="who">시스템</span>`:noProfile?`<span class="who" style="--name-color:${c}">${esc(name)}</span>`:`<span class="who js-name" data-uid="${esc(m.uid||"")}" data-u="${esc(realName)}" title="캐릭터 정보 보기" style="--name-color:${c}">${esc(name)}</span>`}<span class="txt">${esc(m.t)}</span>${cur==="notice"&&m.editedAt?'<span class="edited">(수정됨)</span>':""}<span class="when">${chatTime(m.at)}</span></div>`}).join("");
+  const realName=m.name||"무명",name=displayName(m.uid,realName),c=colorOf(m.c||(realName===me.name?me.color:"#CB3533")),sys=m.sys==="downed",canEdit=cur==="notice"&&me.isAdmin&&!!m.id,noProfile=isGmLabel(realName)||isGmLabel(name)||!m.uid,ttl=String(m.title||"").trim(),ttlHtml=ttl?`<span class="chat-title">「${esc(ttl)}」</span> `:"";
+  return `<div class="msg ${cur==="notice"?"notice":""} ${sys?"sys":""}${canEdit?" editable":""}"${canEdit?` data-msg-edit="${esc(m.id)}" role="button" tabindex="0" title="클릭해서 공지 수정"`:""}>${sys?`<span class="who">시스템</span>`:noProfile?`<span class="who" style="--name-color:${c}">${ttlHtml}${esc(name)}</span>`:`<span class="who js-name" data-uid="${esc(m.uid||"")}" data-u="${esc(realName)}" title="캐릭터 정보 보기" style="--name-color:${c}">${ttlHtml}${esc(name)}</span>`}<span class="txt">${esc(m.t)}</span>${cur==="notice"&&m.editedAt?'<span class="edited">(수정됨)</span>':""}<span class="when">${chatTime(m.at)}</span></div>`}).join("");
  const logEl=$("log");
  logEl.innerHTML=msgs?`<div class="log-inner">${msgs}</div>`:`<div class="dim" style="padding:8px">${noWhisper?"귓속말을 보낼 상대를 선택하세요.":"아직 메시지가 없습니다."}</div>`;
  logEl.scrollTop=logEl.scrollHeight;
@@ -8997,10 +8999,11 @@ async function send(){const inp=$("inp"),keepFocus=document.activeElement===inp;
  const path=chatPath(cur);if(!path)return;
  inp.value="";try{growChatInput()}catch(e){}
  sending=true;render();
- const base={uid,name:me.name,t:v.slice(0,200),at:Date.now(),...(cur==="whisper"?{to:whisperUser.uid}:{})};
+ let titleText="";try{titleText=titleEquippedText()}catch(e){}
+ const base={uid,name:me.name,t:v.slice(0,200),at:Date.now(),...(titleText?{title:titleText}:{}),...(cur==="whisper"?{to:whisperUser.uid}:{})};
  try{
   try{await push(ref(realtimeDB,path),{...base,c:me.color})}catch(err){await push(ref(realtimeDB,path),base)}
-  if(cur==="whisper"&&whisperUser&&whisperUser.uid){try{set(ref(realtimeDB,"whisperPing/"+whisperUser.uid+"/"+uid),{from:uid,to:whisperUser.uid,name:me.name,t:v.slice(0,200),at:base.at,c:me.color}).catch(e=>{console.warn("whisperPing",e);toast("귓속말 알림 전송에 실패했습니다 · Firebase 규칙을 확인해 주세요.")})}catch(err){}}
+  if(cur==="whisper"&&whisperUser&&whisperUser.uid){try{set(ref(realtimeDB,"whisperPing/"+whisperUser.uid+"/"+uid),{from:uid,to:whisperUser.uid,name:me.name,t:v.slice(0,200),at:base.at,c:me.color,...(titleText?{title:titleText}:{})}).catch(e=>{console.warn("whisperPing",e);toast("귓속말 알림 전송에 실패했습니다 · Firebase 규칙을 확인해 주세요.")})}catch(err){}}
   if(cur==="whisper"&&whisperUser){whisperTouch(whisperUser.uid,whisperUser.name)}
    render()
  }
@@ -10553,7 +10556,7 @@ if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(u
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
 T(itemLogTick,2000);setTimeout(itemLogTick,0);
 function savePartyBattleSeen(){try{opts.save(cp(snap()))}catch(e){}}
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,codexItems:me.codexItems||{},codexMonsters:me.codexMonsters||{},titles:titleSafeTitles(),speedPotionGrant:me.speedPotionGrant,dunBoxGrant1:!!me.dunBoxGrant1,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,rideSeen:me.rideSeen||"",inbox:me.inbox||[],outReqs:me.outReqs||[],friends:me.friends||{},party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,codexItems:me.codexItems||{},codexMonsters:me.codexMonsters||{},titles:titleSafeTitles(),speedPotionGrant:me.speedPotionGrant,dunBoxGrant1:!!me.dunBoxGrant1,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,proposalMissedId:me.proposalMissedId||null,rideSeen:me.rideSeen||"",inbox:me.inbox||[],outReqs:me.outReqs||[],friends:me.friends||{},party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
 // 기존 캐릭터 1회 지급: 이동속도 증가 포션 20개
 const SPEED_POTION_GRANT_CUTOFF=Date.parse("2026-11-07T23:59:59+09:00");
 if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
