@@ -1496,7 +1496,7 @@ async function doSignup(){const e=$("err"),id=$("sid").value.trim(),p1=$("sp1").
 function kit(job="모험가"){
  const k=jobKitData(job),d=(n,dur,max)=>({n,dur,max}),inv=[];
  k.items.forEach(([n,q])=>{for(let i=0;i<q;i++)inv.push(n)});
- return{v2:1,items:inv,equipped:{main:d(k.weapon,10,10),sub:null,armor:d(k.armor,12,12),acc1:k.acc1?d(k.acc1,8,8):null,acc2:null,bag:k.bag||null},ground:{}};
+ return{v2:1,items:inv,equipped:{main:d(k.weapon,15,15),sub:null,armor:d(k.armor,12,12),acc1:k.acc1?d(k.acc1,8,8):null,acc2:null,bag:k.bag||null},ground:{}};
 }
 async function enter(){const errEl=$("err");if(errEl)errEl.textContent="";
  try{const ban=await S.getBan(me.uid);if(ban)return go("banned",ban);
@@ -2266,7 +2266,7 @@ RUINS_ITEMS.forEach(d=>{ITEM_DATA.push(d);ITEM_BY_NAME[d.name]=d;registerItem(d.
 // 폐허 재료로 만드는 제작 전용 장비/도구
 const RUINS_CRAFT_ITEMS=[];
 RUINS_CRAFT_ITEMS.forEach(d=>{ITEM_DATA.push(d);ITEM_BY_NAME[d.name]=d;registerItem(d.name,true)});
-const TOOL_DURA={"일반":10,"고급":11,"희귀":12,"영웅":13,"전설":14,"신화":15};
+const TOOL_DURA={"일반":15,"고급":15,"희귀":15,"영웅":15,"전설":15,"신화":15};
 const REPAIR_GRADE_MULT={"일반":1,"고급":2,"희귀":4,"영웅":8,"전설":16,"신화":32};
 // 2026-11-09 삭제: 어디에도 쓰이지 않던 재료 12종. 보유분은 접속 시 오늘 상점 판매가로 골드 환불.
 let _npcResize=null;
@@ -3581,7 +3581,7 @@ function tickHunger(){
  const lose=Math.floor(hungerCarry);
  if(lose<=0)return;
  hungerCarry-=lose;
- if(red>0)wearTool("수통",lose*(0.5+Math.random()*0.5));
+ if(red>0)wearTool("수통");
  me.hunger[0]=Math.max(0,me.hunger[0]-lose);
  try{barsRender()}catch(e){}
  try{checkVitals()}catch(e){}
@@ -3597,7 +3597,7 @@ function applyOfflineHunger(){
  const lose=Math.floor(hungerCarry);
  if(lose>0){
   hungerCarry-=lose;
-  if(red>0)wearTool("수통",lose*(0.5+Math.random()*0.5));
+  if(red>0)wearTool("수통");
   me.hunger[0]=Math.max(0,me.hunger[0]-lose);
   me.hungerAt=now;
   try{barsRender()}catch(e){}
@@ -3750,7 +3750,7 @@ function toolMax(n){const it=info(n);return TOOL_DURA[it&&it.grade]||100}
 function lootObj(n){
  const it=info(n);
  if(it&&(it.tool||it.t==="w"||it.t==="a"||it.t==="c")){
-  const max=it.tool?toolMax(n):it.t==="a"?12:it.t==="w"?10:8;
+  const max=it.tool?toolMax(n):it.t==="a"?12:it.t==="w"?15:8;
   return{n,dur:max,max};
  }
  return n;
@@ -3954,10 +3954,10 @@ function normalizeItem(x){
   if(x.dur==null||x.max!==max){const ratio=+x.max>0?Math.max(0,Math.min(1,(+x.dur||0)/+x.max)):1;x.max=max;x.dur=Math.round(ratio*max*10)/10}
   return x;
  }
- const max=it.t==="a"?12:it.t==="w"?10:it.t==="c"?8:0;
+ const max=it.t==="a"?12:it.t==="w"?15:it.t==="c"?8:0;
  if(!max)return x;
  if(typeof x==="string")return{n:name,dur:max,max};
- if(it.t==="c"&&x.max!==max){const ratio=+x.max>0?Math.max(0,Math.min(1,(+x.dur||0)/+x.max)):1;x.max=max;x.dur=Math.round(ratio*max*10)/10;return x}
+ if(x.max!==max){const ratio=+x.max>0?Math.max(0,Math.min(1,(+x.dur||0)/+x.max)):1;x.max=max;x.dur=Math.round(ratio*max*10)/10;return x}
  if(x.dur==null)x.dur=max;
  if(x.max==null)x.max=max;
  return x;
@@ -3970,7 +3970,7 @@ function wearTool(name,amount){
  if(!x){const i=me.inv.findIndex(y=>typeof y==="string"&&nm(y)===name);if(i>=0){me.inv[i]=normalizeItem(me.inv[i]);x=me.inv[i]}}
  if(!x||!(+x.dur>0))return;
  if(SEARCH_SAVE_TOOLS.has(name)&&Math.random()<searchToolSaveChance(me))return;
- const loss=amount!=null?Math.max(0,+amount):(0.5+Math.random()*0.5);
+ const loss=amount!=null?Math.max(0,+amount):(0.2+Math.random()*0.1);
  x.dur=Math.max(0,Math.round((+x.dur-loss)*10)/10);
  if(x.dur<=0)toast(`‘${name}’의 내구도가 다 되었습니다. 대장간에서 수리할 수 있습니다.`);
  if($("invList"))try{invRefreshList()}catch(e){}
@@ -4796,7 +4796,7 @@ function recipes(focus,msg,query=""){
   const cc=isCook?cookSuccessInfo(me,ri.grade):craftSuccessInfo(me,ri.grade),success=Math.random()*100<cc.pct;
   const returnChance=Math.max(0,Math.min(1,(isCook?0:traitTotal("craftSave"))+(cc.skill>=10?Math.min(30,10+2*(cc.skill-10))/100:0)));
   if(isCook)wearTools(["요리 책"]);else wearTools(["제작 도구","제작 책","포션 제작 도구"]);
-  for(const k of toolUse)wearTool(k,0.5);
+  for(const k of toolUse)wearTool(k);
   if(!success){
    let back=0;
    if(returnChance>0)used.forEach(x=>{if(x!=null&&Math.random()<returnChance){me.inv.push(x);back++}});
