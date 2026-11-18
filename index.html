@@ -5597,16 +5597,18 @@ function whSortEntries(items,recent){
   return a.i-b.i;
  });
 }
+function guildWhItemCount(stores){return gArr(stores).reduce((a,s)=>a+gArr(s&&s.items).length,0)}
 function normalizeGuildWhStores(wh){
  wh=wh&&typeof wh==="object"?wh:{};
  let changed=false;
  const legacy=gArr(wh.items).filter(guildWhValid);
  const level0=Math.max(0,Math.floor(+wh.level||0));
- let raw=gArr(wh.stores).filter(s=>s&&typeof s==="object");
+ let raw=gArr(wh.stores).filter(s=>s&&typeof s==="object"&&!Array.isArray(s));
+ let dropLegacy=false;
  if(!raw.length&&legacy.length){
   const count=Math.max(level0+1,Math.ceil(legacy.length/30));
   raw=Array.from({length:count},(_,i)=>({name:`창고${i+1}`,items:legacy.slice(i*30,(i+1)*30)}));
-  changed=true;
+  changed=true;dropLegacy=true;
  }
  if(!raw.length){raw=[{name:"창고1",items:[]}];changed=true;}
  const need=Math.max(level0+1,raw.length);
@@ -5622,12 +5624,19 @@ function normalizeGuildWhStores(wh){
  });
  const level=Math.max(level0,stores.length-1);
  if(+wh.level!==level)changed=true;
- if(legacy.length)changed=true;
- return {stores,level,changed};
+ // 창고(stores)에 이미 아이템이 있는데 예전 items가 남아 있으면 지우지 않는다. (중복·유실 방지)
+ return {stores,level,changed,dropLegacy};
 }
 function guildWhStores(g){
  const wh=g&&g.warehouse&&typeof g.warehouse==="object"?g.warehouse:{};
  return normalizeGuildWhStores(wh).stores;
+}
+function guildWhBackup(g){
+ const wh=g&&g.warehouse&&typeof g.warehouse==="object"?g.warehouse:{},b=wh.backup;
+ if(!b||typeof b!=="object")return null;
+ const stores=gArr(b.stores).filter(s=>s&&typeof s==="object"&&!Array.isArray(s)).map((s,i)=>({name:String(s&&s.name||`창고${i+1}`).trim().slice(0,12)||`창고${i+1}`,items:gArr(s&&s.items).filter(guildWhValid)}));
+ const count=guildWhItemCount(stores);
+ return count?{at:+b.at||0,stores,count}:null;
 }
 function guildWhStoreIndex(stores){return Math.max(0,Math.min(Math.max(0,stores.length-1),Math.floor(+guildView.page||0)))}
 function guildWhSpaceText(g,idx){
@@ -5664,11 +5673,18 @@ async function ensureGuildWhStores(gid,g){
  let stores=norm.stores;
  try{
   const res=await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse"),w=>{
-   const n=normalizeGuildWhStores(w||{});
+   // 서버에 창고 데이터가 없는데 빈 창고를 새로 덮어쓰지 않는다. (동기화 직전 빈 값으로 덮어쓰는 사고 방지)
+   if(w==null||typeof w!=="object")return;
+   const n=normalizeGuildWhStores(w);
    stores=n.stores;
    if(!n.changed)return;
-   const base=w&&typeof w==="object"?w:{};
-   return {...base,stores:n.stores,level:n.level,items:null};
+   const before=guildWhItemCount(gArr(w.stores)),after=guildWhItemCount(n.stores);
+   if(after<before)return; // 창고 아이템이 줄어드는 쓰기는 거부
+   const base={...w};
+   if(!base.backup&&before>0)base.backup={at:Date.now(),level:+w.level||0,stores:w.stores||null,items:w.items||null};
+   const out={...base,stores:n.stores,level:n.level};
+   if(n.dropLegacy)out.items=null;
+   return out;
   });
   if(!res.committed){const v=res.snapshot&&res.snapshot.val();stores=normalizeGuildWhStores(v||{}).stores}
  }catch(e){console.warn("guild warehouse stores",e);return null}
@@ -5685,9 +5701,37 @@ function migrateGuildWarehouseStores(gid,g){
 }
 function guildWhListHtml(g){
  const d=guildWhData(g),canTake=guildPerm(g,"warehouseWithdraw");
- const tabs=`<div class="g-wtabs">${d.stores.map((s,i)=>`<button class="g-wtab" data-gwh="${i}" aria-selected="${i===d.storeIndex}">${esc(s.name)} <span class="dim">${s.items.length}</span></button>`).join("")}${guildIsLeader(g)?`<button class="g-wtab" data-gwhrename="${d.storeIndex}" title="현재 창고 이름 변경">이름 변경</button>`:""}</div>`;
+ const bk=guildWhBackup(g),canRestore=!!bk&&guildIsLeader(g)&&guildWhItemCount(d.stores)===0;
+ const tabs=`<div class="g-wtabs">${d.stores.map((s,i)=>`<button class="g-wtab" data-gwh="${i}" aria-selected="${i===d.storeIndex}">${esc(s.name)} <span class="dim">${s.items.length}</span></button>`).join("")}${guildIsLeader(g)?`<button class="g-wtab" data-gwhrename="${d.storeIndex}" title="현재 창고 이름 변경">이름 변경</button>`:""}${canRestore?`<button class="g-wtab" data-gwhrestore="1" title="백업된 창고 아이템 복구">백업 복구 ${bk.count}</button>`:""}</div>`;
  const rows=d.groups.length?d.groups.map(x=>`<div class="g-item"><button type="button" class="g-nm" data-gwinfokey="${esc(x.key)}" title="아이템 정보">${esc(x.n)}${x.q>1?` ×${x.q}`:""}${typeof x.it==="object"?dura(x.it):""}</button><button class="sm2" data-gwitkey="${esc(x.key)}" ${canTake?"":"disabled"}>꺼내기</button></div>`).join(""):`<div class="g-empty">${d.q?"검색 결과가 없습니다.":"창고가 비어 있습니다."}</div>`;
  return `${tabs}<div class="g-item-grid">${rows}</div>`;
+}
+async function restoreGuildWhBackup(){
+ const g=guildView.data;if(!g)return;
+ if(!guildIsLeader(g))return toast("창고 복구는 길드장만 할 수 있습니다.");
+ const bk=guildWhBackup(g);
+ if(!bk)return toast("복구할 백업이 없습니다.");
+ pop("창고 백업 복구",`<p>백업된 아이템 <b>${bk.count}개</b>를 창고로 되돌립니다.</p><p class="dim">${clockOf(bk.at)} 기준 · 길드장만 실행할 수 있습니다.</p>`,[
+  {t:"복구",c:"",fn:async()=>{
+   const gid=guildView.gid;let stores=null;
+   try{
+    const res=await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse"),w=>{
+     if(w==null||typeof w!=="object")return;
+     const b=w.backup;if(!b||typeof b!=="object")return;
+     const bs=gArr(b.stores).filter(s=>s&&typeof s==="object"&&!Array.isArray(s)).map((s,i)=>({name:String(s&&s.name||`창고${i+1}`).trim().slice(0,12)||`창고${i+1}`,items:gArr(s&&s.items).filter(guildWhValid)}));
+     if(!guildWhItemCount(bs))return;
+     stores=bs;return {...w,stores:bs,level:Math.max(0,bs.length-1)};
+    });
+    if(!res.committed)return toast("복구할 백업이 없습니다.");
+    const v=res.snapshot&&res.snapshot.val();
+    if(v)stores=guildWhStores({warehouse:v});
+   }catch(e){console.warn(e);return toast("창고 복구에 실패했습니다.")}
+   if(guildView.data&&stores){const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};gd.warehouse.stores=stores;gd.warehouse.level=Math.max(0,stores.length-1)}
+   try{guildRender()}catch(e){}
+   toast(`창고 백업을 복구했습니다. (${guildWhItemCount(stores)}개)`);
+  }},
+  {t:"취소"}
+ ]);
 }
 async function renameGuildWhStore(idx){
  const g=guildView.data;if(!g)return;
@@ -5842,7 +5886,7 @@ async function refreshGuildOnline(members){
  if(gHost())gHost().querySelectorAll("[data-gdot]").forEach(d=>{const on=set.has(d.dataset.gdot);d.classList.toggle("on",on);d.classList.toggle("off",!on)});
 }
 function guildClick(e){
- const b=e.target.closest("[data-gtab],[data-gnmode],[data-gnpage],[data-gnprev],[data-gnnext],[data-gnview],[data-gncancel],[data-gnotice],[data-gpmode],[data-gppage],[data-gpprev],[data-gpnext],[data-gpview],[data-gpcancel],[data-gpost],[data-gvaultin],[data-gvaultout],[data-gwh],[data-gwhrename],[data-gwinfo],[data-gwinfokey],[data-giinfo],[data-giinfoidx],[data-gdep],[data-gdepi],[data-gwit],[data-gwitkey],[data-gwexpand],[data-gaccept],[data-greject],[data-gmember],[data-gkick],[data-gdetails],[data-gsettings],[data-gleave],[data-gdisband]");
+ const b=e.target.closest("[data-gtab],[data-gnmode],[data-gnpage],[data-gnprev],[data-gnnext],[data-gnview],[data-gncancel],[data-gnotice],[data-gpmode],[data-gppage],[data-gpprev],[data-gpnext],[data-gpview],[data-gpcancel],[data-gpost],[data-gvaultin],[data-gvaultout],[data-gwh],[data-gwhrename],[data-gwhrestore],[data-gwinfo],[data-gwinfokey],[data-giinfo],[data-giinfoidx],[data-gdep],[data-gdepi],[data-gwit],[data-gwitkey],[data-gwexpand],[data-gaccept],[data-greject],[data-gmember],[data-gkick],[data-gdetails],[data-gsettings],[data-gleave],[data-gdisband]");
  if(!b)return;const g=guildView.data;if(!g)return;
  if(b.dataset.gtab){guildView.tab=b.dataset.gtab;guildView.page=0;guildView.noticeMode="view";guildView.noticeIndex=0;guildView.noticePage=0;guildView.postMode="list";guildView.postIndex=0;guildView.postPage=0;if(guildView.tab==="warehouse"){guildView.whRecent=[];guildView.invRecent=[];guildView.whQuery="";guildView.invQuery=""}guildRender();return}
  if(b.dataset.gnmode){guildView.noticeMode=b.dataset.gnmode;if(guildView.noticeMode==="view")guildView.noticeIndex=0;guildRender();return}
@@ -5863,6 +5907,7 @@ function guildClick(e){
  if(b.hasAttribute("data-gvaultout")){guildVaultOut();return}
  if(b.dataset.gwh!=null){guildView.page=Math.max(0,+b.dataset.gwh||0);guildRender();return}
  if(b.dataset.gwhrename!=null){renameGuildWhStore(+b.dataset.gwhrename);return}
+ if(b.dataset.gwhrestore!=null){restoreGuildWhBackup();return}
  if(b.dataset.gwinfokey!=null){const key=b.dataset.gwinfokey,stores=guildWhStores(g),si=guildWhStoreIndex(stores),st=stores[si],list=gArr(st&&st.items).filter(guildWhValid);const it=list.find(v=>WH_KEY(v)===key);showItem(it!=null?it:String(b.textContent||"").replace(/\s*×\d+.*$/,"").trim());return}
  if(b.dataset.gwinfo!=null){const n=decodeURIComponent(b.dataset.gwinfo),stores=guildWhStores(g),si=guildWhStoreIndex(stores),st=stores[si],list=gArr(st&&st.items).filter(guildWhValid);const it=list.find(v=>nm(v)===n);showItem(it!=null?it:n);return}
  if(b.dataset.giinfo!=null){const n=decodeURIComponent(b.dataset.giinfo);const idx=me.inv.findIndex(x=>nm(x)===n);if(idx>=0)showItem(me.inv[idx],idx);else showItem(n);return}
@@ -6065,10 +6110,11 @@ async function guildVaultIn(){
  const amt=parseGuildAmount();if(!amt)return;
  if(me.gold<amt)return toast("소지금이 부족합니다.");
  let ok=false;
- try{const r=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/gold"),v=>Math.max(0,Math.floor(+v||0))+amt);ok=!!r.committed}catch(e){ok=false}
+ let newGold=null;
+ try{const r=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/gold"),v=>Math.max(0,Math.floor(+v||0))+amt);ok=!!r.committed;if(ok)newGold=Math.max(0,Math.floor(+r.snapshot.val()||0))}catch(e){ok=false}
  if(!ok)return toast("입금에 실패했습니다.");
  me.gold-=amt;guildDraft.vault="";const el=$("gVaultAmt");if(el)el.value="";
- if(guildView.data){const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};gd.warehouse.gold=Math.max(0,Math.floor(+gd.warehouse.gold||0))+amt}
+ if(guildView.data){const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};if(newGold!=null)gd.warehouse.gold=newGold}
  bag();
  if(guildView.open)try{guildRender()}catch(e){}
  try{opts.save(cp(snap()))}catch(e){}
@@ -6079,10 +6125,11 @@ async function guildVaultOut(){
  if(!guildPerm(g,"vaultWithdraw"))return toast("금고에서 출금할 권한이 없습니다.");
  const amt=parseGuildAmount();if(!amt)return;
  let ok=false;
- try{const r=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/gold"),v=>{const cur=Math.max(0,Math.floor(+v||0));return cur>=amt?cur-amt:undefined});ok=!!r.committed}catch(e){ok=false}
+ let newGold=null;
+ try{const r=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/gold"),v=>{const cur=Math.max(0,Math.floor(+v||0));return cur>=amt?cur-amt:undefined});ok=!!r.committed;if(ok)newGold=Math.max(0,Math.floor(+r.snapshot.val()||0))}catch(e){ok=false}
  if(!ok)return toast("길드 자금이 부족합니다.");
  me.gold+=amt;guildDraft.vault="";const el=$("gVaultAmt");if(el)el.value="";
- if(guildView.data){const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};gd.warehouse.gold=Math.max(0,Math.floor(+gd.warehouse.gold||0)-amt)}
+ if(guildView.data){const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};if(newGold!=null)gd.warehouse.gold=newGold}
  bag();
  if(guildView.open)try{guildRender()}catch(e){}
  try{opts.save(cp(snap()))}catch(e){}
@@ -6100,12 +6147,24 @@ async function guildExpand(){
  if(!guildView.data)return;
  const need=[["단단한 나무",2],["고철",3],["노끈",2]];
  if(!need.every(([n,c])=>count(n)>=c))return toast("재료가 부족합니다. 단단한 나무 2 · 고철 3 · 노끈 2");
- const stores=await ensureGuildWhStores(guildView.gid,guildView.data);
- if(!stores)return toast("창고 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
- const newStore={name:`창고${stores.length+1}`,items:[]};
- try{await update(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse"),{level:stores.length,stores:[...stores,newStore],items:null})}catch(e){return toast("창고 증설에 실패했습니다.")}
+ const gid=guildView.gid;let nextStores=null;
+ try{
+  const res=await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse"),w=>{
+   if(w==null||typeof w!=="object")return; // 서버에 창고가 없으면 만들지 않는다
+   const n=normalizeGuildWhStores(w),stores=n.stores;
+   if(stores.length>=20)return;
+   const base={...w};
+   if(!base.backup&&guildWhItemCount(stores)>0)base.backup={at:Date.now(),level:+w.level||0,stores:w.stores||null,items:w.items||null};
+   nextStores=[...stores,{name:`창고${stores.length+1}`,items:[]}];
+   return {...base,stores:nextStores,level:stores.length,items:n.dropLegacy?null:base.items};
+  });
+  if(!res.committed)return toast("창고 증설에 실패했습니다.");
+  const v=res.snapshot&&res.snapshot.val();
+  if(v)nextStores=normalizeGuildWhStores(v).stores;
+ }catch(e){return toast("창고 증설에 실패했습니다.")}
+ if(!nextStores||!nextStores.length)return toast("창고 증설에 실패했습니다.");
  for(const [n,c] of need)for(let k=0;k<c;k++){const i=me.inv.findIndex(x=>nm(x)===n);if(i>=0)me.inv.splice(i,1)}
- if(guildView.data){const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};gd.warehouse.stores=[...stores,newStore];gd.warehouse.level=stores.length;guildView.page=stores.length}
+ if(guildView.data){const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};gd.warehouse.stores=nextStores;gd.warehouse.level=Math.max(0,nextStores.length-1);guildView.page=nextStores.length-1}
  bag();
  if(guildView.open)try{guildRender()}catch(e){}
  try{opts.save(cp(snap()))}catch(e){}
