@@ -6712,6 +6712,16 @@ $("mvgo").onclick=()=>{if(me.downed||me.deadPending)return toast("쓰러진 상�
   ]);
   return;
  }
+ // 도보: 같은 소지역에 파티원이 있으면 함께 이동할지 묻는다 (2026-11-18)
+ if(m.mode==="walk"&&rideCandidates().length){
+  $("mvmodal").hidden=true;
+  const names=rideCandidates().map(p=>String(p.name||"파티원")).join(", ");
+  pop("파티원과 함께 이동",`<p>파티원과 함께 이동할까?</p><p class="dim sm">같은 곳에 있는 ${esc(names)}에게 함께 가자고 요청한다. 모두 응답하면 바로 출발하고, 아니면 최대 3분 뒤 출발한다. 함께 가는 파티원은 내 이동 시간(도보 ${q.min}분)에 맞춰 이동한다.</p>`,[
+   {t:"함께 가기",c:"",fn:()=>startRide(m)},
+   {t:"혼자 가기",fn:()=>departMove(m)}
+  ]);
+  return;
+ }
  departMove(m)};
 // ---- 동승 (2026-11-15) ----
 // 운전자: 말(최대 2인)·비행선(최대 5인). 같은 소지역의 파티원에게 partyRides/{파티}/{id}로 요청.
@@ -6720,8 +6730,19 @@ $("mvgo").onclick=()=>{if(me.downed||me.deadPending)return toast("쓰러진 상�
 // 동승자 = S 이전 응답 기준 [수락 순 → 미응답 순] 좌석(운전자 제외) 수만큼. 모든 클라이언트가 같은 규칙으로 계산한다.
 // 동승자는 S부터 운전자의 소요 시간으로 같은 곳에 도착. 화면을 끈 동승자는 다시 접속했을 때 S로 거슬러 적용(me.rideSeen으로 한 번만).
 var REQ_TTL=180000; // 요청 유효 시간 3분 (알림함 공용)
-var RIDE_SEATS={horse:2,air:5},RIDE_WAIT_MS=180000,RIDE_LATE_MS=48*3600000;
+var RIDE_SEATS={horse:2,air:5,walk:5},RIDE_WAIT_MS=180000,RIDE_LATE_MS=48*3600000;
 var partyRides={},partyRidesUnsub=null,ridePromptId=null;
+// ---- 도보 동행 (2026-11-18) ----
+// 같은 partyRides 구조를 mode:"walk"로 쓴다. 동승과 다른 점:
+//  · 응답하지 않은 파티원은 함께 가지 않는다 (수락한 파티원만 동행).
+//  · 다른 행동 중이거나 다른 곳에 있어도 자동 거절하지 않고 알림함에 남긴다 (수락 시점에 조건 확인).
+//  · 요청 팝업은 창 밖을 눌러 닫을 수 있고, 닫으면 다시 뜨지 않고 알림함에서 응답한다.
+//  · 요청자는 '동행 대기' 창에서 '지금 출발'로 기다리지 않고 바로 출발할 수 있다.
+const rideDismissed=new Set(),walkBusyNoted=new Set();
+const isWalkRide=r=>!!r&&r.mode==="walk";
+const RIDE_PROMPT_T=["동승 제안","동행 제안"],RIDE_WAIT_T=["동승 대기","동행 대기"];
+const popIs=list=>!$("pop").hidden&&list.includes($("pt").textContent);
+const walkReqText=r=>`‘${r.label}’(으)로 이동하려고 한다. 함께 갈까? 도보로 ${+r.min||0}분.`;
 const rideResponding=new Set(),rideDoneLocal=new Set();
 const rideSeenHas=id=>String(me.rideSeen||"").split(",").includes(String(id));
 const rideSeenAdd=id=>{const a=String(me.rideSeen||"").split(",").filter(Boolean).filter(x=>x!==String(id));a.push(String(id));me.rideSeen=a.slice(-20).join(",")};
@@ -6771,7 +6792,7 @@ function startRide(m){
   // 재료를 쓰고 마감 시각 출발로 예약 → 창을 꺼도 출발한다
   if(!departMove(m,{driver:true,rideId:id,startAt:ride.deadline,min:q.min})){update(ref(realtimeDB,ridePath(pid,id)),{status:"cancelled"}).catch(()=>{});return}
   rideWaitRender(true);
- }).catch(err=>{console.warn("ride",err);toast("동승 요청을 보내지 못해 혼자 출발합니다. (Firebase 규칙 확인 필요)");departMove(m)});
+ }).catch(err=>{console.warn("ride",err);toast(`${m.mode==="walk"?"동행":"동승"} 요청을 보내지 못해 혼자 출발합니다. (Firebase 규칙 확인 필요)`);departMove(m)});
 }
 // S 이전 응답만 인정. 동승자 = 수락 순 → 미응답 순, 좌석(운전자 제외)만큼
 function rideOrder(r){
@@ -6779,6 +6800,8 @@ function rideOrder(r){
  const ok=id=>res[id]&&(+res[id].at||0)<=S+5000;
  const yes=inv.filter(id=>ok(id)&&res[id].yes).sort((a,b)=>(+res[a].at||0)-(+res[b].at||0));
  const silent=inv.filter(id=>!ok(id));
+ const no=inv.filter(id=>ok(id)&&!res[id].yes);
+ if(isWalkRide(r)){const k=Math.max(0,(+r.seats||5)-1);return {inv,yes,silent,no,riders:yes.slice(0,k),over:yes.slice(k)}}
  const all=[...yes,...silent],riders=all.slice(0,Math.max(0,(+r.seats||1)-1));
  return {inv,yes,silent,no:inv.filter(id=>ok(id)&&!res[id].yes),riders,over:all.slice(riders.length)};
 }
@@ -6788,10 +6811,17 @@ function rideWaitRender(open){
  const r=partyRides[t.ride];if(!r)return;
  const o=rideOrder(r),res=r.responses||{};
  const left=Math.max(0,Math.ceil((rideStartOf(r)-Date.now())/1000));
- const rows=o.inv.map(id=>{const x=res[id];return `<div class="row" style="justify-content:space-between"><span>${esc(rideName(r,id))}</span><b class="${x&&x.yes?"q-ok":"dim"}">${x?(x.yes?"동승":"거절"):"대기 중"}</b></div>`}).join("");
+ const walk=isWalkRide(r);
+ const rows=o.inv.map(id=>{const x=res[id];return `<div class="row" style="justify-content:space-between"><span>${esc(rideName(r,id))}</span><b class="${x&&x.yes?"q-ok":"dim"}">${x?(x.yes?(walk?"함께 가기":"동승"):"거절"):"대기 중"}</b></div>`}).join("");
+ if(walk){
+  const wh=`<p>‘${esc(r.label)}’(으)로 도보로 함께 갈 파티원을 기다리는 중이다. (도보 ${+r.min||0}분)</p><div style="margin:6px 0">${rows}</div><p class="dim sm">${left}초 뒤 출발 · 모두 응답하면 바로 출발한다. 응답하지 않은 파티원은 함께 가지 않는다. 창을 닫거나 접속을 끊어도 시간이 되면 출발한다.</p>`;
+  if(open){pop("동행 대기",wh,[{t:"지금 출발",c:"",fn:departRideNow},{t:"동행 취소",fn:cancelRide},{t:"닫기"}]);return}
+  if(popIs(RIDE_WAIT_T))$("pb").innerHTML=wh;
+  return;
+ }
  const html=`<p>‘${esc(r.label)}’까지 ${MODE[r.mode]}(으)로 함께 갈 파티원을 기다리는 중이다.</p><div style="margin:6px 0">${rows}</div><p class="dim sm">좌석 ${r.seats}명(나 포함) · ${left}초 뒤 출발 · 거절하지 않은 파티원은 함께 간다. 창을 닫거나 접속을 끊어도 시간이 되면 출발한다.</p>`;
  if(open){pop("동승 대기",html,[{t:"동승 취소",fn:cancelRide},{t:"닫기"}]);return}
- if(!$("pop").hidden&&$("pt").textContent==="동승 대기")$("pb").innerHTML=html;
+ if(popIs(RIDE_WAIT_T))$("pb").innerHTML=html;
 }
 function cancelRide(){
  const t=myRideWait();if(!t)return toast("이미 출발했다.");
@@ -6801,7 +6831,19 @@ function cancelRide(){
  const pid=me.partyId,id=t.ride;me.travel=null;
  if(pid)update(ref(realtimeDB,ridePath(pid,id)),{status:"cancelled"}).catch(()=>{});
  bag();renderAll();try{render()}catch(e){}try{opts.save(cp(snap()))}catch(e){}
- toast("동승을 취소했다. 재료를 돌려받았다.");
+ const wr=partyRides[id];
+ toast(isWalkRide(wr)?"동행을 취소했다.":"동승을 취소했다. 재료를 돌려받았다.");
+}
+// 도보 동행: 기다리지 않고 지금까지 수락한 파티원과 바로 출발
+function departRideNow(){
+ const t=myRideWait();if(!t||!me.partyId)return toast("이미 출발했다.");
+ const r=partyRides[t.ride];if(!r)return;
+ const now=Date.now();
+ r.startAt=now;t.start=now;t.end=now+(+t.min||0)*60000;
+ update(ref(realtimeDB,ridePath(me.partyId,r.id)),{startAt:now}).catch(()=>{});
+ try{opts.save(cp(snap()))}catch(e){}
+ try{driverRideCheck()}catch(e){}
+ bag();renderAll();try{render()}catch(e){}
 }
 // 운전자가 접속 중일 때: 전원이 응답하면 바로 출발(출발 시각 앞당김), 출발 시각이 되면 기록·안내
 function driverRideCheck(){
@@ -6817,8 +6859,9 @@ function driverRideCheck(){
  if(now>=rideStartOf(r)&&r.status==="open"&&!rideDoneLocal.has(r.id)){
   rideDoneLocal.add(r.id);const o=rideOrder(r),ro={};o.riders.forEach(id=>ro[id]=true);
   update(ref(realtimeDB,ridePath(me.partyId,r.id)),{status:"go",riders:ro}).catch(()=>{});
-  if(!$("pop").hidden&&$("pt").textContent==="동승 대기")closePop();
+  if(popIs(RIDE_WAIT_T))closePop();
   toast(o.riders.length?`${o.riders.map(id=>rideName(r,id)).join(", ")}와(과) 함께 ${MODE[r.mode]}(으)로 출발했다.`:`함께 가는 파티원이 없어 혼자 출발했다.`);
+  if(isWalkRide(r)){if(o.silent.length)setTimeout(()=>toast(`${o.silent.map(id=>rideName(r,id)).join(", ")}이(가) 응답이 없다.`),1200);return}
   if(o.over.length)setTimeout(()=>toast(`자리가 부족해 ${o.over.map(id=>rideName(r,id)).join(", ")}은(는) 타지 못했다.`),1200);
   if(o.silent.length)setTimeout(()=>toast(`${o.silent.map(id=>rideName(r,id)).join(", ")}이(가) 응답이 없다.${o.silent.some(id=>o.riders.includes(id))?" (거절하지 않아 함께 출발)":""}`),2400);
  }
@@ -6826,10 +6869,11 @@ function driverRideCheck(){
 function respondRide(r,yes){
  if(!me.partyId||rideResponding.has(r.id))return;
  if(Date.now()>rideStartOf(r)){toast("이미 출발했다.");return}
- rideResponding.add(r.id);try{inboxSet("ride:"+r.id,yes?"accepted":"declined")}catch(e){}
+ if(isWalkRide(r)&&yes&&(rideBusy()||!rideSameLoc(r.origin))){toast(`지금은 ${r.driverName}와(과) 함께 갈 수 없다. (다른 행동 중이거나 다른 곳에 있다)`);return}
+ rideResponding.add(r.id);rideDismissed.delete(r.id);try{inboxSet("ride:"+r.id,yes?"accepted":"declined")}catch(e){}
  if(ridePromptId===r.id)ridePromptId=null;
  set(ref(realtimeDB,ridePath(me.partyId,r.id)+"/responses/"+uid),{yes:!!yes,name:me.name,at:Date.now()})
-  .then(()=>{if(yes)toast(`동승하기로 했다. ${r.driverName}의 출발을 기다린다.`)})
+  .then(()=>{if(yes)toast(isWalkRide(r)?`함께 가기로 했다. ${r.driverName}의 출발을 기다린다.`:`동승하기로 했다. ${r.driverName}의 출발을 기다린다.`);else if(isWalkRide(r))toast(`${r.driverName}의 동행 요청을 거절했다.`)})
   .catch(err=>{console.warn("ride resp",err);rideResponding.delete(r.id);toast("응답을 보내지 못했다.")});
 }
 function joinRide(r){
@@ -6837,16 +6881,23 @@ function joinRide(r){
  const start=rideStartOf(r),end=start+(+r.min||0)*60000;
  if(me.travel&&me.travel.ride===r.id)return;
  if(!start||Date.now()>end+RIDE_LATE_MS){try{opts.save(cp(snap()))}catch(e){}return}
- if(rideBusy()||!rideSameLoc(r.origin)){toast(`${r.driverName}의 ${MODE[r.mode]}에 타지 못했다. (다른 행동 중)`);try{opts.save(cp(snap()))}catch(e){}return}
- if(ridePromptId===r.id){ridePromptId=null;if(!$("pop").hidden&&$("pt").textContent==="동승 제안")closePop()}
+ if(rideBusy()||!rideSameLoc(r.origin)){toast(isWalkRide(r)?`${r.driverName}와(과) 함께 가지 못했다. (다른 행동 중)`:`${r.driverName}의 ${MODE[r.mode]}에 타지 못했다. (다른 행동 중)`);try{opts.save(cp(snap()))}catch(e){}return}
+ if(ridePromptId===r.id){ridePromptId=null;if(popIs(RIDE_PROMPT_T))closePop()}
  departMove({kind:r.kind,n:r.n,mode:r.mode,dest:r.dest,label:r.label,baseMin:r.baseMin},{passenger:true,startAt:start,min:+r.min||0,rideId:r.id});
- toast(`${r.driverName}의 ${MODE[r.mode]}에 동승해 ‘${r.label}’(으)로 출발했다.`);
+ toast(isWalkRide(r)?`${r.driverName}와(과) 함께 ‘${r.label}’(으)로 출발했다. (도보 ${+r.min||0}분)`:`${r.driverName}의 ${MODE[r.mode]}에 동승해 ‘${r.label}’(으)로 출발했다.`);
 }
 function showRidePrompt(r){
- if(ridePromptId===r.id&&!$("pop").hidden&&$("pt").textContent==="동승 제안")return;
+ if(ridePromptId===r.id&&popIs(RIDE_PROMPT_T))return;
  const busy=["modal","cmodal","rmodal","tmodal","mvmodal"].some(id=>{const el=$(id);return el&&!el.hidden})||!$("pop").hidden||!!document.querySelector(".adm-pop:not([hidden])");
  if(busy)return; // 다른 창이 닫히면 1초 틱에서 다시 띄운다
  ridePromptId=r.id;
+ if(isWalkRide(r)){
+  pop("동행 제안",`<p><b>${esc(r.driverName)}</b>이(가) ${esc(walkReqText(r))}</p><p class="dim sm" id="rideLeft"></p>`,[
+   {t:"함께 가기",c:"",fn:()=>respondRide(r,true)},
+   {t:"거절하기",fn:()=>respondRide(r,false)}
+  ]);
+  rideTickUI();return;
+ }
  pop("동승 제안",`<p>‘${esc(r.driverName)}’가 ‘${esc(r.label)}’까지 ${MODE[r.mode]}(으)로 함께 가자고 한다. 동승할까?</p><p class="dim sm" id="rideLeft"></p>`,[
   {t:"동승하기",c:"",fn:()=>respondRide(r,true)},
   {t:"거절",fn:()=>respondRide(r,false)}
@@ -6855,7 +6906,8 @@ function showRidePrompt(r){
 }
 function rideTickUI(){
  const el=$("rideLeft");if(!el||!ridePromptId)return;const r=partyRides[ridePromptId];if(!r)return;
- el.textContent=`${Math.max(0,Math.ceil((rideStartOf(r)-Date.now())/1000))}초 안에 거절하지 않으면 함께 출발한다.`;
+ const sec=Math.max(0,Math.ceil((rideStartOf(r)-Date.now())/1000));
+ el.textContent=isWalkRide(r)?`${sec}초 안에 응답하지 않으면 함께 가지 않는다. 창을 닫아도 알림함에서 응답할 수 있다.`:`${sec}초 안에 거절하지 않으면 함께 출발한다.`;
 }
 function handleRides(){
  if(!uid||!me.partyId)return;
@@ -6865,21 +6917,32 @@ function handleRides(){
   if(!(r.invited&&r.invited[uid]))continue;
   if(now-(+r.createdAt||0)>RIDE_LATE_MS)continue;
   const S=rideStartOf(r),my=r.responses&&r.responses[uid];
-  try{const ix=inboxAdd({k:"ride:"+r.id,type:"ride",from:r.driverUid,fromName:r.driverName,text:`‘${r.label}’까지 ${MODE[r.mode]}(으)로 함께 가자고 했다.`,at:+r.createdAt||now,exp:S,data:{id:r.id}});if(my&&ix.st==="pending")inboxSet(ix.k,my.yes?"accepted":"declined");if(r.status==="cancelled"&&ix.st==="pending")inboxSet(ix.k,"cancelled")}catch(e){}
+  const walk=isWalkRide(r);
+  try{const ix=inboxAdd({k:"ride:"+r.id,type:walk?"walk":"ride",from:r.driverUid,fromName:r.driverName,text:walk?walkReqText(r):`‘${r.label}’까지 ${MODE[r.mode]}(으)로 함께 가자고 했다.`,at:+r.createdAt||now,exp:S,data:{id:r.id}});if(my&&ix.st==="pending")inboxSet(ix.k,my.yes?"accepted":"declined");if(r.status==="cancelled"&&ix.st==="pending")inboxSet(ix.k,"cancelled");if(now>=S&&ix.st==="pending")inboxSet(ix.k,"expired")}catch(e){}
   if(r.status==="cancelled"){
-   if(ridePromptId===r.id){ridePromptId=null;if(!$("pop").hidden&&$("pt").textContent==="동승 제안")closePop()}
-   if(!rideSeenHas(r.id)){rideSeenAdd(r.id);try{opts.save(cp(snap()))}catch(e){}if(my&&my.yes)toast(`${r.driverName}이(가) 동승을 취소했다.`)}
+   if(ridePromptId===r.id){ridePromptId=null;if(popIs(RIDE_PROMPT_T))closePop()}
+   if(!rideSeenHas(r.id)){rideSeenAdd(r.id);try{opts.save(cp(snap()))}catch(e){}if(my&&my.yes)toast(`${r.driverName}이(가) ${walk?"동행":"동승"}을 취소했다.`)}
    continue;
   }
   if(now<S){
    if(!my&&!rideResponding.has(r.id)){
+    if(walk){
+     // 팝업을 창 밖 클릭 등으로 닫으면 다시 띄우지 않고 알림함에서 응답한다
+     if(ridePromptId===r.id&&!popIs(RIDE_PROMPT_T)){ridePromptId=null;rideDismissed.add(r.id);toast("동행 요청은 알림함에서 다시 확인할 수 있다.")}
+     if(rideDismissed.has(r.id))continue;
+     if(rideBusy()||!rideSameLoc(r.origin)){
+      if(!walkBusyNoted.has(r.id)){walkBusyNoted.add(r.id);toast(`${r.driverName}이(가) 함께 가자고 했다. 알림함에서 확인할 수 있다.`)}
+      continue;
+     }
+     showRidePrompt(r);continue;
+    }
     if(rideBusy()||!rideSameLoc(r.origin))respondRide(r,false);
     else showRidePrompt(r);
    }
    continue;
   }
   // 출발 시각이 지남 → 운전자 접속 여부와 상관없이 같은 규칙으로 동승 여부 결정
-  if(ridePromptId===r.id){ridePromptId=null;if(!$("pop").hidden&&$("pt").textContent==="동승 제안")closePop()}
+  if(ridePromptId===r.id){ridePromptId=null;if(popIs(RIDE_PROMPT_T))closePop()}
   if(rideSeenHas(r.id))continue;
   const o=rideOrder(r);
   if(o.riders.includes(uid))joinRide(r);
@@ -8835,6 +8898,8 @@ function subscribeParty(){
 async function leaveParty(){
  const pid=me.partyId;if(!pid)return;
  const wasLeader=!!(partyData&&partyData.leader===uid);
+ // 2026-11-18: 스스로 탈퇴할 때 구독이 '내보내졌다' 토스트를 먼저 띄우지 않도록, 서버에서 지우기 전에 파티 구독을 끈다.
+ if(partyUnsub){try{partyUnsub()}catch(e){}partyUnsub=null}
  if(wasLeader){try{await remove(ref(realtimeDB,"chat/party/"+pid))}catch(e){}}
  try{if(wasLeader)await remove(ref(realtimeDB,"parties/"+pid));else await remove(ref(realtimeDB,"parties/"+pid+"/members/"+uid))}catch(e){}
  try{if(partyProposal&&(partyProposal.proposerUid===uid||(partyData&&partyData.leader===uid)))await remove(ref(realtimeDB,"partyProposals/"+pid))}catch(e){}
@@ -8842,7 +8907,7 @@ async function leaveParty(){
  if(partyExpUnsub){try{partyExpUnsub()}catch(e){}partyExpUnsub=null}
  if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null}
  if(partyUnsub){try{partyUnsub()}catch(e){}partyUnsub=null}
- clearPartyLocal(partyData&&partyData.leader===uid?"파티를 해산했다.":"파티에서 나왔다.");
+ clearPartyLocal(wasLeader?"파티를 해산했다.":"파티에서 나왔다.");
 }
 async function invitePlayer(target){
  if(actionLock("휴식 중에는 파티를 초대할 수 없습니다."))return;
@@ -10462,7 +10527,7 @@ function inboxAdd(e){
 }
 function inboxSet(k,st){const x=inboxList().find(y=>y.k===k);if(x&&x.st==="pending"){x.st=st;inboxSave();inboxBadge();if(inboxSelected&&!$("pop").hidden&&$("pt").textContent==="알림함")openInboxDetail(inboxSelected);else if(inboxOpen&&inboxMenuEl&&!inboxMenuEl.hidden)inboxMenuOpen()}}
 function inboxBadge(){const n=inboxList().filter(inboxLive).length,b=$("inboxBtn"),c=$("inboxCnt");if(b){b.classList.toggle("on",!!n);b.title=n?`알림함 · 응답할 요청 ${n}개`:"알림함"}if(c){c.hidden=!n;c.textContent=n>9?"9+":String(n)}}
-var REQ_LABEL={trade:"거래 요청",heal:"치료 요청",party:"파티 초대",guild:"길드 초대",ride:"동승 요청",friend:"친구 요청"};
+var REQ_LABEL={trade:"거래 요청",heal:"치료 요청",party:"파티 초대",guild:"길드 초대",ride:"동승 요청",walk:"동행 요청",friend:"친구 요청"};
 var inboxOpen=false,inboxSelected=null,inboxMenuEl=null,inboxMenuBound=false;
 const INBOX_ICON=`<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>`;
 function reqReply(from,rid,st){if(!uid||!from||!rid)return;set(ref(realtimeDB,"reqStatus/"+from+"/"+rid),{by:uid,name:me.name,st,at:Date.now()}).catch(e=>console.warn("reqStatus",e))}
@@ -10488,7 +10553,7 @@ async function inboxAct(x,yes){
   if(yes)return acceptFriendReq(from);
   return declineFriendReq(from)}
  if(x.type==="trade"){if(yes)acceptTradeInvite(d.pair,d.inv);else declineTradeInvite(d.pair,d.inv);if(!$("pop").hidden&&$("pt").textContent==="거래 요청")closePop();return}
- if(x.type==="ride"){const r=partyRides[d.id];if(!r){inboxSet(x.k,"cancelled");return toast("동승 요청이 사라졌다.")}respondRide(r,yes);if(ridePromptId===r.id){ridePromptId=null;if(!$("pop").hidden&&$("pt").textContent==="동승 제안")closePop()}return}
+ if(x.type==="ride"||x.type==="walk"){const r=partyRides[d.id];if(!r){inboxSet(x.k,"cancelled");return toast(x.type==="walk"?"동행 요청이 사라졌다.":"동승 요청이 사라졌다.")}respondRide(r,yes);if(ridePromptId===r.id){ridePromptId=null;if(popIs(RIDE_PROMPT_T))closePop()}return}
  if(x.type==="heal"){
   if(me.travel){inboxSet(x.k,"declined");reqReply(d.from,d.rid,"declined");return toast("이동 중에는 치료를 받을 수 없습니다.")}
   inboxSet(x.k,yes?"accepted":"declined");reqReply(d.from,d.rid,yes?"accepted":"declined");
@@ -10540,7 +10605,7 @@ function openInboxDetail(k){
  const live=inboxLive(x),left=Math.max(0,Math.ceil(((+x.exp||0)-Date.now())/1000));
  const label=REQ_LABEL[x.type]||"알림",time=live?(x.noExp?"응답 대기":`${Math.floor(left/60)}분 ${left%60}초 남음`):"";
  const leftHtml=live?(x.noExp?"응답 대기":`남은 시간 : <b id="ibDetailLeft">${time}</b>`):`상태 : <b>${esc(inboxStatusText(x))}</b>`;
- const body=`<div class="mail-detail"><div class="mail-head"><b>${esc(label)}</b><span class="dim">${clockOf(+x.at||0)}</span>${live?'<span class="mail-new">응답 대기</span>':""}</div><div class="mail-text">${esc(x.fromName||"상대")} — ${esc(x.text||"")}</div><div class="mail-item"><span>${leftHtml}</span></div>${live?`<div class="mail-act"><button type="button" class="btn sm2" data-iyes="1">수락</button><button type="button" class="btn alt sm2" data-ino="0">거절</button></div>`:""}<div class="mail-act"><button type="button" class="btn alt sm2" data-iback>← 목록</button><button type="button" class="btn alt sm2" data-idel="${esc(x.k)}">알림 삭제</button></div></div>`;
+ const body=`<div class="mail-detail"><div class="mail-head"><b>${esc(label)}</b><span class="dim">${clockOf(+x.at||0)}</span>${live?'<span class="mail-new">응답 대기</span>':""}</div><div class="mail-text">${esc(x.fromName||"상대")} — ${esc(x.text||"")}</div><div class="mail-item"><span>${leftHtml}</span></div>${live?`<div class="mail-act"><button type="button" class="btn sm2" data-iyes="1">${x.type==="walk"?"함께 가기":"수락"}</button><button type="button" class="btn alt sm2" data-ino="0">${x.type==="walk"?"거절하기":"거절"}</button></div>`:""}<div class="mail-act"><button type="button" class="btn alt sm2" data-iback>← 목록</button><button type="button" class="btn alt sm2" data-idel="${esc(x.k)}">알림 삭제</button></div></div>`;
  pop("알림함",body,[{t:"닫기"}],false,true);
  const pb=$("pb");
  if(pb)pb.onclick=e=>{
