@@ -7642,10 +7642,24 @@ function titleLoad(){
  if(!me.titles||typeof me.titles!=="object"||Array.isArray(me.titles))me.titles={earned:{},equipped:null,counters:{}};
  if(!me.titles.earned||typeof me.titles.earned!=="object"||Array.isArray(me.titles.earned))me.titles.earned={};
  if(!me.titles.counters||typeof me.titles.counters!=="object"||Array.isArray(me.titles.counters))me.titles.counters={};
+ try{
+  const raw=me.titles.counters,enc={};let changed=false;
+  for(const [k,v] of Object.entries(raw)){const nk=titleKey(k);if(nk!==k)changed=true;enc[nk]=v}
+  if(changed)me.titles.counters=enc;
+ }catch(e){}
  titleState={earned:me.titles.earned,equipped:typeof me.titles.equipped==="string"?me.titles.equipped:null,account:titleAccountTitles,meta:titleAccountMeta};
 }
+// Firebase 키에는 . # $ / [ ] 를 쓸 수 없어 카운터 키를 안전하게 인코딩한다.
+function titleKey(k){return String(k).replace(/[.#$/\[\]]/g,c=>({".":"%2E","#":"%23","$":"%24","/":"%2F","[":"%5B","]":"%5D"}[c]))}
 function titleSave(){
- try{me.titles.earned=titleState.earned;me.titles.equipped=titleState.equipped;opts.save({titles:me.titles})}catch(e){}
+ try{me.titles.earned=titleState.earned;me.titles.equipped=titleState.equipped;opts.save({titles:titleSafeTitles()})}catch(e){}
+}
+function titleSafeTitles(){
+ const t=me.titles&&typeof me.titles==="object"?me.titles:{earned:{},equipped:null,counters:{}};
+ const c=t.counters&&typeof t.counters==="object"&&!Array.isArray(t.counters)?t.counters:{};
+ const enc={};
+ try{for(const [k,v] of Object.entries(c))enc[titleKey(k)]=v}catch(e){}
+ return {...t,counters:enc};
 }
 let titleSaveTimer=0;
 function titleSaveSoon(){
@@ -7665,12 +7679,12 @@ function titleOwned(t){titleLoad();return !!(t&&(titleState.earned[t.key]||(TITL
 function titleEarnedCount(){titleLoad();return Object.keys(titleState.earned).length+Object.keys(titleState.account).length}
 function titleEarnedAt(t){if(!t)return 0;return +(titleState.earned[t.key]&&titleState.earned[t.key].at||titleState.account[t.key]&&titleState.account[t.key].at||0)}
 function titleCounters(){titleLoad();return me.titles.counters}
-function titleCounter(key){const c=titleCounters();return c[key]}
-function titleAdd(key,n=1){const c=titleCounters();c[key]=(+c[key]||0)+(+n||1);titleSaveSoon();return c[key]}
-function titleSet(key,v){const c=titleCounters();if(c[key]!==v){c[key]=v;titleSaveSoon()}return v}
-function titleMax(key,v){const c=titleCounters(),n=+v||0,prev=+c[key]||0;if(n>prev){c[key]=n;titleSaveSoon();return n}return prev}
-function titleFlag(key){const c=titleCounters();if(!c[key]){c[key]=true;titleSaveSoon()}return true}
-function titleSetAdd(key,v){const c=titleCounters();let a=Array.isArray(c[key])?c[key]:[];if(v!=null&&!a.includes(v)){a.push(v);titleSaveSoon()}c[key]=a;return a.length}
+function titleCounter(key){const c=titleCounters();return c[titleKey(key)]}
+function titleAdd(key,n=1){const k=titleKey(key),c=titleCounters();c[k]=(+c[k]||0)+(+n||1);titleSaveSoon();return c[k]}
+function titleSet(key,v){const k=titleKey(key),c=titleCounters();if(c[k]!==v){c[k]=v;titleSaveSoon()}return v}
+function titleMax(key,v){const k=titleKey(key),c=titleCounters(),n=+v||0,prev=+c[k]||0;if(n>prev){c[k]=n;titleSaveSoon();return n}return prev}
+function titleFlag(key){const k=titleKey(key),c=titleCounters();if(!c[k]){c[k]=true;titleSaveSoon()}return true}
+function titleSetAdd(key,v){const k=titleKey(key),c=titleCounters();let a=Array.isArray(c[k])?c[k]:[];if(v!=null&&!a.includes(v)){a.push(v);titleSaveSoon()}c[k]=a;return a.length}
 function titleEquipped(){titleLoad();return TITLE_BY_KEY[titleState.equipped]||null}
 function titlePetName(){return me.pet&&me.pet.name?String(me.pet.name):"애완동물"}
 function titleGuildName(kind){return guildTitleCache[kind]||(kind==="leader"?"길을 여는 자":"길드의 문")}
@@ -7739,14 +7753,21 @@ function titleCanEarn(t){
 function titleCheck(){
  titleLoad();
  try{titleMax("gold.max",+me.gold||0)}catch(e){}
- let added=0,accAdded=false;
- for(const t of TITLE_DATA){const isAcc=TITLE_ACCOUNT_IDS.has(t.id),box=isAcc?titleState.account:titleState.earned;if(box[t.key])continue;try{if(titleCanEarn(t)){box[t.key]={at:Date.now()};added++;if(isAcc)accAdded=true}}catch(e){}}
+ let added=0,accAdded=false,got=[];
+ for(const t of TITLE_DATA){const isAcc=TITLE_ACCOUNT_IDS.has(t.id),box=isAcc?titleState.account:titleState.earned;if(box[t.key])continue;try{if(titleCanEarn(t)){box[t.key]={at:Date.now()};added++;got.push(t);if(isAcc)accAdded=true}}catch(e){}}
  const eq=titleEquipped(),wasEq=titleState.equipped;
  if(eq&&eq.guild&&!titleGuildRoleOk(eq))titleState.equipped=null;
  if(added||titleState.equipped!==wasEq){titleSave();if(accAdded)titleSaveAccount()}
- if(added)try{toast(`칭호 ${added}개를 획득했습니다.`)}catch(e){}
+ if(got.length)titleToastAcquired(got);
  try{updateProfileTitle()}catch(e){}
  return added;
+}
+// 칭호 획득 알림은 토스트만 사용한다. 팝업/모달을 열지 않는다.
+function titleToastAcquired(got){
+ try{
+  const names=(got||[]).slice(0,3).map(t=>`「${titleDisplay(t)}」`);
+  if(names.length)toast(`칭호 획득 · ${names.join(" ")}${got.length>3?` 외 ${got.length-3}개`:""}`);
+ }catch(e){}
 }
 function titleAwardAll(){
  if(!me.isAdmin)return toast("관리자만 사용할 수 있습니다.");
@@ -7953,7 +7974,7 @@ function titleRetroLogs(){
   const slots=all&&all[charId];if(!slots||typeof slots!=="object")return;
   Object.values(slots).filter(e=>e&&e.type&&isFinite(+e.at)).sort((a,b)=>+a.at-+b.at).forEach(e=>{try{if(e.type!=="session"&&e.type!=="event")titleOnLog(e.type,e.text||"",e.data||{})}catch(x){}});
   titleCheck();
-  try{opts.save({titles:me.titles})}catch(e){}
+  try{opts.save({titles:titleSafeTitles()})}catch(e){}
  }).catch(()=>{})}catch(e){}
 }
 updateProfileTitle();
@@ -10515,7 +10536,7 @@ if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(u
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
 T(itemLogTick,2000);setTimeout(itemLogTick,0);
 function savePartyBattleSeen(){try{opts.save(cp(snap()))}catch(e){}}
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,codexItems:me.codexItems||{},codexMonsters:me.codexMonsters||{},titles:me.titles||{earned:{},equipped:null,counters:{}},speedPotionGrant:me.speedPotionGrant,dunBoxGrant1:!!me.dunBoxGrant1,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,rideSeen:me.rideSeen||"",inbox:me.inbox||[],outReqs:me.outReqs||[],friends:me.friends||{},party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,codexItems:me.codexItems||{},codexMonsters:me.codexMonsters||{},titles:titleSafeTitles(),speedPotionGrant:me.speedPotionGrant,dunBoxGrant1:!!me.dunBoxGrant1,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,rideSeen:me.rideSeen||"",inbox:me.inbox||[],outReqs:me.outReqs||[],friends:me.friends||{},party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
 // 기존 캐릭터 1회 지급: 이동속도 증가 포션 20개
 const SPEED_POTION_GRANT_CUTOFF=Date.parse("2026-11-07T23:59:59+09:00");
 if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
