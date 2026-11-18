@@ -1847,8 +1847,8 @@ function adminLogin(){let keepPref=true;try{keepPref=localStorage.getItem("everf
   catch(x){e.textContent="아이디 또는 비밀번호가 올바르지 않습니다.";$("doAdmin").disabled=false}}
 const adminAccountName=a=>a?((a.character&&a.character.name)||a.loginId||("UID "+String(a.id||"").slice(0,8))):"";
 async function openAdminNote(accounts,targetId){
- const names=[...new Set([...ITEM_DATA.map(d=>d.name),"이동속도 증가 포션","건초"])].sort((a,b)=>a.localeCompare(b,"ko"));
- const opts=names.map(n=>{const it=ITEM_BY_NAME[n]||{};return `<option value="${esc(n)}">${esc(n)}${it.grade?` · ${esc(it.grade)}`:""}</option>`}).join("");
+ const names=[...new Set([...ITEM_DATA.map(d=>d.name),"이동속도 증가 포션","건초"])].filter(n=>n!=="던전 보상 상자").sort((a,b)=>a.localeCompare(b,"ko"));
+ const opts=`<option value="__box45">던전 보상 상자 · ★4~5</option><option value="__box78">던전 보상 상자 · ★7~8</option>`+names.map(n=>{const it=ITEM_BY_NAME[n]||{};return `<option value="${esc(n)}">${esc(n)}${it.grade?` · ${esc(it.grade)}`:""}</option>`}).join("");
  const target=targetId?(accounts||[]).find(a=>a&&a.id===targetId):null;
  if(targetId&&!target)return toast("대상 계정을 찾을 수 없습니다.");
  const recipients=targetId?1:(accounts||[]).filter(a=>a&&a.id).length;
@@ -1869,7 +1869,10 @@ async function sendAdminNote(accounts,targetId){
  const ids=targetId?[String(targetId)]:[...new Set((accounts||[]).map(a=>a&&a.id).filter(Boolean))];
  if(!ids.length)return toast("발송할 계정이 없습니다.");
  const btn=$("anSend");if(btn)btn.disabled=true;
- const base={from:me.uid,fromName:"운영자",text,read:false,admin:true,item:itemName?{n:itemName,q:qty}:null,gold};
+ let attach=null;
+ if(itemName==="__box45"||itemName==="__box78")attach={n:"던전 보상 상자",q:qty,tier:itemName==="__box78"?"78":"45",min:30};
+ else if(itemName)attach={n:itemName,q:qty};
+ const base={from:me.uid,fromName:"운영자",text,read:false,admin:true,item:attach,gold};
  let ok=0,fail=0;
  for(const id of ids){
   const mid=push(ref(realtimeDB,"mail/"+id)).key;
@@ -10423,7 +10426,8 @@ function openMailbox(){
  const detail=mailData[mailSelected];if(!detail)return mailMenuOpen();
  const q=detail.item&&detail.item.n?Math.max(1,Math.floor(+detail.item.q||1)):0;
  const g=Math.max(0,Math.floor(+detail.gold||0));
- const item=q?`<div class="mail-item"><span>첨부 : <b>${esc(detail.item.n)}</b>${q>1?` ×${q}`:""}</span><button type="button" class="btn sm2" data-mclaim="${esc(mailSelected)}">받기</button></div>`:"";
+ const tierLabel=detail.item&&detail.item.n==="던전 보상 상자"?(String(detail.item.tier)==="78"?" (★7~8)":" (★4~5)"):"";
+ const item=q?`<div class="mail-item"><span>첨부 : <b>${esc(detail.item.n)}</b>${tierLabel}${q>1?` ×${q}`:""}</span><button type="button" class="btn sm2" data-mclaim="${esc(mailSelected)}">받기</button></div>`:"";
  const gold=g?`<div class="mail-item"><span>골드 : <b>${g} G</b></span><button type="button" class="btn sm2" data-mgold="${esc(mailSelected)}">받기</button></div>`:"";
  const body=`<div class="mail-detail"><div class="mail-head"><b>${esc(detail.admin?"GM":(detail.fromName||"상대"))}</b><span class="dim">${clockOf(+detail.at||0)}</span></div><div class="mail-text">${esc(detail.text||"")}</div>${item}${gold}<div class="mail-act"><button type="button" class="btn alt sm2" data-mback>← 목록</button><button type="button" class="btn alt sm2" data-mdel="${esc(mailSelected)}">삭제</button></div></div>`;
  mailOpen=true;
@@ -10437,6 +10441,8 @@ function openMailbox(){
   if(cl.dataset.mdel!=null)return deleteMail(cl.dataset.mdel);
  };
 }
+function mailItemPayload(it,q){const o={n:String(it.n),q:Math.max(1,Math.floor(+q||1))};for(const k of ["tier","area"])if(it[k]!=null)o[k]=String(it[k]);if(it.min!=null)o.min=+it.min;return o}
+function mailItemObj(it){const n=String(it.n||""),x=lootObj(n);if(n!=="던전 보상 상자")return x;const o={n,tier:String(it.tier||"45"),min:Math.max(1,+it.min||30)};if(it.area)o.area=String(it.area);return o}
 async function claimMailItem(mid){
  const m=mailData[mid];if(!m||!m.item||!m.item.n)return;
  let claimed=null;
@@ -10444,18 +10450,20 @@ async function claimMailItem(mid){
   const res=await runTransaction(ref(realtimeDB,"mail/"+uid+"/"+mid),x=>{
    if(!x||!x.item||!x.item.n)return;
    claimed={n:String(x.item.n),q:Math.max(1,Math.floor(+x.item.q||1))};
+   for(const k of ["tier","area"])if(x.item[k]!=null)claimed[k]=String(x.item[k]);
+   if(x.item.min!=null)claimed.min=+x.item.min;
    x.item=null;x.claimedAt=Date.now();return x;
   });
   if(!res.committed||!claimed)return toast("이미 받았거나 첨부가 없습니다.");
  }catch(e){console.warn("mail claim",e);return toast("첨부를 받지 못했습니다.")}
  let got=0;
- for(let i=0;i<claimed.q;i++){if(!addItem(lootObj(claimed.n)))break;got++}
+ for(let i=0;i<claimed.q;i++){if(!addItem(mailItemObj(claimed)))break;got++}
  if(!got){
   try{await update(ref(realtimeDB,"mail/"+uid+"/"+mid),{item:claimed,claimedAt:null})}catch(e){}
   return toast("가방이 가득 차 첨부를 받지 못했습니다.");
  }
  if(got<claimed.q){
-  try{await update(ref(realtimeDB,"mail/"+uid+"/"+mid),{item:{n:claimed.n,q:claimed.q-got},claimedAt:null})}catch(e){}
+  try{await update(ref(realtimeDB,"mail/"+uid+"/"+mid),{item:mailItemPayload(claimed,claimed.q-got),claimedAt:null})}catch(e){}
   toast(`${claimed.n} ${got}개를 받았습니다. 가방이 가득 차 ${claimed.q-got}개가 남았습니다.`);
  }else toast(`${claimed.n}${claimed.q>1?` ×${claimed.q}`:""}을(를) 받았습니다.`);
  bag();mailBadge();
