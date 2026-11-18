@@ -8302,6 +8302,29 @@ const chatUnsub={local:null,world:null,notice:null,guild:null,party:null,whisper
 const chatPaths={};
 let cur="local",sending=false,whisperUser=null,whisperPingUnsub=null,whisperTabs=[];
 const seenPingAt={};
+// ---- 파티·길드·귓속말 채팅 알림 배지 (2026-11-18) ----
+// 파티·길드: 가입 중이면 탭을 열지 않아도 구독하고, 공지처럼 마지막으로 본 시각(localStorage) 이후의 남이 보낸 메시지 수를 표시.
+// 귓속말: whisperPing으로 상대별 안 읽은 수를 세어 해당 귓속말 탭에 표시. 탭을 열면 0.
+const chatSeenAt={guild:0,party:0},chatSeenInit={guild:null,party:null},whisperUnread={};
+function chatSeenKey(tab){return "everfall_chat_seen_"+tab+"_"+uid+"_"+charId+"_"+(chatPaths[tab]||"")}
+function chatLatestAt(tab){return (chatData[tab]||[]).reduce((m,x)=>Math.max(m,+x.at||0),0)}
+function chatBadgeEl(tab){const b=$(tab==="guild"?"guildChatTab":"partyChatTab");if(!b)return null;let e=b.querySelector(".chat-badge");if(!e){e=document.createElement("b");e.className="chat-badge";e.hidden=true;b.appendChild(e)}return e}
+function chatBadgeSet(e,n,label){if(!e)return;e.hidden=!n;e.textContent=n>9?"9+":String(n);e.title=n?`새 ${label} ${n}개`:""}
+function chatSaveSeen(tab){try{localStorage.setItem(chatSeenKey(tab),String(chatSeenAt[tab]||0))}catch(e){}}
+function chatMarkSeen(tab){const l=chatLatestAt(tab);if(l>(chatSeenAt[tab]||0)){chatSeenAt[tab]=l;chatSaveSeen(tab)}chatBadgeSet(chatBadgeEl(tab),0,"")}
+function chatBadgeSync(tab){
+ if(tab!=="guild"&&tab!=="party")return;
+ const path=chatPaths[tab]||"";
+ if(chatSeenInit[tab]!==path){
+  chatSeenInit[tab]=path;
+  let raw=null;try{raw=localStorage.getItem(chatSeenKey(tab))}catch(e){}
+  chatSeenAt[tab]=raw==null?chatLatestAt(tab):Math.max(0,+raw||0);
+  if(raw==null)chatSaveSeen(tab);
+ }
+ if(cur===tab){chatMarkSeen(tab);return}
+ const n=(chatData[tab]||[]).filter(m=>(+m.at||0)>(chatSeenAt[tab]||0)&&m.uid!==uid).length;
+ chatBadgeSet(chatBadgeEl(tab),n,tab==="guild"?"길드 메시지":"파티 메시지");
+}
 let noticeSeenAt=0,noticeSeenInit=false;
 function noticeSeenKey(){return "everfall_notice_seen_"+uid+"_"+charId}
 function noticeLatestAt(){return (chatData.notice||[]).reduce((m,x)=>Math.max(m,+x.at||0),0)}
@@ -8332,7 +8355,9 @@ function renderWhisperTabs(){
  whisperTabs.forEach(w=>{
   const b=document.createElement("button");
   b.type="button";b.className="ctab";b.dataset.c="whisper";b.dataset.wuid=w.uid;
-  b.innerHTML=`귓속말 <span class="dim">· ${esc(displayName(w.uid,w.name))}</span>`;b.title=`${displayName(w.uid,w.name)}에게 귓속말`;
+  if(cur==="whisper"&&whisperUser&&whisperUser.uid===w.uid)whisperUnread[w.uid]=0;
+  const wn=+whisperUnread[w.uid]||0;
+  b.innerHTML=`귓속말 <span class="dim">· ${esc(displayName(w.uid,w.name))}</span>${wn?`<b class="chat-badge" title="새 귓속말 ${wn}개">${wn>9?"9+":wn}</b>`:""}`;b.title=`${displayName(w.uid,w.name)}에게 귓속말`;
   ct.appendChild(b);
  });
  syncChatTabs();
@@ -8354,7 +8379,7 @@ function whisperTouch(uid,name){
  return w;
 }
 function resetWhisperTab(){
- whisperUser=null;whisperTabs=[];
+ whisperUser=null;whisperTabs=[];Object.keys(whisperUnread).forEach(k=>delete whisperUnread[k]);
  const ct=$("ctabs");if(ct)ct.querySelectorAll('.ctab[data-c="whisper"]').forEach(b=>b.remove());
  syncChatTabs();
 }
@@ -8410,7 +8435,7 @@ function syncGuildChatTab(){
  if(has){
   const p=chatPath("guild");
   if(chatUnsub.guild&&chatPaths.guild!==p){try{chatUnsub.guild()}catch(e){};chatUnsub.guild=null;chatData.guild=[];delete chatPaths.guild}
-  if(cur==="guild")subscribeChat("guild");
+  subscribeChat("guild"); // 알림 배지를 위해 탭을 열지 않아도 구독 (2026-11-18)
  }
  syncChatTabs();
 }
@@ -8434,7 +8459,7 @@ function syncPartyChatTab(){
  if(has){
   const p=chatPath("party");
   if(chatUnsub.party&&chatPaths.party!==p){try{chatUnsub.party()}catch(e){};chatUnsub.party=null;chatData.party=[];delete chatPaths.party}
-  if(cur==="party")subscribeChat("party");
+  subscribeChat("party"); // 알림 배지를 위해 탭을 열지 않아도 구독 (2026-11-18)
  }
  syncChatTabs();
 }
@@ -9042,6 +9067,7 @@ function subscribeChat(tab,force){
   chatData[tab]=Object.entries(v).map(([id,m])=>({id,...(m||{})})).filter(m=>m&&typeof m.t==="string"&&(tab!=="whisper"||(+m.at||0)>=charId))
    .sort((a,b)=>(+a.at||0)-(+b.at||0)||String(a.id).localeCompare(String(b.id)));
   if(tab==="notice")noticeSync();
+  if(tab==="guild"||tab==="party")chatBadgeSync(tab);
   if(tab==="whisper"&&whisperUser&&uid){try{remove(ref(realtimeDB,"whisperPing/"+uid+"/"+whisperUser.uid)).catch(()=>{})}catch(e){}}
   if(cur===tab)render();
  },err=>{
@@ -9058,15 +9084,18 @@ function subscribeWhisperPing(){
  if(whisperPingUnsub){try{whisperPingUnsub()}catch(e){}whisperPingUnsub=null}
  let first=true;
  whisperPingUnsub=onValue(ref(realtimeDB,"whisperPing/"+uid),s=>{
-  const v=s.val()||{};let unread=0,latest=null;
+  const v=s.val()||{};let unread=0,latest=null;const firstUnread=[];
   Object.entries(v).forEach(([from,p])=>{
    if(!p||typeof p!=="object"||!isFinite(+p.at)||from===uid)return;
    if(+p.at<charId){try{remove(ref(realtimeDB,"whisperPing/"+uid+"/"+from)).catch(()=>{})}catch(e){}return}
-   if(whisperUser&&whisperUser.uid===from&&cur==="whisper"){try{remove(ref(realtimeDB,"whisperPing/"+uid+"/"+from)).catch(()=>{})}catch(e){}whisperTouch(from,whisperUser.name);return}
-   if(first){unread++;if(!latest||+p.at>+latest.p.at)latest={from,p};return}
+   if(whisperUser&&whisperUser.uid===from&&cur==="whisper"){try{remove(ref(realtimeDB,"whisperPing/"+uid+"/"+from)).catch(()=>{})}catch(e){}whisperUnread[from]=0;seenPingAt[from]=Math.max(+seenPingAt[from]||0,+p.at);whisperTouch(from,whisperUser.name);return}
+   if(first){unread++;if(!latest||+p.at>+latest.p.at)latest={from,p};
+    // 접속 전에 온 안 읽은 귓속말: 상대별 배지 1 이상 + 같은 알림이 다시 새 귓속말로 잡히지 않게 기록
+    whisperUnread[from]=Math.max(1,+whisperUnread[from]||0);seenPingAt[from]=Math.max(+seenPingAt[from]||0,+p.at);firstUnread.push({from,p});return}
    if(+p.at>(+seenPingAt[from]||0)){
     seenPingAt[from]=+p.at;
     const nm=String(p.name||"상대"),txt=String(p.t||"");
+     whisperUnread[from]=(+whisperUnread[from]||0)+1;
      whisperTouch(from,nm);
     const busy=document.activeElement===$("inp")&&!!$("inp").value.trim();
     if(!busy&&!battle&&!me.downed&&!me.deadPending&&cur!=="whisper"){try{startWhisper(from,nm)}catch(e){}}
@@ -9075,6 +9104,7 @@ function subscribeWhisperPing(){
   });
   if(first){
    first=false;
+   firstUnread.sort((a,b)=>(+a.p.at||0)-(+b.p.at||0)).forEach(x=>whisperTouch(x.from,String(x.p.name||"상대")));
    if(unread&&latest){
     const nm=String(latest.p.name||"상대"),txt=String(latest.p.t||"");
      whisperTouch(latest.from,nm);
@@ -9240,6 +9270,7 @@ function switchChat(tab){
  if(tab==="party"&&!me.partyId)return toast("파티에 가입해야 파티 채팅을 사용할 수 있습니다.");
  cur=tab;
  if(tab==="notice")noticeMarkSeen();
+ if(tab==="guild"||tab==="party")chatMarkSeen(tab);
  syncChatTabs();
  if(tab==="whisper")subscribeChat("whisper");
  else if(tab==="guild")subscribeChat("guild");
