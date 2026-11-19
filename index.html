@@ -5748,6 +5748,9 @@ function guildPostSectionHtml(posts){
  return `<div class="g-list g-boardlist">${rows.length?rows.map(p=>`<button type="button" class="g-listrow" data-gpview="${esc(p.k)}"><span class="g-rowtitle">${esc(p.title||p.text||"(제목 없음)")}</span><span class="g-rowmeta">${esc(p.by||"")} · ${esc(fmt(p.at))}</span></button>`).join(""):`<div class="g-empty">게시글이 없습니다.</div>`}</div>
  <div class="g-foot"><div class="g-pager"><button class="sm2" data-gppage="prev" ${guildView.postPage<=0?"disabled":""}>이전</button><span>${guildView.postPage+1} / ${pages}</span><button class="sm2" data-gppage="next" ${guildView.postPage>=pages-1?"disabled":""}>다음</button></div><div class="g-actions"><button class="sm2" data-gpmode="write">글쓰기</button></div></div>`;
 }
+// 길드 창고 칸: 소지품과 같은 방식. 같은 이름의 일반 아이템은 개수와 상관없이 1칸, 장비(내구도 있는 아이템)는 1개당 1칸. (2026-11-19)
+const GUILD_WH_CAP=30;
+const whSlots=list=>{const a=gArr(list);return new Set(a.filter(x=>typeof x==="string").map(nm)).size+a.filter(x=>x&&typeof x==="object").length};
 const WH_KEY=x=>typeof x==="string"?`s:${nm(x)}`:`o:${nm(x)}|${x.dur!=null?x.dur:""}|${x.max!=null?x.max:""}`;
 function whTouchRecent(list,key){const i=list.indexOf(key);if(i>=0)list.splice(i,1);list.unshift(key);if(list.length>80)list.length=80}
 function whRecentRank(list,key){const i=list.indexOf(key);return i<0?9999:i}
@@ -5806,25 +5809,25 @@ function guildWhBackup(g){
 function guildWhStoreIndex(stores){return Math.max(0,Math.min(Math.max(0,stores.length-1),Math.floor(+guildView.page||0)))}
 function guildWhSpaceText(g,idx){
  const stores=guildWhStores(g),i=idx==null?guildWhStoreIndex(stores):Math.max(0,Math.min(stores.length-1,Math.floor(+idx||0)));
- const s=stores[i]||stores[0],cur=s?s.items.length:0,cap=30;
+ const s=stores[i]||stores[0],cur=s?whSlots(s.items):0,cap=GUILD_WH_CAP;
  return `${cur}/${cap}칸${cur>cap?` · ${cur-cap}칸 초과`:""}`;
 }
 function guildWhData(g){
  const wh=g.warehouse&&typeof g.warehouse==="object"?g.warehouse:{};
  const stores=guildWhStores(g),page=guildWhStoreIndex(stores),store=stores[page]||stores[0];
- const cap=30,items=store?store.items:[];
+ const cap=GUILD_WH_CAP,items=store?store.items:[],used=whSlots(items);
  const q=String(guildView.whQuery||"").trim().toLowerCase();
  const filtered=q?items.filter(it=>nm(it).toLowerCase().includes(q)):items;
  const sorted=whSortEntries(filtered,guildView.whRecent||[]);
  guildView.page=page;
  const groups=[],gmap=new Map();
  for(const e of sorted){const it=e.x,key=WH_KEY(it);if(gmap.has(key))gmap.get(key).q++;else{const o={key,n:nm(it),q:1,it};gmap.set(key,o);groups.push(o)}}
- return {wh,cap,items,q,filtered,stores,storeIndex:page,page,groups};
+ return {wh,cap,used,items,q,filtered,stores,storeIndex:page,page,groups};
 }
 function guildWhCountText(g){
  const d=guildWhData(g),perms=g.permissions&&typeof g.permissions==="object"?g.permissions:{},minTake=perms.warehouseWithdraw||GUILD_PERM_DEFAULTS.warehouseWithdraw;
- const total=d.stores.reduce((a,s)=>a+s.items.length,0),totalCap=30*d.stores.length;
- return `${d.q?`검색 ${d.filtered.length}개 · `:""}${d.stores[d.storeIndex].name} ${d.items.length} / ${d.cap}칸${d.items.length>d.cap?` · ${d.items.length-d.cap}칸 초과`:""}${d.stores.length>1?` · 전체 ${total} / ${totalCap}칸`:""} · 빼기 ${guildRankName(g,minTake)} 이상`;
+ const total=d.stores.reduce((a,s)=>a+whSlots(s.items),0),totalCap=GUILD_WH_CAP*d.stores.length;
+ return `${d.q?`검색 ${d.filtered.length}개 · `:""}${d.stores[d.storeIndex].name} ${d.used} / ${d.cap}칸${d.used>d.cap?` · ${d.used-d.cap}칸 초과`:""}${d.stores.length>1?` · 전체 ${total} / ${totalCap}칸`:""} · 빼기 ${guildRankName(g,minTake)} 이상`;
 }
 const guildStoreMigrated=new Set();
 async function ensureGuildWhStores(gid,g){
@@ -5867,7 +5870,7 @@ function migrateGuildWarehouseStores(gid,g){
 function guildWhListHtml(g){
  const d=guildWhData(g),canTake=guildPerm(g,"warehouseWithdraw");
  const bk=guildWhBackup(g),canRestore=!!bk&&guildIsLeader(g)&&guildWhItemCount(d.stores)===0;
- const tabs=`<div class="g-wtabs">${d.stores.map((s,i)=>`<button class="g-wtab" data-gwh="${i}" aria-selected="${i===d.storeIndex}">${esc(s.name)} <span class="dim">${s.items.length}</span></button>`).join("")}${guildIsLeader(g)?`<button class="g-wtab" data-gwhrename="${d.storeIndex}" title="현재 창고 이름 변경">이름 변경</button>`:""}${canRestore?`<button class="g-wtab" data-gwhrestore="1" title="백업된 창고 아이템 복구">백업 복구 ${bk.count}</button>`:""}</div>`;
+ const tabs=`<div class="g-wtabs">${d.stores.map((s,i)=>`<button class="g-wtab" data-gwh="${i}" aria-selected="${i===d.storeIndex}">${esc(s.name)} <span class="dim">${whSlots(s.items)}</span></button>`).join("")}${guildIsLeader(g)?`<button class="g-wtab" data-gwhrename="${d.storeIndex}" title="현재 창고 이름 변경">이름 변경</button>`:""}${canRestore?`<button class="g-wtab" data-gwhrestore="1" title="백업된 창고 아이템 복구">백업 복구 ${bk.count}</button>`:""}</div>`;
  const rows=d.groups.length?d.groups.map(x=>`<div class="g-item"><button type="button" class="g-nm" data-gwinfokey="${esc(x.key)}" title="아이템 정보">${esc(x.n)}${x.q>1?` ×${x.q}`:""}${typeof x.it==="object"?dura(x.it):""}</button><button class="sm2" data-gwitkey="${esc(x.key)}" ${canTake?"":"disabled"}>꺼내기</button></div>`).join(""):`<div class="g-empty">${d.q?"검색 결과가 없습니다.":"창고가 비어 있습니다."}</div>`;
  return `${tabs}<div class="g-item-grid">${rows}</div>`;
 }
@@ -6125,9 +6128,9 @@ async function depositGuildItems(name,qty){
  try{
   const stores=await ensureGuildWhStores(guildView.gid,guildView.data);
   if(!stores)return toast("창고 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
-  const idx=guildWhStoreIndex(stores),store=stores[idx],cap=30;
+  const idx=guildWhStoreIndex(stores),store=stores[idx],cap=GUILD_WH_CAP;
   let ok=false,nextItems=null,added=0;
-  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/stores/"+idx+"/items"),arr=>{added=0;const list=gArr(arr).filter(guildWhValid),room=Math.max(0,cap-list.length);if(room<=0)return;added=Math.min(n,room);for(let i=0;i<added;i++)list.push(name);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v).filter(guildWhValid)}}catch(e){ok=false}
+  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/stores/"+idx+"/items"),arr=>{added=0;const list=gArr(arr).filter(guildWhValid),has=list.some(x=>typeof x==="string"&&nm(x)===nm(name));if(!has&&whSlots(list)>=cap)return;added=n;for(let i=0;i<added;i++)list.push(name);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v).filter(guildWhValid)}}catch(e){ok=false}
   if(!ok||added<=0)return toast(`창고가 가득 찼습니다. (${guildWhSpaceText(guildView.data,idx)})`);
   whTouchRecent(guildView.whRecent,`s:${name}`);guildView.invRecent=(guildView.invRecent||[]).filter(k=>k!==`s:${name}`);
   const removed=takeItems(name,added);
@@ -6158,10 +6161,10 @@ async function depositGuildItem(idx){
  try{
   const stores=await ensureGuildWhStores(guildView.gid,guildView.data);
   if(!stores)return toast("창고 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
-  const si=guildWhStoreIndex(stores),store=stores[si],cap=30;
+  const si=guildWhStoreIndex(stores),store=stores[si],cap=GUILD_WH_CAP;
   const name=nm(cur),item=cp(cur);
   let ok=false,nextItems=null;
-  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/stores/"+si+"/items"),arr=>{const list=gArr(arr).filter(guildWhValid);if(list.length>=cap)return;list.push(item);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v).filter(guildWhValid)}}catch(e){ok=false}
+  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/stores/"+si+"/items"),arr=>{const list=gArr(arr).filter(guildWhValid),has=typeof item==="string"&&list.some(x=>typeof x==="string"&&nm(x)===nm(item));if(!has&&whSlots(list)>=cap)return;list.push(item);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v).filter(guildWhValid)}}catch(e){ok=false}
   if(!ok)return toast(`창고가 가득 찼습니다. (${guildWhSpaceText(guildView.data,si)})`);
   whTouchRecent(guildView.whRecent,WH_KEY(item));guildView.invRecent=(guildView.invRecent||[]).filter(k=>k!==WH_KEY(item));
   // 같은 이름의 다른 인스턴스가 아니라, 클릭한 바로 그 아이템을 우선 제거한다.
