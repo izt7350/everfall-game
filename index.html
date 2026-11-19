@@ -6315,21 +6315,24 @@ async function guildExpand(){
  if(!guildView.data)return;
  const need=[["단단한 나무",2],["고철",3],["노끈",2]];
  if(!need.every(([n,c])=>count(n)>=c))return toast("재료가 부족합니다. 단단한 나무 2 · 고철 3 · 노끈 2");
- const gid=guildView.gid;let nextStores=null;
+ const gid=guildView.gid;let nextStores=null,full=false;
  try{
   const res=await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse"),w=>{
    if(w==null||typeof w!=="object")return; // 서버에 창고가 없으면 만들지 않는다
    const n=normalizeGuildWhStores(w),stores=n.stores;
-   if(stores.length>=20)return;
+   full=stores.length>=20;if(full)return;
    const base={...w};
    if(!base.backup&&guildWhItemCount(stores)>0)base.backup={at:Date.now(),level:+w.level||0,stores:w.stores||null,items:w.items||null};
    nextStores=[...stores,{name:`창고${stores.length+1}`,items:[]}];
-   return {...base,stores:nextStores,level:stores.length,items:n.dropLegacy?null:base.items};
+   // items가 없으면 undefined가 들어가 Firebase가 쓰기를 거부했다(증설 실패 원인). undefined 키를 빼고 쓴다. (2026-11-19)
+   const out={...base,stores:nextStores,level:stores.length};
+   if(n.dropLegacy)out.items=null;
+   return JSON.parse(JSON.stringify(out));
   });
-  if(!res.committed)return toast("창고 증설에 실패했습니다.");
+  if(!res.committed)return toast(full?"창고는 최대 20개까지 증설할 수 있습니다.":"창고 증설에 실패했습니다.");
   const v=res.snapshot&&res.snapshot.val();
   if(v)nextStores=normalizeGuildWhStores(v).stores;
- }catch(e){return toast("창고 증설에 실패했습니다.")}
+ }catch(e){console.warn("guild expand",e);return toast("창고 증설에 실패했습니다. 잠시 후 다시 시도해 주세요.")}
  if(!nextStores||!nextStores.length)return toast("창고 증설에 실패했습니다.");
  for(const [n,c] of need)for(let k=0;k<c;k++){const i=me.inv.findIndex(x=>nm(x)===n);if(i>=0)me.inv.splice(i,1)}
  if(guildView.data){const gd=guildView.data;gd.warehouse=gd.warehouse&&typeof gd.warehouse==="object"?gd.warehouse:{};gd.warehouse.stores=nextStores;gd.warehouse.level=Math.max(0,nextStores.length-1);guildView.page=nextStores.length-1}
