@@ -701,6 +701,11 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
   #gameRoot .game>.col:last-child>#partyBox,#gameRoot .game>.col:last-child>#peopleBox,#gameRoot .game>.col:last-child>.chat{grid-column:auto;grid-row:auto}
   #gameRoot .topbar{padding:8px 16px;flex-wrap:wrap;gap:8px}
   .wrap{padding:16px}
+  /* 모바일: '받은 의뢰'를 지도 아래로 (2026-11-19). 왼쪽 열을 풀어 각 상자를 바로 grid 항목으로 두고 order로 순서만 바꾼다. */
+  #gameRoot .game>.col:first-child{display:contents}
+  #gameRoot .game>.col:nth-child(2){order:1}
+  #gameRoot .game>.col:first-child>#questBox{order:2}
+  #gameRoot .game>.col:last-child{order:3}
 }
 @media (max-width:560px){
   #gameRoot .maphead{grid-template-columns:1fr;row-gap:4px}
