@@ -91,6 +91,8 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 .mail-menu-row svg{flex:none;width:15px;height:15px;color:var(--dim)}
 .mail-menu-row b{flex:1;min-width:0;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mail-menu-dot{flex:none;width:7px;height:7px;border-radius:50%;background:var(--accent)}
+.mail-menu-all{display:block;width:100%;padding:8px 12px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--accent);font:inherit;font-size:12px;text-align:right;cursor:pointer}
+.mail-menu-all:hover{background:var(--panel2)}
 .mail-menu-empty{padding:14px 12px;text-align:center;color:var(--dim);font-size:12px}
 .note-compose{display:flex;flex-direction:column;gap:8px}
 .note-compose textarea{box-sizing:border-box;width:100%;min-height:96px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);color:var(--text);font:inherit;font-size:13px;line-height:19px;resize:vertical}
@@ -10877,14 +10879,15 @@ function inboxMenuOpen(){
  if(mailMenuEl&&!mailMenuEl.hidden)mailMenuClose();
  if(!$("pop").hidden&&["알림함","메세지함"].includes($("pt").textContent))closePop();
  inboxSelected=null;
- el.innerHTML=L.length?L.map(x=>{const label=REQ_LABEL[x.type]||"알림";return `<button type="button" class="mail-menu-row" data-iopen="${esc(x.k)}">${INBOX_ICON}<b>${esc(label)}${x.fromName?` · ${esc(x.fromName)}`:""}</b>${x.read?"":`<span class="mail-menu-dot"></span>`}</button>`}).join(""):`<div class="mail-menu-empty">받은 알림이 없습니다.</div>`;
+ const unreadI=L.filter(x=>!x.read).length;
+ el.innerHTML=(unreadI?`<button type="button" class="mail-menu-all" data-iall>모두 읽음으로 표시</button>`:"")+(L.length?L.map(x=>{const label=REQ_LABEL[x.type]||"알림";return `<button type="button" class="mail-menu-row" data-iopen="${esc(x.k)}">${INBOX_ICON}<b>${esc(label)}${x.fromName?` · ${esc(x.fromName)}`:""}</b>${x.read?"":`<span class="mail-menu-dot"></span>`}</button>`}).join(""):`<div class="mail-menu-empty">받은 알림이 없습니다.</div>`);
  el.hidden=false;inboxOpen=true;
  requestAnimationFrame(inboxMenuPos);
  if(!inboxMenuBound){
   inboxMenuBound=true;
   document.addEventListener("click",inboxMenuOutside,true);
   window.addEventListener("resize",inboxMenuPos);
-  el.onclick=e=>{const b=e.target.closest("[data-iopen]");if(!b)return;inboxMenuClose();openInboxDetail(b.dataset.iopen)};
+  el.onclick=e=>{if(e.target.closest("[data-iall]")){inboxReadAll();return}const b=e.target.closest("[data-iopen]");if(!b)return;inboxMenuClose();openInboxDetail(b.dataset.iopen)};
  }
 }
 function openInboxDetail(k){
@@ -10906,6 +10909,8 @@ function openInboxDetail(k){
   inboxAct(cur,cl.dataset.iyes==="1");
  };
 }
+// 2026-11-20 알림함 모두 읽음
+function inboxReadAll(){let n=0;inboxList().forEach(x=>{if(!x.read){x.read=true;n++}});if(n){inboxSave();inboxBadge()}inboxMenuOpen();if(n)toast(`알림 ${n}개를 읽음으로 표시했습니다.`)}
 function inboxDelete(k){
  const L=inboxList(),i=L.findIndex(x=>x.k===k);if(i>=0){L.splice(i,1);inboxSave();inboxBadge()}
  inboxSelected=null;closePop();inboxMenuOpen();
@@ -10972,18 +10977,27 @@ function mailMenuOpen(){
  const el=mailMenuDom(),list=mailEntries();
  if(inboxMenuEl&&!inboxMenuEl.hidden)inboxMenuClose();
  if(!$("pop").hidden&&["메세지함","알림함"].includes($("pt").textContent))closePop();
- el.innerHTML=list.length?list.map(m=>{
+ const unreadM=list.filter(m=>!m.read).length;
+ el.innerHTML=(unreadM?`<button type="button" class="mail-menu-all" data-mall>모두 읽음으로 표시</button>`:"")+(list.length?list.map(m=>{
   const who=m.admin?"GM":(m.fromName||"상대");
   return `<button type="button" class="mail-menu-row" data-mopen="${esc(m.id)}">${MAIL_ICON}<b>${esc(who)}의 쪽지</b>${m.read?"":`<span class="mail-menu-dot"></span>`}</button>`;
- }).join(""):`<div class="mail-menu-empty">받은 쪽지가 없습니다.</div>`;
+ }).join(""):`<div class="mail-menu-empty">받은 쪽지가 없습니다.</div>`);
  el.hidden=false;mailOpen=true;
  requestAnimationFrame(mailMenuPos);
  if(!mailMenuBound){
   mailMenuBound=true;
   document.addEventListener("click",mailMenuOutside,true);
   window.addEventListener("resize",mailMenuPos);
-  el.onclick=e=>{const b=e.target.closest("[data-mopen]");if(!b)return;mailMenuClose();openMailDetail(b.dataset.mopen)};
+  el.onclick=e=>{if(e.target.closest("[data-mall]")){mailReadAll();return}const b=e.target.closest("[data-mopen]");if(!b)return;mailMenuClose();openMailDetail(b.dataset.mopen)};
  }
+}
+// 2026-11-20 쪽지함 모두 읽음: mail/{uid}/{mid}/read 를 한 번에 true로
+function mailReadAll(){
+ if(!uid)return;
+ const ids=mailEntries().filter(m=>!m.read).map(m=>m.id);if(!ids.length)return mailMenuOpen();
+ const upd={};ids.forEach(id=>{upd[id+"/read"]=true;if(mailData[id])mailData[id].read=true});
+ mailBadge();mailMenuOpen();
+ update(ref(realtimeDB,"mail/"+uid),upd).then(()=>toast(`쪽지 ${ids.length}개를 읽음으로 표시했습니다.`)).catch(e=>{console.warn("mail read all",e);toast("읽음 표시를 저장하지 못했습니다.")});
 }
 function subscribeMail(){
  if(!uid)return;
