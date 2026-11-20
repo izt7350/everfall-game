@@ -467,18 +467,18 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .petcard{display:flex;flex-direction:column;gap:10px;padding:16px 0;border-bottom:1px solid var(--line)}
 #gameRoot .petcard:first-of-type{padding-top:0}
 #gameRoot .petcard:last-child{border-bottom:0;padding-bottom:0}
-#gameRoot .petcard-head{display:flex;align-items:center;gap:10px}
-#gameRoot .pet-icon{flex:0 0 auto;display:grid;place-items:center;width:40px;height:40px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);overflow:hidden}
-#gameRoot .pet-icon img{display:block;width:28px;height:28px;object-fit:contain}
+#gameRoot .petcard-head{display:flex;align-items:center;gap:14px}
+#gameRoot .pet-icon{flex:0 0 auto;display:grid;place-items:center;width:76px;height:76px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);overflow:hidden}
+#gameRoot .pet-icon img{display:block;width:68px;height:68px;object-fit:contain}
 #gameRoot button.pet-icon{padding:0;cursor:pointer;font:inherit}
 #gameRoot button.pet-icon:hover{border-color:var(--accent)}
-#gameRoot .dog-look-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;margin-top:8px;max-height:52vh;overflow:auto}
+#gameRoot .dog-look-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin-top:8px;max-height:52vh;overflow:auto}
 #gameRoot .dog-look{display:grid;place-items:center;aspect-ratio:1;padding:4px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);cursor:pointer}
 #gameRoot .dog-look img{width:100%;height:100%;object-fit:contain}
 #gameRoot .dog-look.on{border:2px solid var(--accent);background:var(--panel)}
 #gameRoot .pet-id{flex:1;min-width:0}
 #gameRoot .pet-name-row{display:flex;align-items:center;gap:2px}
-#gameRoot .pet-name{font-size:14px;line-height:22px;font-weight:500;color:var(--text);white-space:nowrap}
+#gameRoot .pet-name{font-size:15px;line-height:22px;font-weight:500;color:var(--text);white-space:nowrap}
 #gameRoot .pet-species{display:block;font-size:12px;line-height:18px;color:var(--dim)}
 #gameRoot .pet-rename{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--dim);font-size:13px;line-height:1}
 #gameRoot .pet-rename:hover{background:var(--panel2);color:var(--text)}
@@ -2359,7 +2359,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  if(!okPhoto(c.photo))o.photo=null;o.blocked=a(c.blocked,[]).filter(x=>typeof x==="string");
  if(!c.v2)Object.assign(o,kit(c.job));else{o.equipped=c.equipped&&typeof c.equipped==="object"?c.equipped:{};o.vehicles=a(c.vehicles,[]);o.ground=c.ground&&typeof c.ground==="object"?c.ground:{}}
  const pet=c.pet&&typeof c.pet==="object"?c.pet:null;
- o.pet=pet?{species:pet.species==="고양이"?"고양이":"강아지",name:String(pet.name||pet.species||"강아지").slice(0,10),hunger:Math.max(0,Math.min(100,Math.floor(isFinite(+pet.hunger)?+pet.hunger:100))),affection:Math.max(0,Math.min(100,Math.floor(isFinite(+pet.affection)?+pet.affection:50))),petAt:isFinite(+pet.petAt)?+pet.petAt:0,hungerAt:isFinite(+pet.hungerAt)?+pet.hungerAt:Date.now(),affectionAt:isFinite(+pet.affectionAt)?+pet.affectionAt:Date.now(),...(+pet.look>=1&&+pet.look<=(pet.species==="고양이"?11:14)?{look:Math.floor(+pet.look)}:{})}:null;
+ o.pet=pet?{species:pet.species==="고양이"?"고양이":"강아지",name:String(pet.name||pet.species||"강아지").slice(0,10),hunger:Math.max(0,Math.min(100,Math.floor(isFinite(+pet.hunger)?+pet.hunger:100))),affection:Math.max(0,Math.min(100,Math.floor(isFinite(+pet.affection)?+pet.affection:50))),petAt:isFinite(+pet.petAt)?+pet.petAt:0,hungerAt:isFinite(+pet.hungerAt)?+pet.hungerAt:Date.now(),affectionAt:isFinite(+pet.affectionAt)?+pet.affectionAt:Date.now(),...(+pet.look>=1&&+pet.look<=(pet.species==="고양이"?11:15)?{look:Math.floor(+pet.look)}:{})}:null;
  o.petAdoptLockUntil=Math.max(0,+c.petAdoptLockUntil||0);
  o.gmTestWeapons=!!c.gmTestWeapons;
  o.tutorialSeen=!!c.tutorialSeen;
@@ -3225,37 +3225,72 @@ function expeditionRisk(kind,min,members,tier){
 }
 // 2026-11-20 예상 생존율: 실제 탐사 전투(runPartySim·autoBattle)를 지금 HP·장비·포션·부적 그대로 여러 번 모의 실행해 계산.
 // (예전 식은 몬스터 실제 수치와 무관한 근사라 표시와 실제가 크게 달랐다) 결과는 30초 캐시.
-const RISK_RUNS=40,riskCache=new Map();
-function expeditionRiskSim(kind,min){
+// 2026-11-20: 예상 생존율 계산 개선
+// - 탐사 시간마다 240회 모의 탐사(예전 40회). 화면이 멈추지 않게 30회씩 나눠서 계산하고, 끝나면 표를 다시 그린다.
+// - 시간별로 같은 무작위 순서를 써서(공통 시드) 시간끼리 비교가 흔들리지 않게 하고, 긴 탐사가 짧은 탐사보다 높게 나오지 않게 정리.
+// - 오차 범위(95%)를 함께 표시. 같은 상태면 60초 동안 결과를 다시 쓴다.
+const RISK_RUNS=240,RISK_CHUNK=30,RISK_MINS=[30,60,120,180],riskCache=new Map();
+let riskJob=null;
+function riskBases(kind){
  const parts=[uid,...((me.partyId&&partyData)?proposalMatesHere():[])];
- const base=buildPartySim({id:"risk",kind,min,startAt:Date.now()},parts);
- if(!base||!base.members||!base.members[uid])return null;
- const ck=[kind,min,base.star,base.night?1:0,JSON.stringify(base.members)].join("|");
- const hit=riskCache.get(ck);if(hit&&Date.now()-hit.at<30000)return hit.v;
- let alive=0,hpLeft=0,fights=0;const mk=Object.keys(base.members).sort().join(",");
- for(let i=0;i<RISK_RUNS;i++){
-  const sim={...base,seed:hashSeed("risk:"+kind+":"+min+":"+i),dry:true};
-  let out=null;try{out=runPartySim(sim)}catch(e){console.warn("risk sim",e)}finally{simCache.delete(sim.seed+":"+sim.startAt+":"+mk)}
-  if(!out)continue;
-  let hp=base.members[uid].hp,fled=false;
-  const evs=[...(out.events||[]),out.boss,out.longBoss].filter(Boolean);
-  for(const ev of evs){if(!ev.alive||!ev.alive.includes(uid)||ev.avoid)continue;fights++;if(ev.after&&ev.after[uid]!=null)hp=+ev.after[uid];if(Array.isArray(ev.fled)&&ev.fled.includes(uid)){fled=true;break}if(hp<=0)break}
-  if(hp>0||fled){alive++;hpLeft+=hp/Math.max(1,base.members[uid].maxHp)}
+ const now=Date.now(),out={};
+ for(const min of RISK_MINS){
+  const base=buildPartySim({id:"risk",kind,min,startAt:now},parts);
+  if(!base||!base.members||!base.members[uid])return null;
+  out[min]={base,ck:[kind,min,base.star,base.night?1:0,JSON.stringify(base.members)].join("|")};
  }
- const v={pct:Math.round(alive/RISK_RUNS*100),hp:alive?Math.round(hpLeft/alive*100):0,fights:+(fights/RISK_RUNS).toFixed(1),n:Object.keys(base.members).length,star:base.star};
- riskCache.set(ck,{at:Date.now(),v});return v;
+ return out;
+}
+function riskOneRun(kind,base,i){
+ const sim={...base,seed:hashSeed("risk:"+kind+":"+i),dry:true},mk=Object.keys(base.members).sort().join(",");
+ let out=null;try{out=runPartySim(sim)}catch(e){console.warn("risk sim",e)}finally{simCache.delete(sim.seed+":"+sim.startAt+":"+mk)}
+ if(!out)return null;
+ let hp=base.members[uid].hp,fled=false,f=0,maxHit=0;
+ const evs=[...(out.events||[]),out.boss,out.longBoss].filter(Boolean);
+ for(const ev of evs){if(!ev.alive||!ev.alive.includes(uid)||ev.avoid)continue;f++;const prev=hp;if(ev.after&&ev.after[uid]!=null)hp=+ev.after[uid];maxHit=Math.max(maxHit,prev-hp);if(Array.isArray(ev.fled)&&ev.fled.includes(uid)){fled=true;break}if(hp<=0)break}
+ return {ok:hp>0||fled,hp:Math.max(0,hp)/Math.max(1,base.members[uid].maxHp),f,maxHit};
+}
+function riskCached(kind){
+ const B=riskBases(kind);if(!B)return {B:null,res:null};
+ const res={};for(const m of RISK_MINS){const h=riskCache.get(B[m].ck);if(!h||Date.now()-h.at>60000)return {B,res:null};res[m]=h.v}
+ return {B,res};
+}
+function riskStart(kind,B){
+ const key=kind+"|"+RISK_MINS.map(m=>B[m].ck).join("#");
+ if(riskJob&&riskJob.key===key)return;
+ const job={key,kind,B,i:0,acc:Object.fromEntries(RISK_MINS.map(m=>[m,{alive:0,hp:0,f:0,n:0,worst:0}]))};riskJob=job;
+ const step=()=>{
+  if(riskJob!==job||!gameAlive)return;
+  const end=Math.min(RISK_RUNS,job.i+RISK_CHUNK);
+  for(;job.i<end;job.i++)for(const m of RISK_MINS){const r=riskOneRun(kind,B[m].base,job.i);if(!r)continue;const a=job.acc[m];a.n++;a.f+=r.f;if(r.ok){a.alive++;a.hp+=r.hp}if(r.maxHit>a.worst)a.worst=r.maxHit}
+  if(job.i<RISK_RUNS){setTimeout(step,0);return}
+  let prev=101;
+  for(const m of RISK_MINS){const a=job.acc[m],n=Math.max(1,a.n),p=a.alive/n;let pct=Math.round(p*100);pct=Math.min(pct,prev);prev=pct;
+   const st=B[m].base,mh=st.members[uid].maxHp;
+   riskCache.set(B[m].ck,{at:Date.now(),v:{pct,hp:a.alive?Math.round(a.hp/a.alive*100):0,fights:+(a.f/n).toFixed(1),n:Object.keys(st.members).length,star:st.star,err:Math.max(1,Math.round(196*Math.sqrt(p*(1-p)/n))),worst:Math.round(a.worst),worstPct:Math.round(a.worst/Math.max(1,mh)*100)}})}
+  riskJob=null;
+  if(riskOpenKind===kind)renderExpeditionRisk(kind);
+ };
+ setTimeout(step,0);
 }
 function renderExpeditionRisk(kind){
  const el=$(kind==="long"?"longrisk":"dunrisk");if(!el)return;
- let rows="",n=1,star=1;
- for(const m of [30,60,120,180]){
-  let r=null;try{r=expeditionRiskSim(kind,m)}catch(e){console.warn("risk",e)}
+ let B=null,res=null;try{({B,res}=riskCached(kind))}catch(e){console.warn("risk",e)}
+ if(B&&!res){
+  try{riskStart(kind,B)}catch(e){console.warn("risk",e)}
+  const star=B[30].base.star,n=Object.keys(B[30].base.members).length;
+  el.innerHTML=`<div class="risk-head"><b>예상 생존율</b><span class="dim">계산 중… (모의 탐사 ${RISK_RUNS}회 × ${RISK_MINS.length}) · 지역 난도 ★${star} · 함께 가는 인원 ${n}명</span></div>`+RISK_MINS.map(m=>`<div class="risk-row${expSel[kind]===m?" on":""}"><span class="risk-time">${durText(m)}</span><span class="risk-step dim">…</span><b class="risk-pct dim">–</b></div>`).join("");
+  el.hidden=false;return;
+ }
+ let rows="",n=1,star=1,err=0,worst=0,worstPct=0;
+ for(const m of RISK_MINS){
+  let r=res?res[m]:null;
   if(!r){const members=riskParty(),tier=Math.max(1,(()=>{try{return areaTier()}catch(e){return 0}})()||1);r={pct:expeditionRisk(kind,m,members,tier),hp:null,fights:null,n:members.length,star:tier}}
-  n=r.n;star=r.star;
+  n=r.n;star=r.star;err=Math.max(err,r.err||0);if((r.worst||0)>worst){worst=r.worst;worstPct=r.worstPct}
   const band=riskBand(r.pct),cls=riskCls(band);
   rows+=`<div class="risk-row${expSel[kind]===m?" on":""}"><span class="risk-time">${durText(m)}${r.fights!=null?`<span class="dim sm"> · 전투 약 ${r.fights}회${r.pct>0?` · 남는 HP 약 ${r.hp}%`:""}</span>`:""}</span><span class="risk-step ${cls}">${band}</span><b class="risk-pct ${cls}">${r.pct}%</b></div>`;
  }
- el.innerHTML=`<div class="risk-head"><b>예상 생존율</b><span class="dim">지금 HP·장비·포션 기준 모의 전투 ${RISK_RUNS}회 · 지역 난도 ★${star} · 함께 가는 인원 ${n}명</span></div>${rows}`;
+ el.innerHTML=`<div class="risk-head"><b>예상 생존율</b><span class="dim">지금 HP·장비·포션 기준 모의 탐사 ${RISK_RUNS}회${err?` · 오차 ±${err}%p`:""} · 지역 난도 ★${star} · 함께 가는 인원 ${n}명${worst?` · 전투 한 번에 잃은 HP 최대 약 ${worst}(최대 HP의 ${worstPct}%)`:""}</span></div>${rows}`;
  el.hidden=false;
 }
 function openRisk(kind){
@@ -3418,7 +3453,7 @@ function buildPartySim(p,participants){
   }catch(err){}
  }
  let star=1;try{star=areaTier()||parseInt((AR(me.area)||{}).diff||"")||1}catch(e){}
- return {v:2,seed:hashSeed(p.id),startAt:+p.startAt||Date.now(),kind:p.kind,min:+p.min,cont:me.cont,area:me.area,sub:me.sub||null,star,night:p.kind==="long"&&isNightNow(),members};
+ return {v:3,seed:hashSeed(p.id),startAt:+p.startAt||Date.now(),kind:p.kind,min:+p.min,cont:me.cont,area:me.area,sub:me.sub||null,star,night:p.kind==="long"&&isNightNow(),members};
 }
 const simCache=new Map();
 function runPartySim(sim){
@@ -3453,7 +3488,7 @@ function runPartySim(sim){
   let boss=null,longBoss=null;
   if(F.some(f=>f.hp>0&&!f.out)){
    if(kind==="dungeon"){const bm=rollNamedMonster(star)||rollShortMonster(star,kind);if(bm){boss=fight({...bm,role:"보스"},"dungeonBoss",true);boss.at=start+span}}
-   else if(kind==="long"&&star>=9&&Math.random()<LONG_BOSS_CHANCE){const bm=rollBossMonster(star);if(bm){longBoss=fight({...bm,role:"보스"},"dungeonBoss",true);longBoss.at=start+span}}
+   else if(kind==="long"&&star>=9&&Math.random()<((+sim.v||1)>=3?longBossChance(min):LONG_BOSS_CHANCE)){const bm=rollBossMonster(star);if(bm){longBoss=fight({...bm,role:"보스"},"dungeonBoss",true);longBoss.at=start+span}}
   }
   return {events,boss,longBoss};
  });
@@ -3703,7 +3738,7 @@ function resolveExp(partial=false,why){
  // 장기 탐사 완료 시 보스 (마왕성 ★9 이상 지역, 35%). 보스 19종: 전설 ★9~10 / 신화 ★11~12 — rollBossMonster()
  let longBoss=null;
  if(S&&!partial&&!rt.defeated&&!rt.escaped&&S.longBoss){longBoss=S.longBoss.mon.name;logAct(`[보스] ${S.longBoss.mon.name} 출현!`);expSharedApply(e,ctx,S.longBoss)}
- if(!S&&!partial&&!rt.defeated&&!rt.escaped&&e.kind==="long"&&tier>=9&&Math.random()<LONG_BOSS_CHANCE){
+ if(!S&&!partial&&!rt.defeated&&!rt.escaped&&e.kind==="long"&&tier>=9&&Math.random()<longBossChance(e.min)){
   const bm=rollBossMonster(tier);
   if(bm){longBoss=bm.name;rt.enc++;logAct(`[보스] ${bm.name} 출현!`);runBattle({...bm,role:"보스"},"dungeonBoss",true)}
  }
@@ -6929,7 +6964,7 @@ function showPetSecond(species){
  ],true);
 }
 // 2026-11-20: 강아지 외형 14종(icons/dog_1~14.png) 중 선택. 입양할 때 고르고, 동행 카드의 그림을 눌러 언제든 바꿀 수 있다.
-const DOG_LOOKS=14;
+const DOG_LOOKS=15; // 2026-11-21: dog_15(보더 콜리) 추가
 // 외형 목록: look 값 = 목록 순번(1부터). 말(2026-11-20): 1 = 기존 horse.png, 2~13 = horse_1~12.png
 const LOOK_SETS={dog:Array.from({length:DOG_LOOKS},(_,i)=>`icons/dog_${i+1}.png`),cat:["icons/cat.png",...Array.from({length:10},(_,i)=>`icons/cat_${i+1}.png`)],airship:["icons/airship.png",...Array.from({length:11},(_,i)=>`icons/airship_${i+1}.png`)],horse:["icons/horse.png",...Array.from({length:12},(_,i)=>`icons/horse_${i+1}.png`)]};
 const lookSrc=(kind,look,fallback)=>{const l=LOOK_SETS[kind]||[],n=Math.floor(+look||0);return n>=1&&n<=l.length?l[n-1]:fallback};
@@ -7608,12 +7643,22 @@ function scaleAtkTriplet(mon,mul){
  const sMin=Math.max(1,Math.round(min*mul*100)/100),sMax=Math.max(sMin,Math.round(max*mul*100)/100);
  return{atk:Math.max(1,Math.round(atk*mul*100)/100),atkMin:sMin,atkMax:sMax};
 }
+// 2026-11-20: 높은 등급 몬스터가 낮은 지역에 섞여 나올 때 공격력이 튀지 않게 — 그 지역 본래 등급 일반 몬스터의 공격력 중앙값 대비
+// 일반 최대 1.2배, 정예 최대 1.45배로 묶는다(보스 제외). 약한 몬스터는 그대로.
+const MON_ATK_CAP={normal:1.2,elite:1.45},monAtkRefCache={};
+function monAtkRef(star,mode){
+ const need=mode==="short"?"수색":"장기",g=areaGrade(clampStar(star)),k=need+"|"+g;
+ if(monAtkRefCache[k]!=null)return monAtkRefCache[k];
+ const v=MONSTERS.filter(m=>m.grade===g&&m.role==="일반"&&String(m.encounter||"").includes(need)).map(m=>+m.atkMax||(+m.atk||1)*ATK_ROLL_MAX).sort((a,b)=>a-b);
+ return monAtkRefCache[k]=v.length?v[Math.floor((v.length-1)/2)]:0;
+}
 function scaleMonster(mon,star,opts={}){
  const s=clampStar(star),mode=opts.mode||"legacy",pn=Math.max(1,Math.min(5,Math.floor(+opts.partySize||1)));
  if(mode==="short"||mode==="long"||mode==="dungeon"){
   const role=mon.role==="보스"?"boss":mon.role==="정예"?"elite":"normal";
   const base=role==="normal"?SHORT_NORMAL[s-1]:SHORT_ELITE[s-1];
   let h=base.h,a=base.a,d=base.d;
+  if(role!=="boss"&&!opts.boss&&expBalV>=2){const ref=monAtkRef(s,mode),bmax=+mon.atkMax||(+mon.atk||1)*ATK_ROLL_MAX;if(ref>0&&bmax>ref*MON_ATK_CAP[role])a*=ref*MON_ATK_CAP[role]/bmax}
   if(mode==="short"){const pr=SHORT_PRESSURE[s-1]||{h:1,a:1,d:1};h*=pr.h;a*=pr.a;d*=pr.d;const ez=SHORT_EASE_STAR[s-1]||{h:1,a:1};h*=ez.h;a*=ez.a;if(role==="elite"){h*=ez.eh||1;a*=ez.ea||1}}
   if(mode!=="short"){
    const k=(mode==="long"?LONG_K:DUNGEON_K)[s-1];
@@ -7641,6 +7686,9 @@ const NORMAL_PARTY_SCALE={
 };
 const partySize=()=>Math.max(1,Math.min(5,1+(me.partyId?onlineAllies().length:((me.party&&me.party.length)||0))));
 const LONG_BOSS_CHANCE=.35;
+// 2026-11-20: ★9 이상 장기 탐사 보스 확률을 탐사 시간에 비례 — 30분 10% · 1시간 20% · 2시간 30% · 3시간 35%.
+const LONG_BOSS_BY_MIN={30:.10,60:.20,120:.30,180:.35};
+const longBossChance=min=>LONG_BOSS_BY_MIN[+min]!=null?LONG_BOSS_BY_MIN[+min]:LONG_BOSS_CHANCE;
 function rollBossMonster(star){
  const inRange=MONSTERS.filter(m=>m.role==="보스"&&star>=m.starMin&&star<=m.starMax);
  if(inRange.length)return pick(inRange);
@@ -7671,6 +7719,8 @@ function rollShortMonster(star,mode="short",eliteChance=.10){
  const fallback=MONSTERS.filter(m=>m.role!=="보스"&&String(m.encounter||"").includes(need));
  return pick(fallback.length?fallback:MONSTERS.filter(m=>m.role!=="보스"));
 }
+// 2026-11-20: 몬스터 한 번 공격의 최대 피해 = 맞는 쪽 최대 HP의 일반 35% · 정예 45% · 보스 60% (치명타 포함).
+const HIT_CAP={normal:.35,elite:.45,boss:.60};
 function battleHit(acc,eva){return Math.max(5,Math.min(95,acc-eva))}
 // ---- 전투 자세 (2026-11-18) ----
 // 마지막으로 사용한 공격 방식이 곧 자세가 된다. 근접은 적이 잘 맞히는 대신 피해가 적고,
@@ -7736,7 +7786,7 @@ function autoBattle(mon,party,opts={}){if(!opts.dry){try{codexMarkMonster(mon&&m
   const alive=fs.filter(f=>f.hp>0&&!f.fled);if(!alive.length)break;
   const t=alive[Math.floor(Math.random()*alive.length)],st=t.st,stk=stanceOf(t.skill);
   if(Math.random()*100>=stanceHit(stk,m.acc,st.evasion)){L(`${m.name}의 공격이 ${t.name}를 빗나갔다.`)}
-  else{const crit=Math.random()*100<m.crit,raw=battleDamageRange(m.atkMin??m.atk*ATK_ROLL_MIN,m.atkMax??m.atk*ATK_ROLL_MAX,st.def,crit,m.cd),low=t.hp<=t.maxHp*.2,red=Math.min(.6,(st.dmgRed||0)+(low?(st.lowHpRed||0):0)+(opts.expedition?(st.expDmgRed||0):0)+(t.self&&opts.expedition&&Array.isArray(party)&&party.length>=2?traitTotal("partyDmgRed"):0)),dmg=Math.max(1,Math.floor(raw*(1-red)*(1+((st.dmgTakenPct||0)/100))*stanceDmgMul(stk)));t.hp=Math.max(0,t.hp-dmg);if(t.self){const dmgRatio=Math.min(1,dmg/Math.max(1,t.maxHp));wearEquip("armor",.2+Math.min(.3,dmgRatio*.5));wearEquip("sub",wearRange(.1,.2));wearEquip("acc1",wearRange(.1,.2));wearEquip("acc2",wearRange(.1,.2))}L(`${m.name}의 공격! ${t.name}에게 ${dmg} 피해${crit?" (치명타)":""}`);if(t.hp<=0)L(`${t.name}이(가) 쓰러졌다.`);if(t.self&&t.hp>0){if(Math.random()<WOUND_HIT_CHANCE){applyStatus("wound",{silent:true});L("공격에 베여 상처가 났다.")}if(me.fx.some(f=>f&&f.id==="sleep")){removeStatus("sleep",{silent:true});L("충격으로 잠에서 깼다.")}const sd=rollMonsterStatus(m);if(sd){applyStatus(sd.id,{silent:true,stack:true});t.st=calcStats(me);L(`${m.name}의 공격으로 ‘${sd.n}’ 상태이상에 걸렸다.`)}}}
+  else{const crit=Math.random()*100<m.crit,raw=battleDamageRange(m.atkMin??m.atk*ATK_ROLL_MIN,m.atkMax??m.atk*ATK_ROLL_MAX,st.def,crit,m.cd),low=t.hp<=t.maxHp*.2,red=Math.min(.6,(st.dmgRed||0)+(low?(st.lowHpRed||0):0)+(opts.expedition?(st.expDmgRed||0):0)+(t.self&&opts.expedition&&Array.isArray(party)&&party.length>=2?traitTotal("partyDmgRed"):0)),dmg0=Math.max(1,Math.floor(raw*(1-red)*(1+((st.dmgTakenPct||0)/100))*stanceDmgMul(stk))),dmg=Math.min(dmg0,Math.max(1,Math.floor(t.maxHp*(m.role==="보스"||opts.boss?HIT_CAP.boss:m.role==="정예"?HIT_CAP.elite:HIT_CAP.normal))));t.hp=Math.max(0,t.hp-dmg);if(t.self){const dmgRatio=Math.min(1,dmg/Math.max(1,t.maxHp));wearEquip("armor",.2+Math.min(.3,dmgRatio*.5));wearEquip("sub",wearRange(.1,.2));wearEquip("acc1",wearRange(.1,.2));wearEquip("acc2",wearRange(.1,.2))}L(`${m.name}의 공격! ${t.name}에게 ${dmg} 피해${crit?" (치명타)":""}`);if(t.hp<=0)L(`${t.name}이(가) 쓰러졌다.`);if(t.self&&t.hp>0){if(Math.random()<WOUND_HIT_CHANCE){applyStatus("wound",{silent:true});L("공격에 베여 상처가 났다.")}if(me.fx.some(f=>f&&f.id==="sleep")){removeStatus("sleep",{silent:true});L("충격으로 잠에서 깼다.")}const sd=rollMonsterStatus(m);if(sd){applyStatus(sd.id,{silent:true,stack:true});t.st=calcStats(me);L(`${m.name}의 공격으로 ‘${sd.n}’ 상태이상에 걸렸다.`)}}}
  // 2026-11-19 비상 탈출 부적: 장기·던전 탐사 전투에서 HP 20% 미만이면 자동 사용 (일반·정예·보스 모두)
   if(charmMode&&m.hp>0){
    for(const f of fs){
