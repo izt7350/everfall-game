@@ -2522,11 +2522,13 @@ function parseFx(effect){
 }
 const BOOK_SKILL_KEY={"근접":"melee","궁술":"ranged","마법":"magic","은신":"stealth","치유":"heal","생존":"survival"};
 const BOOK_TIER_DATA={
- "초급":{xp:250,range:"1~3",hours:1},
- "중급":{xp:1200,range:"5~8",hours:2},
- "고급":{xp:2700,range:"10~13",hours:3},
- "전문":{xp:3000,range:"15~17",hours:4}
+ "초급":{xp:250,range:"1~3",hours:1,uses:4},
+ "중급":{xp:1200,range:"5~8",hours:2,uses:3},
+ "고급":{xp:2700,range:"10~13",hours:3,uses:2},
+ "전문":{xp:3000,range:"15~17",hours:4,uses:1}
 };
+// 2026-11-20: 비급 1권으로 읽을 수 있는 횟수(내구도) — 초급 4, 중급 3, 고급 2, 전문 1. 비급은 겹치지 않는다.
+const bookUses=n=>{const m=String(n||"").match(/^(초급|중급|고급|전문)\s+\S+\s+비급$/);return m?(BOOK_TIER_DATA[m[1]].uses||1):0};
 
 function registerItem(name,force=false){
  const d=ITEM_BY_NAME[name];if(!d)return null;
@@ -2617,11 +2619,12 @@ const ITEM_ALIASES={"일반 회복 비약":"일반 활력 비약","고급 회복
 const REMOVED_ITEM_REPLACEMENTS={"낡은 지팡이":"낡은 수정구","낡은 천 갑옷":"낡은 로브","낡은 사슬 갑옷":"낡은 판금 갑옷"};
 const nm=x=>{const n=typeof x==="string"?x:x.n;return ITEM_ALIASES[n]||n};
 // 2026-11-20: 장비(무기·방어구·장신구·가방)와 도구는 겹치지 않는다 — 소지품·길드 창고 모두 1개당 1칸.
-const isEquipName=n=>{const d=ITEM_BY_NAME[n];return !!d&&(d.category==="장비"||d.category==="도구")};
+const isEquipName=n=>{const d=ITEM_BY_NAME[n];return (!!d&&(d.category==="장비"||d.category==="도구"))||bookUses(n)>0};
 const stackItem=x=>typeof x==="string"&&!isEquipName(nm(x));
 function durabilityMaxOfName(name){
  const it=info(nm(name));
  if(!it)return 0;
+ if(bookUses(nm(name)))return bookUses(nm(name));
  if(it.tool)return TOOL_DURA[it.grade]||100;
  return it.t==="a"?17:it.t==="w"?15:it.t==="c"?13:0;
 }
@@ -2632,6 +2635,7 @@ function migrateDurableEntry(x){
  if(!max)return x;
  if(typeof x==="string")return{n:name,dur:max,max};
  if(x.max===max&&x.dur!=null)return x;
+ if(bookUses(name)){x.max=max;x.dur=x.dur==null?max:Math.max(0,Math.min(max,Math.round(+x.dur)));return x}
  const ratio=+x.max>0?Math.max(0,Math.min(1,(+x.dur||0)/+x.max)):1;
  x.max=max;x.dur=Math.round(ratio*max*10)/10;
  return x;
@@ -4195,6 +4199,7 @@ const STAR_GRADE={
 function toolMax(n){const it=info(n);return TOOL_DURA[it&&it.grade]||100}
 function lootObj(n){
  const it=info(n);
+ const bu=bookUses(n);if(bu)return{n,dur:bu,max:bu};
  if(it&&(it.tool||it.t==="w"||it.t==="a"||it.t==="c")){
   const max=it.tool?toolMax(n):it.t==="a"?17:it.t==="w"?15:13;
   return{n,dur:max,max};
@@ -4395,6 +4400,8 @@ function normalizeItem(x){
  const name=typeof x==="string"?x:(x.n||null);
  if(!name)return x;
  const it=info(name);
+ const bu=bookUses(name);
+ if(bu){if(typeof x==="string")return{n:name,dur:bu,max:bu};if(x.max!==bu){x.max=bu;x.dur=x.dur==null?bu:Math.max(0,Math.min(bu,Math.round(+x.dur)))}if(x.dur==null)x.dur=bu;return x}
  if(it.tool){
   const max=toolMax(name);
   if(typeof x==="string")return{n:name,dur:max,max};
@@ -5110,29 +5117,31 @@ function checkRead(){
 // 2026-11-20: 같은 비급을 다시 읽으면 경험치 감소 — 1번째 100%, 2번째 50%, 3번째 25%, 4번째부터 0(읽기 막음).
 // 기록이 없던 캐릭터는 칭호 기록(books.read)에 있는 비급을 1번 읽은 것으로 시작.
 const BOOK_REREAD_MULT=[1,.5,.25];
+// 같은 이름 비급 중 남은 횟수가 가장 적은 것부터 쓴다.
+function bookCopyIndex(n){let best=-1,bd=1e9;me.inv.forEach((x,i)=>{if(nm(x)!==n)return;const d=typeof x==="object"&&x.dur!=null?+x.dur:1;if(d>0&&d<bd){bd=d;best=i}});return best}
 function bookReadsMap(){if(!me.bookReads||typeof me.bookReads!=="object"){const m={};try{const a=titleCounter("books.read");if(Array.isArray(a))a.forEach(n=>{if(typeof n==="string")m[n]=1})}catch(e){}me.bookReads=m}return me.bookReads}
 function bookReadCount(n){return Math.max(0,Math.floor(+bookReadsMap()[n]||0))}
 function bookReadMult(n){const c=bookReadCount(n);return c<BOOK_REREAD_MULT.length?BOOK_REREAD_MULT[c]:0}
 function finishRead(){
  const r=me.read;if(!r)return;
  me.read=null;
- const ix=me.inv.indexOf(r.n);
+ const ix=bookCopyIndex(r.n);
  if(ix<0){checkRead();bag();renderAll();try{opts.save(cp(snap()))}catch(e){};toast("비술이 사라져 읽기를 마치지 못했습니다.");return}
- me.inv.splice(ix,1);
+ let usesLeft=0;{const bx=me.inv[ix];if(bx&&typeof bx==="object"&&bookUses(r.n)){bx.dur=Math.max(0,Math.round(+bx.dur||0)-1);usesLeft=bx.dur;if(bx.dur<=0)me.inv.splice(ix,1)}else me.inv.splice(ix,1)}
  try{tryGoodTrait("책벌레")}catch(e){}
  try{titleSetAdd("books.read",r.n)}catch(e){}
  const prevReads=bookReadCount(r.n);bookReadsMap()[r.n]=prevReads+1;
  const ups=r.xp>0?gainSkillXP(r.skill,r.xp):0;
  try{renderStatus()}catch(e){}
  bag();renderAll();checkRead();try{opts.save(cp(snap()))}catch(e){}
- toast(`‘${r.n}’을(를) 읽었습니다. ${SKILL_NAMES[r.skill]} 경험치 +${r.xp}${r.mult!=null&&r.mult<1?` (${prevReads+1}번째 읽기 · ${Math.round(r.mult*100)}%)`:""}${ups?` · Lv ${me.skills[r.skill]}`:""}`);
+ toast(`‘${r.n}’을(를) 읽었습니다.${usesLeft>0?` (비급 남은 횟수 ${usesLeft}/${bookUses(r.n)})`:" 비급이 닳아 없어졌습니다."} ${SKILL_NAMES[r.skill]} 경험치 +${r.xp}${r.mult!=null&&r.mult<1?` (${prevReads+1}번째 읽기 · ${Math.round(r.mult*100)}%)`:""}${ups?` · Lv ${me.skills[r.skill]}`:""}`);
 }
 function startReading(n,it){
  if(me.read)return toast("이미 독서 중입니다.");
  if(me.travel||me.rest||me.expedition)return toast("다른 행동 중에는 읽을 수 없습니다.");
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 읽을 수 없습니다.");
  if((me.skills[it.skill]||0)>=SKILL_MAX)return toast(`${SKILL_NAMES[it.skill]} 기능이 이미 최고 레벨입니다.`);
- if(me.inv.indexOf(n)<0)return toast("비술이 없습니다.");
+ if(bookCopyIndex(n)<0)return toast("비술이 없습니다.");
  const rmult=bookReadMult(n);if(rmult<=0)return toast(`‘${n}’은(는) 이미 ${bookReadCount(n)}번 읽어서 더 얻을 것이 없습니다.`);
  if(!starvationActionCost())return;
  const pct=readTimePct(),hours=Math.max(.05,(it.readHours||READ_HOURS[it.tier]||1)*pct/100),now=Date.now();
@@ -5177,7 +5186,7 @@ function invAct(a,i){
  else if(a==="read"){
   if(it.book&&it.skill&&it.skillXp){
    const pct=readTimePct(),hours=Math.max(.05,(it.readHours||READ_HOURS[it.tier]||1)*pct/100);
-   pop(n,`<p style="white-space:pre-wrap">${esc(it.txt||"")}</p><p style="margin:8px 0 4px"><b>효과 :</b> ${esc(effText(n))}</p><p class="dim">읽는 시간 : 약 ${readDurText(hours)} (${Math.round(pct)}%)</p><p class="dim">권장 레벨 : ${esc(it.recommend||"")} · 어느 레벨에서든 읽을 수 있다.</p>${(()=>{const c=bookReadCount(n),m=bookReadMult(n);return c?`<p style="color:var(--bad)">이미 ${c}번 읽은 비급 · ${m>0?`이번에는 경험치 ${Math.round(m*100)}% (+${Math.floor((+it.skillXp||0)*m)})`:"더 이상 경험치를 얻을 수 없다"}</p>`:""})()}<p class="dim">읽는 동안 다른 행동은 할 수 없습니다. 채팅은 가능합니다.</p>`,[{t:"읽기",c:"",fn:()=>startReading(n,it)},{t:"취소"}]);
+   pop(n,`<p style="white-space:pre-wrap">${esc(it.txt||"")}</p><p style="margin:8px 0 4px"><b>효과 :</b> ${esc(effText(n))}</p><p class="dim">읽는 시간 : 약 ${readDurText(hours)} (${Math.round(pct)}%)</p><p class="dim">권장 레벨 : ${esc(it.recommend||"")} · 어느 레벨에서든 읽을 수 있다.</p>${typeof x==="object"&&x&&x.max?`<p class="dim">이 비급으로 읽을 수 있는 횟수 : ${Math.round(+x.dur||0)}/${x.max}</p>`:""}${(()=>{const c=bookReadCount(n),m=bookReadMult(n);return c?`<p style="color:var(--bad)">이미 ${c}번 읽은 비급 · ${m>0?`이번에는 경험치 ${Math.round(m*100)}% (+${Math.floor((+it.skillXp||0)*m)})`:"더 이상 경험치를 얻을 수 없다"}</p>`:""})()}<p class="dim">읽는 동안 다른 행동은 할 수 없습니다. 채팅은 가능합니다.</p>`,[{t:"읽기",c:"",fn:()=>startReading(n,it)},{t:"취소"}]);
   }else pop(n,`<p style="white-space:pre-wrap">${esc(it.txt||"")}</p>`,[{t:"닫기"}]);
  }
  else if(a==="equip"){
@@ -10538,7 +10547,7 @@ $("tl").onclick=e=>{
 // ---- 대장간 수리 / 진료소 ----
 let rlist=[];
 const rcost=x=>{const it=info(x.n),rate=it.tool?1:2,mult=REPAIR_GRADE_MULT[it.grade]||1;return Math.max(1,Math.round((x.max-x.dur)*rate*mult*(JT().repair||1)*traitProduct("repair")))};
-function repairRender(){rlist=[...Object.values(me.equipped).filter(x=>x&&typeof x==="object").map(x=>[x,"착용 중"]),...me.inv.filter(x=>typeof x==="object").map(x=>[x,"소지품"])];
+function repairRender(){rlist=[...Object.values(me.equipped).filter(x=>x&&typeof x==="object").map(x=>[x,"착용 중"]),...me.inv.filter(x=>typeof x==="object"&&!bookUses(x.n)).map(x=>[x,"소지품"])];
  $("rg").textContent=me.gold+" G";
  $("rl").innerHTML=rlist.length?rlist.map(([x,w],i)=>`<div class="tr" style="grid-template-columns:1fr auto auto"><span>${esc(x.n)}<small>${w} · 내구도 ${fmt1(safeNum(x.dur,0))}/${safeNum(x.max,0)}${+x.dur<=0?" · 부서짐":""}</small></span><b>${rcost(x)} G</b><button class="btn" data-i="${i}" ${x.dur>=x.max?"disabled":""}>수리</button></div>`).join(""):"<p class='dim'>수리할 장비나 도구가 없다.</p>"}
 $("srepair").onclick=()=>{if(actionLock("휴식 중에는 수리할 수 없습니다."))return;repairRender();$("rmsg").textContent="";$("rmodal").hidden=false};
