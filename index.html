@@ -2318,6 +2318,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.exploreDay=typeof c.exploreDay==="string"?c.exploreDay:"";
  o.exploreCount=Math.max(0,Math.floor(+c.exploreCount||0));
  o.npcGiftDay=typeof c.npcGiftDay==="string"?c.npcGiftDay:"";
+ o.bookReads=c.bookReads&&typeof c.bookReads==="object"&&!Array.isArray(c.bookReads)?Object.fromEntries(Object.entries(c.bookReads).map(([k,v])=>[k,Math.max(0,Math.floor(+v||0))])):null;
  o.npcGifts=c.npcGifts&&typeof c.npcGifts==="object"&&!Array.isArray(c.npcGifts)?Object.fromEntries(Object.entries(c.npcGifts).map(([k,v])=>[k,Math.max(0,Math.floor(+v||0))])):{};
  o.hungerAt=isFinite(+c.hungerAt)?+c.hungerAt:Date.now();
  o.expLogs=Array.isArray(c.expLogs)?c.expLogs.filter(l=>l&&typeof l.text==="string"&&isFinite(+l.at)).slice(-200):[];
@@ -2998,7 +2999,7 @@ const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||cha
  lastExplore:isFinite(+char.lastExplore)?+char.lastExplore:0,
  exploreDay:typeof char.exploreDay==="string"?char.exploreDay:"",
  exploreCount:Math.max(0,Math.floor(+char.exploreCount||0)),
- npcGiftDay:typeof char.npcGiftDay==="string"?char.npcGiftDay:"",npcGifts:char.npcGifts&&typeof char.npcGifts==="object"&&!Array.isArray(char.npcGifts)?{...char.npcGifts}:{},
+ npcGiftDay:typeof char.npcGiftDay==="string"?char.npcGiftDay:"",bookReads:char.bookReads&&typeof char.bookReads==="object"&&!Array.isArray(char.bookReads)?{...char.bookReads}:null,npcGifts:char.npcGifts&&typeof char.npcGifts==="object"&&!Array.isArray(char.npcGifts)?{...char.npcGifts}:{},
  hungerAt:isFinite(+char.hungerAt)?+char.hungerAt:Date.now(),
  downed:opts.downed!==undefined?opts.downed:(char.downed&&typeof char.downed==="object"&&isFinite(+char.downed.until)?{...char.downed}:null),deadPending:false,
  expLogs:cp(Array.isArray(char.expLogs)?char.expLogs.slice(-200):[]),expMeta:char.expMeta&&typeof char.expMeta==="object"?{...char.expMeta}:null,
@@ -5106,6 +5107,12 @@ function checkRead(){
  if(Date.now()>=me.read.end){finishRead();return}
  updateReadText();
 }
+// 2026-11-20: 같은 비급을 다시 읽으면 경험치 감소 — 1번째 100%, 2번째 50%, 3번째 25%, 4번째부터 0(읽기 막음).
+// 기록이 없던 캐릭터는 칭호 기록(books.read)에 있는 비급을 1번 읽은 것으로 시작.
+const BOOK_REREAD_MULT=[1,.5,.25];
+function bookReadsMap(){if(!me.bookReads||typeof me.bookReads!=="object"){const m={};try{const a=titleCounter("books.read");if(Array.isArray(a))a.forEach(n=>{if(typeof n==="string")m[n]=1})}catch(e){}me.bookReads=m}return me.bookReads}
+function bookReadCount(n){return Math.max(0,Math.floor(+bookReadsMap()[n]||0))}
+function bookReadMult(n){const c=bookReadCount(n);return c<BOOK_REREAD_MULT.length?BOOK_REREAD_MULT[c]:0}
 function finishRead(){
  const r=me.read;if(!r)return;
  me.read=null;
@@ -5114,10 +5121,11 @@ function finishRead(){
  me.inv.splice(ix,1);
  try{tryGoodTrait("책벌레")}catch(e){}
  try{titleSetAdd("books.read",r.n)}catch(e){}
- const ups=gainSkillXP(r.skill,r.xp);
+ const prevReads=bookReadCount(r.n);bookReadsMap()[r.n]=prevReads+1;
+ const ups=r.xp>0?gainSkillXP(r.skill,r.xp):0;
  try{renderStatus()}catch(e){}
  bag();renderAll();checkRead();try{opts.save(cp(snap()))}catch(e){}
- toast(`‘${r.n}’을(를) 읽었습니다. ${SKILL_NAMES[r.skill]} 경험치 +${r.xp}${ups?` · Lv ${me.skills[r.skill]}`:""}`);
+ toast(`‘${r.n}’을(를) 읽었습니다. ${SKILL_NAMES[r.skill]} 경험치 +${r.xp}${r.mult!=null&&r.mult<1?` (${prevReads+1}번째 읽기 · ${Math.round(r.mult*100)}%)`:""}${ups?` · Lv ${me.skills[r.skill]}`:""}`);
 }
 function startReading(n,it){
  if(me.read)return toast("이미 독서 중입니다.");
@@ -5125,9 +5133,10 @@ function startReading(n,it){
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 읽을 수 없습니다.");
  if((me.skills[it.skill]||0)>=SKILL_MAX)return toast(`${SKILL_NAMES[it.skill]} 기능이 이미 최고 레벨입니다.`);
  if(me.inv.indexOf(n)<0)return toast("비술이 없습니다.");
+ const rmult=bookReadMult(n);if(rmult<=0)return toast(`‘${n}’은(는) 이미 ${bookReadCount(n)}번 읽어서 더 얻을 것이 없습니다.`);
  if(!starvationActionCost())return;
  const pct=readTimePct(),hours=Math.max(.05,(it.readHours||READ_HOURS[it.tier]||1)*pct/100),now=Date.now();
- me.read={start:now,end:now+hours*3600000,n,skill:it.skill,xp:it.skillXp,tier:it.tier,baseHours:it.readHours||READ_HOURS[it.tier]||1,pct};
+ me.read={start:now,end:now+hours*3600000,n,skill:it.skill,xp:Math.floor((+it.skillXp||0)*rmult),mult:rmult,tier:it.tier,baseHours:it.readHours||READ_HOURS[it.tier]||1,pct};
  closePop();bag();renderAll();checkRead();try{opts.save(cp(snap()))}catch(e){}
  toast(`‘${n}’ 읽기를 시작했습니다. 약 ${readDurText(hours)} 소요.`);
 }
@@ -5168,7 +5177,7 @@ function invAct(a,i){
  else if(a==="read"){
   if(it.book&&it.skill&&it.skillXp){
    const pct=readTimePct(),hours=Math.max(.05,(it.readHours||READ_HOURS[it.tier]||1)*pct/100);
-   pop(n,`<p style="white-space:pre-wrap">${esc(it.txt||"")}</p><p style="margin:8px 0 4px"><b>효과 :</b> ${esc(effText(n))}</p><p class="dim">읽는 시간 : 약 ${readDurText(hours)} (${Math.round(pct)}%)</p><p class="dim">권장 레벨 : ${esc(it.recommend||"")} · 어느 레벨에서든 읽을 수 있다.</p><p class="dim">읽는 동안 다른 행동은 할 수 없습니다. 채팅은 가능합니다.</p>`,[{t:"읽기",c:"",fn:()=>startReading(n,it)},{t:"취소"}]);
+   pop(n,`<p style="white-space:pre-wrap">${esc(it.txt||"")}</p><p style="margin:8px 0 4px"><b>효과 :</b> ${esc(effText(n))}</p><p class="dim">읽는 시간 : 약 ${readDurText(hours)} (${Math.round(pct)}%)</p><p class="dim">권장 레벨 : ${esc(it.recommend||"")} · 어느 레벨에서든 읽을 수 있다.</p>${(()=>{const c=bookReadCount(n),m=bookReadMult(n);return c?`<p style="color:var(--bad)">이미 ${c}번 읽은 비급 · ${m>0?`이번에는 경험치 ${Math.round(m*100)}% (+${Math.floor((+it.skillXp||0)*m)})`:"더 이상 경험치를 얻을 수 없다"}</p>`:""})()}<p class="dim">읽는 동안 다른 행동은 할 수 없습니다. 채팅은 가능합니다.</p>`,[{t:"읽기",c:"",fn:()=>startReading(n,it)},{t:"취소"}]);
   }else pop(n,`<p style="white-space:pre-wrap">${esc(it.txt||"")}</p>`,[{t:"닫기"}]);
  }
  else if(a==="equip"){
@@ -11392,7 +11401,7 @@ if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(u
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
 T(itemLogTick,2000);setTimeout(itemLogTick,0);
 function savePartyBattleSeen(){try{opts.save(cp(snap()))}catch(e){}}
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,codexItems:me.codexItems||{},codexMonsters:me.codexMonsters||{},titles:titleSafeTitles(),speedPotionGrant:me.speedPotionGrant,dunBoxGrant1:!!me.dunBoxGrant1,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,proposalMissedId:me.proposalMissedId||null,rideSeen:me.rideSeen||"",inbox:me.inbox||[],outReqs:me.outReqs||[],friends:me.friends||{},party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,codexItems:me.codexItems||{},codexMonsters:me.codexMonsters||{},titles:titleSafeTitles(),speedPotionGrant:me.speedPotionGrant,dunBoxGrant1:!!me.dunBoxGrant1,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,proposalMissedId:me.proposalMissedId||null,rideSeen:me.rideSeen||"",inbox:me.inbox||[],outReqs:me.outReqs||[],friends:me.friends||{},party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,npcGiftDay:me.npcGiftDay||"",npcGifts:me.npcGifts||{},bookReads:me.bookReads||null,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
 // 기존 캐릭터 1회 지급: 이동속도 증가 포션 20개
 const SPEED_POTION_GRANT_CUTOFF=Date.parse("2026-11-07T23:59:59+09:00");
 if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
