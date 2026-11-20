@@ -8026,7 +8026,7 @@ $("explore").onclick=()=>{if(actionLock("휴식 중에는 수색할 수 없습�
     if(me.hunger[0]<=0)applyStatus("starvation",{silent:true});
  }
  bag()};
-function exploreCd(){const b=$("explore");if(!b)return;const used=exploreUsed(),dayDone=used>=EXPLORE_DAILY_LIMIT,left=EXPLORE_COOLDOWN-(Date.now()-(me.lastExplore||0)),busy=!!me.travel||!!me.expedition||!!me.read,resting=!!me.rest;b.disabled=busy||resting||dayDone||left>0;b.textContent=resting?"휴식 중":me.read?"독서 중":me.travel?"이동 중":me.expedition?"탐사 중":dayDone?"오늘 수색 완료":left>0?`수색하기 (${Math.ceil(left/1000)})`:"수색하기";const st=$("explorest");if(st)st.textContent=` (${used}/${EXPLORE_DAILY_LIMIT})`}
+function exploreCd(){const b=$("explore");if(!b)return;const used=exploreUsed(),dayDone=used>=EXPLORE_DAILY_LIMIT,left=EXPLORE_COOLDOWN-(Date.now()-(me.lastExplore||0)),busy=!!me.travel||!!me.expedition||!!me.read,resting=!!me.rest,down=!!me.downed||!!me.deadPending;b.disabled=busy||resting||down||dayDone||left>0;b.textContent=down?"쓰러짐":resting?"휴식 중":me.read?"독서 중":me.travel?"이동 중":me.expedition?"탐사 중":dayDone?"오늘 수색 완료":left>0?`수색하기 (${Math.ceil(left/1000)})`:"수색하기";const st=$("explorest");if(st)st.textContent=` (${used}/${EXPLORE_DAILY_LIMIT})`}
 T(exploreCd,1000);exploreCd();
 // ---- 낚시 / 채광 ----
 const GATHER_CD=5000,FISHING_SPOTS=["dock","beach"];
@@ -9211,17 +9211,44 @@ function addAlly(a){
 }
 function addAllyFromProfile(pr,p){
  if(actionLock("휴식 중에는 동료를 영입할 수 없습니다."))return;
- const src=pr||{name:p.n,color:p.c,lv:me.lv,job:"모험가",stats:STATS.map(()=>BASE),skills:{...DEFAULT_SKILLS},equipped:{},traits:[],hp:[100,100]};
+ const src=pr||{name:p.n,color:p.c,lv:me.lv,job:"모험가",stats:STATS.map(()=>5),skills:{...DEFAULT_SKILLS},equipped:{},traits:[],hp:[100,100]};
  addAlly(normAlly({...src,name:src.name||p.n,color:src.color||p.c,uid:p.uid,ai:true}));
+}
+// 용병 주력 공격: 마법사·학자·사제 → 마법(지력), 수렵꾼 → 원거리(지각), 나머지 → 근접(근력)
+function mercStyle(job){return ["마법사","학자","사제"].includes(job)?"magic":job==="수렵꾼"?"ranged":"melee"}
+// (주의: 이 범위의 BASE는 이동 비용 객체라 능력치 기본값 5를 직접 씀 — 예전 용병은 이 때문에 능력치가 전부 5였음)
+// 포인트 배분: 주력 능력치 60% · 체력 30% · 민첩 나머지. 능력치 최대 20, 넘치면 체력→민첩→지각→행운 순으로.
+function mercStats(style,pts){
+ const st=STATS.map(()=>5),main=style==="magic"?2:style==="ranged"?5:0;
+ const want=[[main,Math.round(pts*.6)],[4,Math.round(pts*.3)]];want.push([1,pts-want[0][1]-want[1][1]]);
+ let left=0;for(const [i,n] of want){const add=Math.min(n,20-st[i]);st[i]+=add;left+=n-add}
+ for(const i of [4,1,5,3,0,2]){if(left<=0)break;const add=Math.min(left,20-st[i]);st[i]+=add;left-=add}
+ return st;
+}
+// 2026-11-20: 용병 장비 — 레벨에 맞는 등급(Lv1~7 일반, 8~14 고급, 15~21 희귀, 22~28 영웅, 29~35 전설, 36+ 신화).
+// 주력 공격 무기·방어구는 그 등급의 중간 성능, 장신구는 '최대 HP'와 '모든 공격력' 장신구. 이름 문자열로 넣어 내구도가 닳지 않음(용병 장비는 꺼낼 수 없음).
+const MERC_GRADES=["일반","고급","희귀","영웅","전설","신화"];
+function mercGear(style,lv){
+ const gi=Math.max(0,Math.min(5,Math.floor((lv-1)/7)));
+ const of=(sub,g)=>ITEM_DATA.filter(d=>d.category==="장비"&&d.sub===sub&&d.grade===g);
+ const near=(sub,score)=>{for(let k=gi;k>=0;k--){const l=of(sub,MERC_GRADES[k]);if(l.length)return l.sort((a,b)=>score(a)-score(b))}return []};
+ const mid=l=>l.length?l[Math.floor((l.length-1)/2)].name:null;
+ const wAtk=d=>(+d.atkMin||0)+(+d.atkMax||0)||(+d.atk||0)*2;
+ const num=(d,re)=>{const m=String(d.effect||"").match(re);return m?+m[1]:0};
+ const wsub=style==="magic"?"마법무기":style==="ranged"?"원거리무기":"근접무기";
+ const acc=near("악세사리",()=>0),best=re=>{const l=acc.filter(d=>num(d,re)>0).sort((a,b)=>num(b,re)-num(a,re));return l.length?l[0].name:null};
+ const eq={main:mid(near(wsub,wAtk)),armor:mid(near("방어구",d=>+d.def||0)),acc1:best(/최대 HP \+(\d+)/),acc2:best(/모든 공격력 \+(\d+)/)};
+ Object.keys(eq).forEach(k=>{if(!eq[k])delete eq[k]});
+ return eq;
 }
 function addMercenary(){
  if(actionLock("휴식 중에는 동료를 영입할 수 없습니다."))return;
- const jobs=Object.keys(JOBS),job=pick(jobs),lv=Math.max(1,Math.min(PLAYER_MAX,me.lv+Math.floor(Math.random()*3)-1)),stats=STATS.map(()=>BASE);
- let pts=Math.min(12,3+Math.floor(lv/3));
- while(pts-->0)stats[Math.floor(Math.random()*stats.length)]++;
+ const jobs=Object.keys(JOBS),job=pick(jobs),lv=Math.max(1,Math.min(PLAYER_MAX,me.lv+Math.floor(Math.random()*3)-1));
+ // 2026-11-20: 능력치 포인트를 플레이어와 같게(생성 10 + 짝수 레벨마다 1) 주고, 직업의 주력 공격에 맞춰 분배.
+ const style=mercStyle(job),stats=mercStats(style,POINTS+Math.floor(lv/2));
  const skills={...DEFAULT_SKILLS,...jobSkillBonuses(job)};
- skills.melee=Math.max(skills.melee,Math.floor(lv/4));skills.survival=Math.max(skills.survival,Math.floor(lv/5));
- addAlly(normAlly({name:`용병 ${job}`,job,lv,stats:jobStats(stats,job),skills,equipped:{},traits:[],hp:[100,100],color:AVATAR_COLORS[Math.floor(Math.random()*AVATAR_COLORS.length)],ai:true}));
+ skills[style]=Math.max(skills[style]||0,Math.floor(lv/4));skills.survival=Math.max(skills.survival,Math.floor(lv/5));
+ addAlly(normAlly({name:`용병 ${job}`,job,lv,stats:jobStats(stats,job),skills,equipped:mercGear(style,lv),traits:[],hp:[100,100],color:AVATAR_COLORS[Math.floor(Math.random()*AVATAR_COLORS.length)],ai:true}));
 }
 function myPotionInfo(){let n=0,h=0;for(const x of me.inv||[]){const k=nm(x);if(isHpPotion(k)&&!isPotionAutoLocked(k)){n++;h+=potionHealVal(info(k).fx.hp||0)}}return {n,h:n?Math.round(h/n):0}}
 function memberPayload(){
