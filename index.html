@@ -427,6 +427,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .ch .js-name[data-uid]{cursor:pointer}
 #gameRoot .ch .js-name[data-uid]:hover{text-decoration:underline;text-underline-offset:2px}
 #gameRoot .dot{width:8px;height:8px;background:var(--name-color,var(--ok))}
+#gameRoot .ch.off .dot{background:#8a8a8a}
 
 /* chat — 이름과 본문을 한 줄에, 시간은 오른쪽 위 고정 */
 #gameRoot .chat{padding:0;height:570px;min-height:570px;max-height:570px;flex:0 0 570px;overflow:hidden;box-sizing:border-box}
@@ -437,6 +438,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .ctab[hidden]{display:none}
 #gameRoot .ctab[aria-selected="true"]{color:var(--accent-text);border-bottom:0}
 #gameRoot .ctab[aria-selected="true"]::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;border-radius:2px;background:var(--accent)}
+#gameRoot .ctab:has(.chat-badge:not([hidden])){padding-right:16px}
 #gameRoot .ctab .chat-badge{position:absolute;top:8px;right:-4px;min-width:16px;height:16px;padding:0 4px;box-sizing:border-box;border-radius:8px;background:var(--fg-danger,#d33);color:#fff;font-size:10px;line-height:16px;font-weight:700;text-align:center;pointer-events:none}
 #gameRoot .log{display:block;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:4px 20px 8px;font-size:14px;line-height:20px;gap:0}
 #gameRoot .log-inner{min-height:100%;display:flex;flex-direction:column;justify-content:flex-end}
@@ -1179,7 +1181,7 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
  <div class="box chat">
   <div class="ctabs" role="tablist" id="ctabs">
    <button class="ctab" role="tab" aria-selected="true" data-c="local">현장</button>
-   <button class="ctab" role="tab" aria-selected="false" data-c="world">세계</button>
+   <button class="ctab" role="tab" aria-selected="false" data-c="world" id="worldChatTab">세계</button>
    <button class="ctab" role="tab" aria-selected="false" data-c="notice">공지<b class="chat-badge" id="noticeBadge" hidden></b></button>
   </div>
   <div class="log" id="log"></div>
@@ -5562,7 +5564,7 @@ function friendList(){
 function friendOnline(id){
  const p=friendView.profiles&&friendView.profiles[id];
  if(p)return Date.now()-(+p.at||0)<120000;
- return (presenceList||[]).some(x=>x.uid===id);
+ return (presenceList||[]).some(x=>x.uid===id&&!presOff(x));
 }
 function displayName(id,name){if(id===uid)return name||me.name||"무명";if(!isFriend(id))return name||"무명";const f=me.friends&&me.friends[id];return f&&f.nick?f.nick:(name||"무명")}
 function nameColor(id){if(id===uid&&okColor(me.color))return me.color;const p=(friendView.profiles&&friendView.profiles[id])||(guildView.profiles&&guildView.profiles[id]);return p&&okColor(p.color)?p.color:""}
@@ -6234,7 +6236,10 @@ async function guildWritePost(){
  if(!txt)return toast("게시글 내용을 입력해 주세요.");
  try{const item={title,text:txt,by:me.name,at:Date.now()},r=push(ref(realtimeDB,"guilds/"+guildView.gid+"/posts"));await set(r,item);if(guildView.data)guildView.data.posts={...(guildView.data.posts||{}),[r.key]:item};guildDraft.post="";guildDraft.postTitle="";guildView.postMode="view";guildView.postIndex=0;guildView.postPage=0;guildRender();try{$("gPostView")&&$("gPostView").scrollIntoView({block:"nearest"})}catch(e){}toast("게시글을 등록했습니다.")}catch(e){toast("게시글 등록에 실패했습니다.")}
 }
+// 2026-11-20: 쓰러진(또는 사망 대기) 상태에서는 길드 창고·금고를 쓸 수 없다.
+function guildDownBlock(what){if(me.downed||me.deadPending){toast(`쓰러진 상태에서는 길드 ${what}를 이용할 수 없습니다.`);return true}return false}
 async function guildDeposit(name){
+ if(guildDownBlock("창고"))return;
  if(!name||!guildView.data)return;
  if(!guildPerm(guildView.data,"warehouseDeposit"))return toast("창고에 물건을 넣을 권한이 없습니다.");
  const max=count(name);
@@ -6244,6 +6249,7 @@ async function guildDeposit(name){
  $("pb").onclick=e=>qtyClick(e,max);
 }
 async function depositGuildItems(name,qty){
+ if(guildDownBlock("창고"))return;
  if(!guildView.data)return;
  if(!guildPerm(guildView.data,"warehouseDeposit"))return toast("창고에 물건을 넣을 권한이 없습니다.");
  if(guildDepositBusy)return toast("처리 중입니다. 잠시만 기다려 주세요.");
@@ -6278,6 +6284,7 @@ async function guildDepositIndex(idx){
 }
 let guildDepositBusy=false;
 async function depositGuildItem(idx){
+ if(guildDownBlock("창고"))return;
  if(!guildView.data)return;
  if(!guildPerm(guildView.data,"warehouseDeposit"))return toast("창고에 물건을 넣을 권한이 없습니다.");
  if(guildDepositBusy)return toast("처리 중입니다. 잠시만 기다려 주세요.");
@@ -6312,6 +6319,7 @@ let guildWithdrawBusy=false;
 function whKeyItems(key){const stores=guildWhStores(guildView.data),si=guildWhStoreIndex(stores),st=stores[si];return gArr(st&&st.items).filter(guildWhValid).filter(x=>WH_KEY(x)===key)}
 function whKeyLabel(sample){return nm(sample)+(typeof sample==="object"?` (내구도 ${fmt1(sample.dur)}/${safeNum(sample.max,0)})`:"")}
 function guildWithdrawKey(key){
+ if(guildDownBlock("창고"))return;
  if(!guildView.data)return;
  if(!guildPerm(guildView.data,"warehouseWithdraw"))return toast("창고에서 물건을 꺼낼 권한이 없습니다.");
  const list=whKeyItems(key);if(!list.length)return toast("아이템이 없습니다.");
@@ -6321,6 +6329,7 @@ function guildWithdrawKey(key){
  $("pb").onclick=e=>qtyClick(e,max);
 }
 async function withdrawGuildItems(key,qty,label){
+ if(guildDownBlock("창고"))return;
  if(!guildView.data)return;
  if(!guildPerm(guildView.data,"warehouseWithdraw"))return toast("창고에서 물건을 꺼낼 권한이 없습니다.");
  if(guildWithdrawBusy)return toast("처리 중입니다. 잠시만 기다려 주세요.");
@@ -6398,6 +6407,7 @@ function migrateGuildWarehouseDurability(gid,g){
  }).catch(e=>{guildDuraMigrated.delete(gid);console.warn("guild warehouse durability",e)});
 }
 async function guildVaultIn(){
+ if(guildDownBlock("금고"))return;
  const g=guildView.data;if(!g)return;
  if(!guildPerm(g,"vaultDeposit"))return toast("금고에 입금할 권한이 없습니다.");
  const amt=parseGuildAmount();if(!amt)return;
@@ -6414,6 +6424,7 @@ async function guildVaultIn(){
  toast(`${amt} G를 길드 금고에 입금했습니다.`);
 }
 async function guildVaultOut(){
+ if(guildDownBlock("금고"))return;
  const g=guildView.data;if(!g)return;
  if(!guildPerm(g,"vaultWithdraw"))return toast("금고에서 출금할 권한이 없습니다.");
  const amt=parseGuildAmount();if(!amt)return;
@@ -7049,7 +7060,7 @@ const myRideWait=()=>me.travel&&me.travel.ride&&me.travel.driver&&Date.now()<(+m
 function rideCandidates(){
  if(!uid||!me.partyId||!partyData||!partyData.members)return[];
  const now=Date.now();
- return (presenceList||[]).filter(p=>p&&p.uid!==uid&&partyData.members[p.uid]&&p.cont===me.cont&&p.area===me.area&&(p.sub||"")===(me.sub||"")&&!p.downed&&now-(+p.at||0)<PEOPLE_TTL);
+ return (presenceList||[]).filter(p=>p&&p.uid!==uid&&partyData.members[p.uid]&&p.cont===me.cont&&p.area===me.area&&(p.sub||"")===(me.sub||"")&&!p.downed&&!presOff(p,now));
 }
 // 실제 출발 (운전자는 재료 소모, 동승자는 소모 없음)
 function departMove(m,o={}){
@@ -8667,6 +8678,11 @@ try{setTab("map")}catch(e){}
 let people=[];
 let presenceRef=null,presenceLoc="",presenceAt=0,rosterUnsub=null,rosterGen=0,presenceWarned=false,downedUnsub=null,downedMap={},presenceList=[],rosterError=false;
 const PEOPLE_TTL=600000;
+// 2026-11-20: 접속이 끊긴 캐릭터는 마지막 갱신(at)부터 1시간 동안 그 장소 명단에 회색 점으로 남는다.
+// off(연결 끊김 시 서버가 표시) 또는 10분 넘게 갱신이 없으면 비접속으로 본다.
+const OFFLINE_SHOW=3600000;
+const presOff=(p,now=Date.now())=>!!p&&(!!p.off||now-(+p.at||0)>=PEOPLE_TTL);
+const presVisible=(p,now=Date.now())=>!!p&&now-(+p.at||0)<OFFLINE_SHOW;
 const chatData={local:[],world:[],notice:[],guild:[],party:[],whisper:[]};
 const chatUnsub={local:null,world:null,notice:null,guild:null,party:null,whisper:null};
 const chatPaths={};
@@ -8675,15 +8691,16 @@ const seenPingAt={};
 // ---- 파티·길드·귓속말 채팅 알림 배지 (2026-11-18) ----
 // 파티·길드: 가입 중이면 탭을 열지 않아도 구독하고, 공지처럼 마지막으로 본 시각(localStorage) 이후의 남이 보낸 메시지 수를 표시.
 // 귓속말: whisperPing으로 상대별 안 읽은 수를 세어 해당 귓속말 탭에 표시. 탭을 열면 0.
-const chatSeenAt={guild:0,party:0},chatSeenInit={guild:null,party:null},whisperUnread={};
+const chatSeenAt={guild:0,party:0,world:0},chatSeenInit={guild:null,party:null,world:null},whisperUnread={}; // 세계 채팅 배지 추가 (2026-11-20)
+const CHAT_BADGE_TABS=["guild","party","world"],CHAT_BADGE_TAB_ID={guild:"guildChatTab",party:"partyChatTab",world:"worldChatTab"},CHAT_BADGE_LABEL={guild:"길드 메시지",party:"파티 메시지",world:"세계 메시지"};
 function chatSeenKey(tab){return "everfall_chat_seen_"+tab+"_"+uid+"_"+charId+"_"+(chatPaths[tab]||"")}
 function chatLatestAt(tab){return (chatData[tab]||[]).reduce((m,x)=>Math.max(m,+x.at||0),0)}
-function chatBadgeEl(tab){const b=$(tab==="guild"?"guildChatTab":"partyChatTab");if(!b)return null;let e=b.querySelector(".chat-badge");if(!e){e=document.createElement("b");e.className="chat-badge";e.hidden=true;b.appendChild(e)}return e}
+function chatBadgeEl(tab){const b=$(CHAT_BADGE_TAB_ID[tab]||"");if(!b)return null;let e=b.querySelector(".chat-badge");if(!e){e=document.createElement("b");e.className="chat-badge";e.hidden=true;b.appendChild(e)}return e}
 function chatBadgeSet(e,n,label){if(!e)return;e.hidden=!n;e.textContent=n>9?"9+":String(n);e.title=n?`새 ${label} ${n}개`:""}
 function chatSaveSeen(tab){try{localStorage.setItem(chatSeenKey(tab),String(chatSeenAt[tab]||0))}catch(e){}}
 function chatMarkSeen(tab){const l=chatLatestAt(tab);if(l>(chatSeenAt[tab]||0)){chatSeenAt[tab]=l;chatSaveSeen(tab)}chatBadgeSet(chatBadgeEl(tab),0,"")}
 function chatBadgeSync(tab){
- if(tab!=="guild"&&tab!=="party")return;
+ if(!CHAT_BADGE_TABS.includes(tab))return;
  const path=chatPaths[tab]||"";
  if(chatSeenInit[tab]!==path){
   chatSeenInit[tab]=path;
@@ -8693,7 +8710,7 @@ function chatBadgeSync(tab){
  }
  if(cur===tab){chatMarkSeen(tab);return}
  const n=(chatData[tab]||[]).filter(m=>(+m.at||0)>(chatSeenAt[tab]||0)&&m.uid!==uid).length;
- chatBadgeSet(chatBadgeEl(tab),n,tab==="guild"?"길드 메시지":"파티 메시지");
+ chatBadgeSet(chatBadgeEl(tab),n,CHAT_BADGE_LABEL[tab]);
 }
 let noticeSeenAt=0,noticeSeenInit=false;
 function noticeSeenKey(){return "everfall_notice_seen_"+uid+"_"+charId}
@@ -8848,7 +8865,7 @@ function syncPresence(force){
  if(authState!=="same"){if(authState==="diff")warnAuthSwitch();return}
  const loc=me.cont+"|"+me.area+"|"+(me.sub||""),oldCont=presenceLoc?presenceLoc.split("|")[0]:"",moved=loc!==presenceLoc;
  if(moved){
-  if(presenceRef)remove(presenceRef).catch(()=>{});
+  if(presenceRef){try{onDisconnect(presenceRef).cancel().catch(()=>{})}catch(e){}remove(presenceRef).catch(()=>{})}
   presenceLoc=loc;
   presenceRef=ref(realtimeDB,"presence/"+me.cont+"/"+me.area+"/"+uid);
   startRoster();
@@ -8874,7 +8891,7 @@ function syncPresence(force){
      try{toast(`접속 정보(현재 위치)를 저장하지 못했습니다. [${code} · ${au}]`)}catch(_){}}
    });
   });
-  onDisconnect(presenceRef).remove().catch(()=>{});
+  onDisconnect(presenceRef).update({off:true}).catch(()=>{});
   return p;
  }
 }
@@ -8883,7 +8900,7 @@ function syncPresence(force){
 const downedLive=(d,now=Date.now())=>!!d&&+d.until>now&&!d.dead&&!d.revive;
 function rosterEntries(){
  const now=Date.now();
- let list=presenceList.slice();
+ let list=presenceList.filter(p=>p.uid===uid||presVisible(p,now)).map(p=>p.uid===uid?{...p,off:false,at:now}:p);
  Object.entries(downedMap).forEach(([id,d])=>{
   if(!downedLive(d,now))return;
   if(d.cont!==me.cont||d.area!==me.area)return;
@@ -8896,12 +8913,13 @@ function rosterEntries(){
 }
 function renderRoster(){
  const now=Date.now(),list=rosterEntries();
- people=list.map(p=>({n:displayName(p.uid,p.name||"무명"),s:p.uid===uid?"나":`생존 ${safeNum(p.day,1)}일`,self:p.uid===uid,c:colorOf(p.c),uid:p.uid,downed:p.uid===uid?!!me.downed:(downedMap[p.uid]?downedLive(downedMap[p.uid],now):!!p.downed&&+p.downedUntil>now)}));
+ people=list.map(p=>({n:displayName(p.uid,p.name||"무명"),s:p.uid===uid?"나":`생존 ${safeNum(p.day,1)}일`,self:p.uid===uid,c:colorOf(p.c),uid:p.uid,off:p.uid!==uid&&presOff(p,now),downed:p.uid===uid?!!me.downed:(downedMap[p.uid]?downedLive(downedMap[p.uid],now):!!p.downed&&+p.downedUntil>now)}));
  $("rcnt").textContent=list.length+"명";
- $("roster").innerHTML=list.map(p=>{const c=colorOf(p.c),self=p.uid===uid,down=self?!!me.downed:(downedMap[p.uid]?downedLive(downedMap[p.uid],now):!!p.downed&&+p.downedUntil>now);return `<div class="ch"><span class="dot"></span><span class="js-name" data-uid="${esc(p.uid||"")}" data-name="${esc(p.name||"무명")}" title="캐릭터 정보 보기" style="--name-color:${c}">${esc(displayName(p.uid,p.name||"무명"))}</span>${down?'<span class="down-badge">[쓰러짐]</span>':''}${self?' <span class="dim">(나)</span>':""}<small>${self?"나":`생존 ${p.day||1}일`}</small></div>`}).join("")||`<div class="dim">이곳에 다른 생존자가 없다.</div>`;
+ $("roster").innerHTML=list.map(p=>{const c=colorOf(p.c),self=p.uid===uid,down=self?!!me.downed:(downedMap[p.uid]?downedLive(downedMap[p.uid],now):!!p.downed&&+p.downedUntil>now);const off=!self&&presOff(p,now);return `<div class="ch${off?" off":""}"><span class="dot"${off?' title="비접속"':""}></span><span class="js-name" data-uid="${esc(p.uid||"")}" data-name="${esc(p.name||"무명")}" title="캐릭터 정보 보기" style="--name-color:${c}">${esc(displayName(p.uid,p.name||"무명"))}</span>${down?'<span class="down-badge">[쓰러짐]</span>':''}${self?' <span class="dim">(나)</span>':""}<small>${self?"나":`생존 ${p.day||1}일`}</small></div>`}).join("")||`<div class="dim">이곳에 다른 생존자가 없다.</div>`;
  if(rosterError)$("roster").insertAdjacentHTML("beforeend",`<div class="dim" style="font-size:12px">접속자 목록을 불러오지 못했어요. Firebase 규칙을 확인해 주세요.</div>`);
  decorateNames();
 }
+setInterval(()=>{try{if(gameAlive&&$("roster"))renderRoster()}catch(e){}},30000);
 function subscribeDownedMap(){
  if(!uid)return;
  if(downedUnsub){try{downedUnsub()}catch(e){}downedUnsub=null}
@@ -8914,7 +8932,7 @@ function startRoster(){
  rosterUnsub=onValue(ref(realtimeDB,"presence/"+cont+"/"+area),s=>{
   if(gen!==rosterGen)return;
   const now=Date.now(),v=s.val()||{};
-  presenceList=Object.entries(v).map(([id,p])=>({uid:id,...(p||{})})).filter(p=>p&&(!p.cont||p.cont===cont)&&(!p.area||p.area===area)&&now-(+p.at||0)<PEOPLE_TTL);
+  presenceList=Object.entries(v).map(([id,p])=>({uid:id,...(p||{})})).filter(p=>p&&(!p.cont||p.cont===cont)&&(!p.area||p.area===area)&&presVisible(p,now));
   rosterError=false;renderRoster();
  },err=>{
   if(gen!==rosterGen)return;
@@ -8938,7 +8956,7 @@ function isOnlineParty(){return !!(me.partyId&&partyData&&partyData.members&&Obj
 function proposalMatesHere(){
  if(!uid||!me.partyId||!partyData||!partyData.members)return[];
  const now=Date.now();
- return (presenceList||[]).filter(q=>q&&q.uid!==uid&&partyData.members[q.uid]&&q.cont===me.cont&&q.area===me.area&&(q.sub||"")===(me.sub||"")&&!q.downed&&now-(+q.at||0)<PEOPLE_TTL).map(q=>q.uid);
+ return (presenceList||[]).filter(q=>q&&q.uid!==uid&&partyData.members[q.uid]&&q.cont===me.cont&&q.area===me.area&&(q.sub||"")===(me.sub||"")&&!q.downed&&!presOff(q,now)).map(q=>q.uid);
 }
 function proposalAtLoc(p){return !p||!p.loc||(me.cont===p.loc.cont&&me.area===p.loc.area&&(p.loc.sub==null||(me.sub||"")===(p.loc.sub||"")))}
 function proposalInvited(p,id){return !p||!Array.isArray(p.invited)||p.invited.includes(id)}
@@ -9445,7 +9463,7 @@ function openPartyInvitePicker(){
  if(partyData&&partyData.leader!==uid)return toast("파티장만 초대할 수 있다.");
  const mem=partyData&&partyData.members||{};
  if(Object.keys(mem).length>=5)return toast("파티가 가득 찼다.");
- const others=people.filter(p=>!p.self&&p.uid&&!p.downed&&!mem[p.uid]);
+ const others=people.filter(p=>!p.self&&p.uid&&!p.downed&&!p.off&&!mem[p.uid]);
  pop("온라인 파티",others.length?`<p class="dim">주변 생존자에게 파티 초대를 보낸다. 상대가 수락하면 파티에 합류한다.</p>`:`<p class="dim">주변에 초대할 수 있는 생존자가 없다.</p>`,
   others.map(p=>({t:p.n,c:"alt",fn:()=>invitePlayer(p.uid)})).concat([{t:"닫기"}]));
 }
@@ -9493,7 +9511,7 @@ function subscribeChat(tab,force){
   chatData[tab]=Object.entries(v).map(([id,m])=>({id,...(m||{})})).filter(m=>m&&typeof m.t==="string"&&(tab!=="whisper"||(+m.at||0)>=charId))
    .sort((a,b)=>(+a.at||0)-(+b.at||0)||String(a.id).localeCompare(String(b.id)));
   if(tab==="notice")noticeSync();
-  if(tab==="guild"||tab==="party")chatBadgeSync(tab);
+  if(CHAT_BADGE_TABS.includes(tab))chatBadgeSync(tab);
   if(tab==="whisper"&&whisperUser&&uid){try{remove(ref(realtimeDB,"whisperPing/"+uid+"/"+whisperUser.uid)).catch(()=>{})}catch(e){}}
   if(cur===tab)render();
  },err=>{
@@ -9696,7 +9714,7 @@ function switchChat(tab){
  if(tab==="party"&&!me.partyId)return toast("파티에 가입해야 파티 채팅을 사용할 수 있습니다.");
  cur=tab;
  if(tab==="notice")noticeMarkSeen();
- if(tab==="guild"||tab==="party")chatMarkSeen(tab);
+ if(CHAT_BADGE_TABS.includes(tab))chatMarkSeen(tab);
  syncChatTabs();
  if(tab==="whisper")subscribeChat("whisper");
  else if(tab==="guild")subscribeChat("guild");
@@ -11730,7 +11748,7 @@ render();bag();renderAll();clock();
  _ids.push(setTimeout(()=>{try{applyItemRefund()}catch(e){console.warn(e)}},300));
  _ids.push(setTimeout(()=>{try{if(affectionDecay()&&npcOpen)npcRender()}catch(e){}},400));
  if(me.expedition)setTimeout(checkExpAct,400);
-return{stop(){gameAlive=false;try{const gh=$("gtabBody");if(gh){gh.innerHTML="";gh.onclick=null;gh.oninput=null;gh.onchange=null}}catch(e){};try{if(guildInviteUnsub){guildInviteUnsub();guildInviteUnsub=null}}catch(e){};try{if(_npcResize)window.removeEventListener("resize",_npcResize);_npcResize=null}catch(e){};try{if(tutActive)tutClose(false)}catch(e){};try{resetWhisperTab()}catch(e){};_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);document.removeEventListener("visibilitychange",onPresenceVisible);document.removeEventListener("visibilitychange",onGameHiddenSave);window.removeEventListener("pagehide",flushGameSave);window.removeEventListener("focus",checkExpAct);accountHold=false;syncHold=false;if(rosterUnsub)rosterUnsub();if(campfireUnsub)try{campfireUnsub()}catch(e){}if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};if(whisperPingUnsub)try{whisperPingUnsub()}catch(e){};try{stopPartyWatch()}catch(e){};if(partyProposalUnsub)try{partyProposalUnsub()}catch(e){};if(partyExpUnsub)try{partyExpUnsub()}catch(e){};if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(mailUnsub)try{mailUnsub()}catch(e){};mailUnsub=null;mailOpen=false;mailSelected=null;if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}guildView.open=false;if(guildView.profilesUnsub){try{guildView.profilesUnsub()}catch(e){}guildView.profilesUnsub=null}if(friendView.profilesUnsub){try{friendView.profilesUnsub()}catch(e){}friendView.profilesUnsub=null}if(friendView.linksUnsub){try{friendView.linksUnsub()}catch(e){}friendView.linksUnsub=null}if(friendView.reqsUnsub){try{friendView.reqsUnsub()}catch(e){}friendView.reqsUnsub=null}friendView.open=false;if(presenceRef)remove(presenceRef).catch(()=>{})}};
+return{stop(){gameAlive=false;try{const gh=$("gtabBody");if(gh){gh.innerHTML="";gh.onclick=null;gh.oninput=null;gh.onchange=null}}catch(e){};try{if(guildInviteUnsub){guildInviteUnsub();guildInviteUnsub=null}}catch(e){};try{if(_npcResize)window.removeEventListener("resize",_npcResize);_npcResize=null}catch(e){};try{if(tutActive)tutClose(false)}catch(e){};try{resetWhisperTab()}catch(e){};_ids.forEach(clearInterval);document.removeEventListener("everfall-theme",decorateNames);window.removeEventListener("resize",fitName);document.removeEventListener("visibilitychange",onExpVisible);document.removeEventListener("visibilitychange",onPresenceVisible);document.removeEventListener("visibilitychange",onGameHiddenSave);window.removeEventListener("pagehide",flushGameSave);window.removeEventListener("focus",checkExpAct);accountHold=false;syncHold=false;if(rosterUnsub)rosterUnsub();if(campfireUnsub)try{campfireUnsub()}catch(e){}if(downedUnsub)try{downedUnsub()}catch(e){};if(graveUnsub)try{graveUnsub()}catch(e){};if(myDownedUnsub)try{myDownedUnsub()}catch(e){};if(whisperPingUnsub)try{whisperPingUnsub()}catch(e){};try{stopPartyWatch()}catch(e){};if(partyProposalUnsub)try{partyProposalUnsub()}catch(e){};if(partyExpUnsub)try{partyExpUnsub()}catch(e){};if(proposalTimer){clearTimeout(proposalTimer);proposalTimer=null};Object.values(chatUnsub).forEach(f=>{if(f)try{f()}catch(e){}});if(healUnsub)try{healUnsub()}catch(e){};if(mailUnsub)try{mailUnsub()}catch(e){};mailUnsub=null;mailOpen=false;mailSelected=null;if(tradeUnsub)try{tradeUnsub()}catch(e){};if(tradeInviteUnsub)try{tradeInviteUnsub()}catch(e){};pendingInvite=null;closeTradePop();if(guildView.unsub){try{guildView.unsub()}catch(e){}guildView.unsub=null}guildView.open=false;if(guildView.profilesUnsub){try{guildView.profilesUnsub()}catch(e){}guildView.profilesUnsub=null}if(friendView.profilesUnsub){try{friendView.profilesUnsub()}catch(e){}friendView.profilesUnsub=null}if(friendView.linksUnsub){try{friendView.linksUnsub()}catch(e){}friendView.linksUnsub=null}if(friendView.reqsUnsub){try{friendView.reqsUnsub()}catch(e){}friendView.reqsUnsub=null}friendView.open=false;if(presenceRef)update(presenceRef,{off:true}).catch(()=>{})}};
 
 
 }
