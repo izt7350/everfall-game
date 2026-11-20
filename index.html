@@ -470,6 +470,12 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 #gameRoot .petcard-head{display:flex;align-items:center;gap:10px}
 #gameRoot .pet-icon{flex:0 0 auto;display:grid;place-items:center;width:40px;height:40px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);overflow:hidden}
 #gameRoot .pet-icon img{display:block;width:28px;height:28px;object-fit:contain}
+#gameRoot button.pet-icon{padding:0;cursor:pointer;font:inherit}
+#gameRoot button.pet-icon:hover{border-color:var(--accent)}
+#gameRoot .dog-look-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:8px;margin-top:8px;max-height:52vh;overflow:auto}
+#gameRoot .dog-look{display:grid;place-items:center;aspect-ratio:1;padding:4px;border:1px solid var(--line);border-radius:10px;background:var(--panel2);cursor:pointer}
+#gameRoot .dog-look img{width:100%;height:100%;object-fit:contain}
+#gameRoot .dog-look.on{border:2px solid var(--accent);background:var(--panel)}
 #gameRoot .pet-id{flex:1;min-width:0}
 #gameRoot .pet-name-row{display:flex;align-items:center;gap:2px}
 #gameRoot .pet-name{font-size:14px;line-height:22px;font-weight:500;color:var(--text);white-space:nowrap}
@@ -2353,7 +2359,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  if(!okPhoto(c.photo))o.photo=null;o.blocked=a(c.blocked,[]).filter(x=>typeof x==="string");
  if(!c.v2)Object.assign(o,kit(c.job));else{o.equipped=c.equipped&&typeof c.equipped==="object"?c.equipped:{};o.vehicles=a(c.vehicles,[]);o.ground=c.ground&&typeof c.ground==="object"?c.ground:{}}
  const pet=c.pet&&typeof c.pet==="object"?c.pet:null;
- o.pet=pet?{species:pet.species==="고양이"?"고양이":"강아지",name:String(pet.name||pet.species||"강아지").slice(0,10),hunger:Math.max(0,Math.min(100,Math.floor(isFinite(+pet.hunger)?+pet.hunger:100))),affection:Math.max(0,Math.min(100,Math.floor(isFinite(+pet.affection)?+pet.affection:50))),petAt:isFinite(+pet.petAt)?+pet.petAt:0,hungerAt:isFinite(+pet.hungerAt)?+pet.hungerAt:Date.now(),affectionAt:isFinite(+pet.affectionAt)?+pet.affectionAt:Date.now()}:null;
+ o.pet=pet?{species:pet.species==="고양이"?"고양이":"강아지",name:String(pet.name||pet.species||"강아지").slice(0,10),hunger:Math.max(0,Math.min(100,Math.floor(isFinite(+pet.hunger)?+pet.hunger:100))),affection:Math.max(0,Math.min(100,Math.floor(isFinite(+pet.affection)?+pet.affection:50))),petAt:isFinite(+pet.petAt)?+pet.petAt:0,hungerAt:isFinite(+pet.hungerAt)?+pet.hungerAt:Date.now(),affectionAt:isFinite(+pet.affectionAt)?+pet.affectionAt:Date.now(),...(+pet.look>=1&&+pet.look<=(pet.species==="고양이"?11:14)?{look:Math.floor(+pet.look)}:{})}:null;
  o.petAdoptLockUntil=Math.max(0,+c.petAdoptLockUntil||0);
  o.gmTestWeapons=!!c.gmTestWeapons;
  o.tutorialSeen=!!c.tutorialSeen;
@@ -6773,7 +6779,8 @@ function repairAirship(){
  bag();try{rideRender()}catch(e){};groundRender();try{opts.save(cp(snap()))}catch(e){}
  sfx("ok");
  pop("비행선 수리 완료",`<p>비행선을 다시 띄울 수 있게 되었다. 동행에 추가되었다.</p><p class="dim">이름을 지어 줄 수 있다. 마력석으로 연료를 채운 뒤 대지역·대륙 이동에서 ‘비행선’을 고르면 된다.</p><input id="rnIn" maxlength="10" placeholder="비행선 이름" value="">`,
-  [{t:"이름 짓기",c:"",fn:()=>{const v=(($("rnIn")||{}).value||"").trim();const a=airShip();if(a&&v){a.name=v.slice(0,10);try{rideRender()}catch(e){};try{opts.save(cp(snap()))}catch(e){}}}},{t:"나중에"}]);
+  [{t:"이름 짓기",c:"",fn:()=>{const v=(($("rnIn")||{}).value||"").trim();const a=airShip();if(a&&v){a.name=v.slice(0,10);try{rideRender()}catch(e){};try{opts.save(cp(snap()))}catch(e){}}airLookPick()}},{t:"나중에",fn:()=>airLookPick()}]);
+ function airLookPick(){const a=airShip();if(!a)return;pickLook("airship",a.look||0,"비행선 외형 고르기",l=>{const b=airShip();if(!b)return;b.look=l;try{rideRender()}catch(e){};try{opts.save(cp(snap()))}catch(e){}},true)}
 }
 function groundRender(){
  const shared=sharedGround.items||[],local=groundMigrating.has(gkey())?[]:(me.ground[gkey()]||[]),rows=[];
@@ -6921,14 +6928,30 @@ function showPetSecond(species){
   {t:"두고 간다"}
  ],true);
 }
-function askPetName(species){
- pop("이름 짓기",`<p>${species}의 이름을 정해 주세요.</p><input id="petNameIn" maxlength="10" placeholder="${species}">`,[
-  {t:"입양",c:"",fn:()=>adoptPet(species,($("petNameIn")&&$("petNameIn").value||"").trim().slice(0,10)||species)}
+// 2026-11-20: 강아지 외형 14종(icons/dog_1~14.png) 중 선택. 입양할 때 고르고, 동행 카드의 그림을 눌러 언제든 바꿀 수 있다.
+const DOG_LOOKS=14;
+// 외형 목록: look 값 = 목록 순번(1부터). 말(2026-11-20): 1 = 기존 horse.png, 2~13 = horse_1~12.png
+const LOOK_SETS={dog:Array.from({length:DOG_LOOKS},(_,i)=>`icons/dog_${i+1}.png`),cat:["icons/cat.png",...Array.from({length:10},(_,i)=>`icons/cat_${i+1}.png`)],airship:["icons/airship.png",...Array.from({length:11},(_,i)=>`icons/airship_${i+1}.png`)],horse:["icons/horse.png",...Array.from({length:12},(_,i)=>`icons/horse_${i+1}.png`)]};
+const lookSrc=(kind,look,fallback)=>{const l=LOOK_SETS[kind]||[],n=Math.floor(+look||0);return n>=1&&n<=l.length?l[n-1]:fallback};
+const petLookKind=p=>p&&p.species==="고양이"?"cat":"dog";
+const petImgSrc=p=>p&&p.species==="고양이"?lookSrc("cat",p.look,"icons/cat.png"):lookSrc("dog",p&&p.look,"icons/dog.png");
+function pickDogLook(cur,title,cb,lock){return pickLook("dog",cur,title,cb,lock)}
+function pickLook(kind,cur,title,cb,lock){
+ const L=LOOK_SETS[kind]||[];
+ let sel=+cur>=1&&+cur<=L.length?Math.floor(+cur):1+Math.floor(Math.random()*L.length);
+ const grid=L.map((src,i)=>`<button type="button" class="dog-look${i+1===sel?" on":""}" data-look="${i+1}" aria-label="외형 ${i+1}"><img src="${src}" alt=""></button>`).join("");
+ pop(title,`<p class="dim">마음에 드는 모습을 골라 주세요.</p><div class="dog-look-grid">${grid}</div>`,[{t:"선택",c:"",fn:()=>cb(sel)},...(lock?[]:[{t:"취소"}])],!!lock);
+ $("pb").onclick=e=>{const b=e.target.closest("[data-look]");if(!b)return;sel=+b.dataset.look;$("pb").querySelectorAll(".dog-look").forEach(x=>x.classList.toggle("on",x===b))};
+}
+function askPetName(species,look){
+ if(!look){pickLook(species==="고양이"?"cat":"dog",0,`${species} 외형 고르기`,l=>askPetName(species,l),true);return}
+ pop("이름 짓기",`${look?`<div style="text-align:center"><img src="${lookSrc(species==="고양이"?"cat":"dog",look,"")}" alt="" style="width:72px;height:72px;object-fit:contain"></div>`:""}<p>${species}의 이름을 정해 주세요.</p><input id="petNameIn" maxlength="10" placeholder="${species}">`,[
+  {t:"입양",c:"",fn:()=>adoptPet(species,($("petNameIn")&&$("petNameIn").value||"").trim().slice(0,10)||species,look)}
  ],true);
  setTimeout(()=>{const i=$("petNameIn");if(i){i.focus();i.select()}},0);
 }
-function adoptPet(species,name){
- me.pet={species,name,hunger:100,affection:50,petAt:0,hungerAt:Date.now(),affectionAt:Date.now()};
+function adoptPet(species,name,look){
+ me.pet={species,name,hunger:100,affection:50,petAt:0,hungerAt:Date.now(),affectionAt:Date.now(),...(look?{look:Math.floor(+look)}:{})};
  petHungerCarry=0;petAffectionCarry=0;
  try{rideRender()}catch(e){}
  try{opts.save(cp(snap()))}catch(e){}
@@ -6941,7 +6964,7 @@ function adoptPet(species,name){
    const wait=p?Math.max(0,3*36e5-(Date.now()-(+p.petAt||0))):0;
    const pet=p?`<article class="petcard">
      <div class="petcard-head">
-      <span class="pet-icon"><img src="${img(p.species)}" alt=""></span>
+      <button type="button" class="pet-icon" data-plook="1" title="외형 바꾸기" aria-label="외형 바꾸기"><img src="${petImgSrc(p)}" alt=""></button>
       <div class="pet-id"><div class="pet-name-row"><span class="pet-name">${esc(p.name)}</span><button class="pet-rename" data-rn="pet" title="이름 변경" aria-label="이름 변경">✎</button></div><span class="pet-species">${esc(p.species)}</span></div>
      </div>
      <div class="pet-stats">
@@ -6955,7 +6978,7 @@ function adoptPet(species,name){
    const vs=me.vehicles.map((v,i)=>{const h=v.type==="말",t=v.tier||0;
     if(!h){const fuel=Math.max(0,Math.min(AIR_FUEL_MAX,v.fuel||0));const segs=Array(AIR_FUEL_MAX).fill(0).map((_,j)=>`<i class="seg ${j<fuel?"on":""}"></i>`).join("");return `<article class="petcard">
       <div class="petcard-head">
-       <span class="pet-icon"><img src="${img(v.type)}" alt=""></span>
+       <button type="button" class="pet-icon" data-vlook="${i}" title="외형 바꾸기" aria-label="외형 바꾸기"><img src="${lookSrc("airship",v.look,img(v.type))}" alt=""></button>
        <div class="pet-id"><div class="pet-name-row"><span class="pet-name">${esc(v.name)}</span><button class="pet-rename" data-rn="${i}" title="이름 변경" aria-label="이름 변경">✎</button></div><span class="pet-species">${esc(v.type)}</span></div>
       </div>
       <div class="pet-stats">
@@ -6967,7 +6990,7 @@ function adoptPet(species,name){
      </article>`;}
     return `<article class="petcard">
       <div class="petcard-head">
-       <span class="pet-icon"><img src="${img(v.type)}" alt=""></span>
+       <button type="button" class="pet-icon" data-vlook="${i}" title="외형 바꾸기" aria-label="외형 바꾸기"><img src="${lookSrc("horse",v.look,img(v.type))}" alt=""></button>
        <div class="pet-id"><div class="pet-name-row"><span class="pet-name">${esc(v.name)}</span><button class="pet-rename" data-rn="${i}" title="이름 변경" aria-label="이름 변경">✎</button></div><span class="pet-species">${esc(v.type)}</span></div>
       </div>
       <div class="pet-stats">
@@ -6982,6 +7005,8 @@ function adoptPet(species,name){
   function askName(init,cb){pop("이름 변경",`<input id="rnIn" maxlength="10" value="${esc(init)}">`,[{t:"변경",c:"",fn:()=>{const v=$("rnIn").value.trim();if(v)cb(v.slice(0,10))}},{t:"취소"}])}
   let rideTapAt=0;
   $("ride").onclick=e=>{const t=e.target.closest("button");if(!t)return;
+   if(t.dataset.vlook!=null){const v=me.vehicles[+t.dataset.vlook];if(!v)return;const air=v.type!=="말";pickLook(air?"airship":"horse",v.look||1,air?"비행선 외형 바꾸기":"말 외형 바꾸기",l=>{v.look=l;rideRender();try{opts.save(cp(snap()))}catch(e){}});return}
+   if(t.dataset.plook!=null){const p=me.pet;if(!p)return;pickLook(petLookKind(p),p.look||1,`${p.species} 외형 바꾸기`,l=>{if(!me.pet)return;me.pet.look=l;rideRender();try{opts.save(cp(snap()))}catch(e){}});return}
    // 연속 터치(더블탭) 방지: 첫 번째 터치로 마지막 각설탕을 쓰고 두 번째 터치에서 '없다' 창이 뜨던 문제 (2026-11-13)
    if(t.dataset.rn==null){const now=Date.now();if(now-rideTapAt<800)return;rideTapAt=now}if(actionLock("휴식 중에는 동행을 돌볼 수 없습니다."))return;if(!starvationActionCost())return;const p=me.pet;
    if(t.dataset.rn!=null){const o=t.dataset.rn==="pet"?p:me.vehicles[+t.dataset.rn];askName(o.name,v=>{o.name=v;rideRender()})}
@@ -10439,9 +10464,9 @@ $("buyHorse").onclick=()=>{
  if(!stableOpen())return toast("마굿간 영업시간이 아닙니다.");
  if(me.gold<700)return toast("700G가 필요합니다.");
  if(!starvationActionCost())return;
- me.gold-=700;me.vehicles.push({type:"말",name:"말",tier:0});
+ me.gold-=700;const nh={type:"말",name:"말",tier:0};me.vehicles.push(nh);
  bag();rideRender();try{opts.save(cp(snap()))}catch(e){}
- modal("말 구입","말 1마리를 구입했습니다. 동행에서 이름을 바꿀 수 있습니다.");
+ pickLook("horse",0,"말 외형 고르기",l=>{nh.look=l;rideRender();try{opts.save(cp(snap()))}catch(e){}modal("말 구입","말 1마리를 구입했습니다. 동행에서 이름과 외형을 바꿀 수 있습니다.")},true);
 };
 function stableBuyMax(n){
  const goldMax=Math.floor((+me.gold||0)/10);
