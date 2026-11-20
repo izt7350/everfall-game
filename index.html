@@ -2317,6 +2317,8 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.lastExplore=isFinite(+c.lastExplore)?+c.lastExplore:0;
  o.exploreDay=typeof c.exploreDay==="string"?c.exploreDay:"";
  o.exploreCount=Math.max(0,Math.floor(+c.exploreCount||0));
+ o.npcGiftDay=typeof c.npcGiftDay==="string"?c.npcGiftDay:"";
+ o.npcGifts=c.npcGifts&&typeof c.npcGifts==="object"&&!Array.isArray(c.npcGifts)?Object.fromEntries(Object.entries(c.npcGifts).map(([k,v])=>[k,Math.max(0,Math.floor(+v||0))])):{};
  o.hungerAt=isFinite(+c.hungerAt)?+c.hungerAt:Date.now();
  o.expLogs=Array.isArray(c.expLogs)?c.expLogs.filter(l=>l&&typeof l.text==="string"&&isFinite(+l.at)).slice(-200):[];
  o.expMeta=c.expMeta&&typeof c.expMeta==="object"?c.expMeta:null;
@@ -2613,6 +2615,9 @@ const info=n=>{const k=ITEM_ALIASES[n]||n;return DB[k]||registerItem(k)||{t:"x",
 const ITEM_ALIASES={"일반 회복 비약":"일반 활력 비약","고급 회복 비약":"고급 활력 비약","희귀 회복 비약":"희귀 활력 비약","영웅 회복 비약":"영웅 활력 비약","전설 회복 비약":"전설 활력 비약","신화 회복 비약":"신화 활력 비약","응급 키트":"소생약","구리 망토":"망토","은 망토":"바람 망토","연금 도구":"포션 제작 도구"};
 const REMOVED_ITEM_REPLACEMENTS={"낡은 지팡이":"낡은 수정구","낡은 천 갑옷":"낡은 로브","낡은 사슬 갑옷":"낡은 판금 갑옷"};
 const nm=x=>{const n=typeof x==="string"?x:x.n;return ITEM_ALIASES[n]||n};
+// 2026-11-20: 장비(무기·방어구·장신구·가방)와 도구는 겹치지 않는다 — 소지품·길드 창고 모두 1개당 1칸.
+const isEquipName=n=>{const d=ITEM_BY_NAME[n];return !!d&&(d.category==="장비"||d.category==="도구")};
+const stackItem=x=>typeof x==="string"&&!isEquipName(nm(x));
 function durabilityMaxOfName(name){
  const it=info(nm(name));
  if(!it)return 0;
@@ -2993,6 +2998,7 @@ const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||cha
  lastExplore:isFinite(+char.lastExplore)?+char.lastExplore:0,
  exploreDay:typeof char.exploreDay==="string"?char.exploreDay:"",
  exploreCount:Math.max(0,Math.floor(+char.exploreCount||0)),
+ npcGiftDay:typeof char.npcGiftDay==="string"?char.npcGiftDay:"",npcGifts:char.npcGifts&&typeof char.npcGifts==="object"&&!Array.isArray(char.npcGifts)?{...char.npcGifts}:{},
  hungerAt:isFinite(+char.hungerAt)?+char.hungerAt:Date.now(),
  downed:opts.downed!==undefined?opts.downed:(char.downed&&typeof char.downed==="object"&&isFinite(+char.downed.until)?{...char.downed}:null),deadPending:false,
  expLogs:cp(Array.isArray(char.expLogs)?char.expLogs.slice(-200):[]),expMeta:char.expMeta&&typeof char.expMeta==="object"?{...char.expMeta}:null,
@@ -4377,8 +4383,8 @@ const AIR_REPAIR={gold:2000,mats:[["마력석",2],["두꺼운 가죽",3],["마�
 const airShip=()=>me.vehicles.find(v=>v.type==="비행선"),airFuel=()=>{const a=airShip();return a?Math.max(0,Math.min(AIR_FUEL_MAX,a.fuel||0)):0};
 const BASE_INV_CAP=30;
 const cap=()=>BASE_INV_CAP+(JT().inv||0)+(me.equipped.bag?(info(nm(me.equipped.bag)).cap||0):0);
-const usedSlots=()=>new Set(me.inv.filter(x=>typeof x==="string").map(nm)).size+me.inv.filter(x=>typeof x==="object").length;
-const canAdd=x=>(typeof x==="string"&&me.inv.some(y=>typeof y==="string"&&nm(y)===nm(x)))||usedSlots()<cap();
+const usedSlots=()=>new Set(me.inv.filter(stackItem).map(nm)).size+me.inv.filter(x=>x&&!stackItem(x)).length;
+const canAdd=x=>(stackItem(x)&&me.inv.some(y=>stackItem(y)&&nm(y)===nm(x)))||usedSlots()<cap();
 // 이름이 바뀐 아이템: 기존 보유분을 새 이름으로 옮긴다.
 const RENAMED_ITEMS={"일반 회복 비약":"일반 활력 비약","고급 회복 비약":"고급 활력 비약","희귀 회복 비약":"희귀 활력 비약","영웅 회복 비약":"영웅 활력 비약","전설 회복 비약":"전설 활력 비약","신화 회복 비약":"신화 활력 비약","버섯 리조트":"버섯 리조또","별빛 버섯 리조트":"별빛 버섯 리조또","초심자의 명검":"철검"};
 function normalizeItem(x){
@@ -4991,7 +4997,7 @@ function invGroupedRows(){
  // 같은 이름이 여러 칸에 흩어져 있어도 마지막으로 얻은 칸을 기준으로 고정해,
  // 아이템을 쓰거나 넣고 뺄 때 목록이 위아래로 섞이지 않는다.
  me.inv.forEach((x,i)=>{
-  if(typeof x==="string"){
+  if(stackItem(x)){
    const key=nm(x);
    if(seen[key]!=null){const r=rows[seen[key]];r.q++;r.last=i}
    else{seen[key]=rows.length;rows.push({x,q:1,i,last:i})}
@@ -5852,7 +5858,7 @@ function guildPostSectionHtml(posts){
 }
 // 길드 창고 칸: 소지품과 같은 방식. 같은 이름의 일반 아이템은 개수와 상관없이 1칸, 장비(내구도 있는 아이템)는 1개당 1칸. (2026-11-19)
 const GUILD_WH_CAP=30;
-const whSlots=list=>{const a=gArr(list);return new Set(a.filter(x=>typeof x==="string").map(nm)).size+a.filter(x=>x&&typeof x==="object").length};
+const whSlots=list=>{const a=gArr(list);return new Set(a.filter(stackItem).map(nm)).size+a.filter(x=>x&&!stackItem(x)).length};
 const WH_KEY=x=>typeof x==="string"?`s:${nm(x)}`:`o:${nm(x)}|${x.dur!=null?x.dur:""}|${x.max!=null?x.max:""}`;
 function whTouchRecent(list,key){const i=list.indexOf(key);if(i>=0)list.splice(i,1);list.unshift(key);if(list.length>80)list.length=80}
 function whRecentRank(list,key){const i=list.indexOf(key);return i<0?9999:i}
@@ -5923,7 +5929,7 @@ function guildWhData(g){
  const sorted=whSortEntries(filtered,guildView.whRecent||[]);
  guildView.page=page;
  const groups=[],gmap=new Map();
- for(const e of sorted){const it=e.x,key=WH_KEY(it);if(gmap.has(key))gmap.get(key).q++;else{const o={key,n:nm(it),q:1,it};gmap.set(key,o);groups.push(o)}}
+ for(const e of sorted){const it=e.x,key=WH_KEY(it);if(!stackItem(it)){groups.push({key,n:nm(it),q:1,it});continue}if(gmap.has(key))gmap.get(key).q++;else{const o={key,n:nm(it),q:1,it};gmap.set(key,o);groups.push(o)}}
  return {wh,cap,used,items,q,filtered,stores,storeIndex:page,page,groups};
 }
 function guildWhCountText(g){
@@ -6261,7 +6267,7 @@ async function depositGuildItems(name,qty){
   if(!stores)return toast("창고 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.");
   const idx=guildWhStoreIndex(stores),store=stores[idx],cap=GUILD_WH_CAP;
   let ok=false,nextItems=null,added=0;
-  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/stores/"+idx+"/items"),arr=>{added=0;const list=gArr(arr).filter(guildWhValid),has=list.some(x=>typeof x==="string"&&nm(x)===nm(name));if(!has&&whSlots(list)>=cap)return;added=n;for(let i=0;i<added;i++)list.push(name);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v).filter(guildWhValid)}}catch(e){ok=false}
+  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/stores/"+idx+"/items"),arr=>{added=0;const list=gArr(arr).filter(guildWhValid),has=stackItem(name)&&list.some(x=>stackItem(x)&&nm(x)===nm(name));if(!has&&whSlots(list)>=cap)return;added=has?n:(stackItem(name)?n:Math.min(n,Math.max(0,cap-whSlots(list))));if(added<=0)return;for(let i=0;i<added;i++)list.push(name);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v).filter(guildWhValid)}}catch(e){ok=false}
   if(!ok||added<=0)return toast(`창고가 가득 찼습니다. (${guildWhSpaceText(guildView.data,idx)})`);
   whTouchRecent(guildView.whRecent,`s:${name}`);guildView.invRecent=(guildView.invRecent||[]).filter(k=>k!==`s:${name}`);
   const removed=takeItems(name,added);
@@ -6296,7 +6302,7 @@ async function depositGuildItem(idx){
   const si=guildWhStoreIndex(stores),store=stores[si],cap=GUILD_WH_CAP;
   const name=nm(cur),item=cp(cur);
   let ok=false,nextItems=null;
-  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/stores/"+si+"/items"),arr=>{const list=gArr(arr).filter(guildWhValid),has=typeof item==="string"&&list.some(x=>typeof x==="string"&&nm(x)===nm(item));if(!has&&whSlots(list)>=cap)return;list.push(item);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v).filter(guildWhValid)}}catch(e){ok=false}
+  try{const res=await runTransaction(ref(realtimeDB,"guilds/"+guildView.gid+"/warehouse/stores/"+si+"/items"),arr=>{const list=gArr(arr).filter(guildWhValid),has=stackItem(item)&&list.some(x=>stackItem(x)&&nm(x)===nm(item));if(!has&&whSlots(list)>=cap)return;list.push(item);nextItems=list;return list});ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v).filter(guildWhValid)}}catch(e){ok=false}
   if(!ok)return toast(`창고가 가득 찼습니다. (${guildWhSpaceText(guildView.data,si)})`);
   whTouchRecent(guildView.whRecent,WH_KEY(item));guildView.invRecent=(guildView.invRecent||[]).filter(k=>k!==WH_KEY(item));
   // 같은 이름의 다른 인스턴스가 아니라, 클릭한 바로 그 아이템을 우선 제거한다.
@@ -6323,7 +6329,7 @@ function guildWithdrawKey(key){
  if(!guildView.data)return;
  if(!guildPerm(guildView.data,"warehouseWithdraw"))return toast("창고에서 물건을 꺼낼 권한이 없습니다.");
  const list=whKeyItems(key);if(!list.length)return toast("아이템이 없습니다.");
- const label=whKeyLabel(list[0]),max=list.length;
+ const label=whKeyLabel(list[0]),max=stackItem(list[0])?list.length:1; // 장비는 한 번에 1개씩
  if(max<=1)return withdrawGuildItems(key,1,label);
  pop("창고에서 꺼내기",`<p><b>${esc(label)}</b> <span class="dim">· ${max}개</span></p>${qtyHtml(max)}`,[{t:"꺼내기",c:"",fn:()=>withdrawGuildItems(key,qtyVal(max),label)},{t:"취소"}],true);
  $("pb").onclick=e=>qtyClick(e,max);
@@ -6340,8 +6346,8 @@ async function withdrawGuildItems(key,qty,label){
  if(!max)return toast("아이템이 없습니다.");
  const sample=whKeyItems(key)[0];
  let fit=n;
- if(typeof sample==="string"){
-  const same=me.inv.some(x=>typeof x==="string"&&nm(x)===nm(sample));
+ if(stackItem(sample)){
+  const same=me.inv.some(x=>stackItem(x)&&nm(x)===nm(sample));
   if(!same)fit=Math.min(fit,Math.max(0,cap()-usedSlots()));
  }else fit=Math.min(fit,Math.max(0,cap()-usedSlots()));
  if(fit<1)return toast("소지품 칸이 부족합니다.");
@@ -6356,7 +6362,7 @@ async function withdrawGuildItems(key,qty,label){
    nextItems=keep;return keep;
   });ok=!!res.committed;if(ok){const v=res.snapshot&&res.snapshot.val();if(v!=null)nextItems=gArr(v)}}catch(e){ok=false}
   if(!ok)return toast("아이템을 꺼내지 못했습니다.");
-  if(out.filter(x=>typeof x!=="string").length>Math.max(0,cap()-usedSlots())||out.some(x=>!canAdd(x))){
+  if(out.filter(x=>!stackItem(x)).length>Math.max(0,cap()-usedSlots())||out.some(x=>!canAdd(x))){
    try{await runTransaction(ref(realtimeDB,"guilds/"+gid+"/warehouse/stores/"+si+"/items"),arr=>{const list=gArr(arr);out.forEach(x=>list.push(cp(x)));return list})}catch(e){}
    return toast("소지품 칸이 부족합니다.");
   }
@@ -9916,9 +9922,9 @@ function marketGoods(which){
  return out;
 }
 function merchantGoods(){
- // 일반 회복 포션 고정 12G. 랜덤 3종은 일반 97%, 고급 2.5%, 희귀 0.5%.
+ // 일반 회복 포션 고정 12G, 고급 회복 포션 고정 48G(2026-11-20 추가, 기준가 60G의 80% — 일반과 같은 비율). 랜덤 3종은 일반 97%, 고급 2.5%, 희귀 0.5%.
  const rng=marketRng(marketSeed(today()+"|merchant|"+me.cont+"|"+me.area+"|"+(me.sub||"cap")));
- const out=[["일반 회복 포션",12,1]],seen=new Set(["일반 회복 포션"]);
+ const out=[["일반 회복 포션",12,1],["고급 회복 포션",48,1]],seen=new Set(["일반 회복 포션","고급 회복 포션"]);
  for(let i=0;i<3;i++){
   const r=rng(),g=r<.97?"일반":r<.995?"고급":"희귀";
   let pool=ITEM_DATA.filter(x=>x.grade===g&&MARKET_CATS.includes(x.category)&&(x.field!=="없음"||x.dungeon!=="없음")&&!seen.has(x.name));
@@ -9971,7 +9977,7 @@ function shopSellUnit(n){
  return Math.max(1,Math.round(sellP(base)*(cm?cm.m:1)));
 }
 function shopBuyMax(n,unit){
- const item=lootObj(n),stackable=typeof item==="string",room=Math.max(0,cap()-usedSlots());
+ const item=lootObj(n),stackable=stackItem(item),room=Math.max(0,cap()-usedSlots());
  const spaceMax=stackable?(count(n)>0||room>0?99:0):room;
  return Math.max(0,Math.min(99,Math.floor(me.gold/Math.max(1,unit)),spaceMax));
 }
@@ -10161,16 +10167,20 @@ function npcOpenCard(id){
 }
 
 // ---- NPC 선물하기 (NPC 대화창에서만) ----
+// 2026-11-20: NPC 한 명당 하루 5회까지 (주변 수색과 같이 매일 오전 6시 초기화)
+const NPC_GIFT_DAILY=5;
+function npcGiftsToday(key){const k=exploreDayKey();if(me.npcGiftDay!==k){me.npcGiftDay=k;me.npcGifts={}}return Math.max(0,Math.floor(+((me.npcGifts||{})[key])||0))}
 function npcGiftOpen(id){
  if(!id)return;
  if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 선물할 수 없습니다.");
  if(me.travel||me.rest||me.expedition||me.read)return toast("지금은 선물할 수 없습니다.");
  const key=npcKey(id),inf=npcInfo(id);if(!inf)return;
  if(affectionOf(key)>=AFFECTION_MAX)return toast(`${inf[1]}의 호감도가 이미 가득 찼습니다.`);
+ const usedG=npcGiftsToday(key);if(usedG>=NPC_GIFT_DAILY)return toast(`오늘은 ${inf[1]}에게 더 이상 선물할 수 없습니다. (${NPC_GIFT_DAILY}/${NPC_GIFT_DAILY}, 오전 6시 초기화)`);
  const seen=new Set(),rows=[];
  for(const x of me.inv){const n=nm(x);if(seen.has(n))continue;seen.add(n);const v=giftScore(key,n);if(!v||isItemLocked(n)||info(n).bound)continue;rows.push({n,q:count(n),v})}
  rows.sort((a,b)=>b.v-a.v||a.n.localeCompare(b.n,"ko"));
- const body=rows.length?`<p class="dim">${esc(inf[1])}에게 줄 선물을 고르세요. (1개씩)</p><div class="gift-list">${rows.map((r,i)=>`<button type="button" class="gift-row" data-gi="${i}"><span>${esc(r.n)} <small class="dim">보유 ${r.q}</small></span><span class="gift-give">주기</span></button>`).join("")}</div>`:`<p class="dim">${esc(inf[1])}에게 줄 수 있는 선물이 없다.</p>`;
+ const body=rows.length?`<p class="dim">${esc(inf[1])}에게 줄 선물을 고르세요. (1개씩 · 오늘 ${usedG}/${NPC_GIFT_DAILY}회)</p><div class="gift-list">${rows.map((r,i)=>`<button type="button" class="gift-row" data-gi="${i}"><span>${esc(r.n)} <small class="dim">보유 ${r.q}</small></span><span class="gift-give">주기</span></button>`).join("")}</div>`:`<p class="dim">${esc(inf[1])}에게 줄 수 있는 선물이 없다.</p>`;
  pop(`${inf[1]}에게 선물하기`,body,[{t:"닫기"}]);
  $("pb").onclick=e=>{const b=e.target.closest("[data-gi]");if(!b)return;const r=rows[+b.dataset.gi];if(!r)return;closePop();npcGiveGift(id,r.n)};
 }
@@ -10178,12 +10188,13 @@ function npcGiveGift(id,n){
  const key=npcKey(id),v=giftScore(key,n),inf=npcInfo(id);if(!v||!inf)return;
  if(isItemLocked(n))return toast("잠긴 아이템은 선물할 수 없습니다.");
  if(affectionOf(key)>=AFFECTION_MAX)return toast(`${inf[1]}의 호감도가 이미 가득 찼습니다.`);
+ if(npcGiftsToday(key)>=NPC_GIFT_DAILY)return toast(`오늘은 ${inf[1]}에게 더 이상 선물할 수 없습니다. (${NPC_GIFT_DAILY}/${NPC_GIFT_DAILY})`);
  const rm=takeItems(n,1);if(!rm.length)return toast("보유하지 않았다.");
- addAffection(key,v);bag();
+ addAffection(key,v);me.npcGifts={...(me.npcGifts||{}),[key]:npcGiftsToday(key)+1};bag();
  try{titleAdd("social.gifts")}catch(e){}
  const lines=npcLines(id).gift||[];npcLine=lines[giftTier(v)]||lines[0]||"";
  if(npcOpen===id){npcRender()}
- toast(`${inf[1]}에게 ${n}을(를) 선물했다.`);
+ toast(`${inf[1]}에게 ${n}을(를) 선물했다. (오늘 ${npcGiftsToday(key)}/${NPC_GIFT_DAILY}회)`);
  guardBadgeCheck(id);
 }
 // 영업시간이 아닌 상점 NPC는 대화하기 비활성 (경비병은 항상 가능)
