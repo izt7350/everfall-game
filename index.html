@@ -3367,12 +3367,17 @@ function beginExp(kind,min,opts={}){
  if(st<now-60000)logAct(`(접속하지 않은 동안 파티와 함께 출발한 것으로 처리 · 늦게 합류)`,now);
  if(me.expedition.night)logAct("[밤] 어둠 속 탐사 — 몬스터가 더 강하고 정예가 자주 나타난다.",now);
  renderAll();try{bag()}catch(e){};toast(`${EXPD[kind].label} 시작 · ${durText(min)}${me.expedition.night?" · 밤이라 몬스터가 더 강하고 정예가 자주 나타난다":""}`);try{closeRisk()}catch(e){};try{openExpRecord(0)}catch(e){}}
-function encounterCount(kind,min){
+// 2026-11-20: ★1~9 장기·던전은 조우 수 평균 1.3배(소수점은 확률로 반올림). ★10~12는 그대로. star를 안 넘기면(구버전 공동 탐사) 예전 그대로.
+const EXP_ENC_MUL=1.3,EXP_HARD_MAX_STAR=9;
+function encounterCount(kind,min,star){
  const table=kind==="dungeon"
   ? {30:[1,2],60:[2,3],120:[2,4],180:[3,6]}
   : {30:[0,1],60:[0,2],120:[1,3],180:[1,4]};
  const key=[30,60,120,180].includes(+min)?+min:30,[lo,hi]=table[key];
- return lo+Math.floor(Math.random()*(hi-lo+1));
+ let n=lo+Math.floor(Math.random()*(hi-lo+1));
+ const s=Math.floor(+star||0);
+ if(s>=1&&s<=EXP_HARD_MAX_STAR){const x=n*EXP_ENC_MUL;n=Math.floor(x)+(Math.random()<x-Math.floor(x)?1:0)}
+ return n;
 }
 // ---- 파티 공동 탐사 (2026-11-14) ----
 // 출발 순간 참가자 전원의 능력치 스냅샷 + 공동 주사위(seed)를 제안에 저장 → 모든 파티원이 같은 적·같은 전투를 계산.
@@ -3394,12 +3399,14 @@ function buildPartySim(p,participants){
   }catch(err){}
  }
  let star=1;try{star=areaTier()||parseInt((AR(me.area)||{}).diff||"")||1}catch(e){}
- return {v:1,seed:hashSeed(p.id),startAt:+p.startAt||Date.now(),kind:p.kind,min:+p.min,cont:me.cont,area:me.area,sub:me.sub||null,star,night:p.kind==="long"&&isNightNow(),members};
+ return {v:2,seed:hashSeed(p.id),startAt:+p.startAt||Date.now(),kind:p.kind,min:+p.min,cont:me.cont,area:me.area,sub:me.sub||null,star,night:p.kind==="long"&&isNightNow(),members};
 }
 const simCache=new Map();
 function runPartySim(sim){
  const key=sim.seed+":"+sim.startAt+":"+Object.keys(sim.members||{}).sort().join(",");
  if(simCache.has(key))return simCache.get(key);
+ const prevBal=expBalV;expBalV=(+sim.v||1)>=2?2:1;
+ try{
  const out=withSeed(sim.seed,()=>{
   const kind=sim.kind,min=+sim.min,star=+sim.star||1,night=!!sim.night,start=+sim.startAt,span=min*60000;
   const F=Object.keys(sim.members||{}).sort().map(id=>{const m=sim.members[id];return {id,name:m.name,st:m.st||{},hp:+m.hp||1,maxHp:+m.maxHp||1,potN:+m.potN||0,potHeal:+m.potHeal||0,charmN:+m.charmN||0,out:false}});
@@ -3412,7 +3419,7 @@ function runPartySim(sim){
    F.forEach(f=>after[f.id]=f.hp);
    return {mon,source,boss:!!isBoss,win:res.win,rounds:res.rounds,log:res.log.slice(-60),trace:res.trace.slice(0,120),mMax:res.mMax,before,after,pot,fled,alive:alive.map(f=>f.id)};
   };
-  const n=encounterCount(kind,min)+(night?NIGHT_LONG.extraEnc:0),at=[];
+  const n=encounterCount(kind,min,(+sim.v||1)>=2?star:0)+(night?NIGHT_LONG.extraEnc:0),at=[];
   for(let i=0;i<n;i++)at.push(start+Math.floor((.05+.9*Math.random())*span));
   at.sort((a,b)=>a-b);
   const events=[];
@@ -3432,6 +3439,7 @@ function runPartySim(sim){
   return {events,boss,longBoss};
  });
  simCache.set(key,out);return out;
+ }finally{expBalV=prevBal}
 }
 // 공동 전투 한 건을 내 캐릭터에 반영
 function expSharedApply(e,ctx,ev){
@@ -3489,7 +3497,7 @@ function expStartAt(e){return (+e.end||Date.now())-(+e.min||0)*60000}
 function expInitRT(e,legacy){
  if(e.rt&&typeof e.rt==="object")return expFixRT(e.rt);
  const start=expStartAt(e),night=!!e.night&&e.kind==="long";
- const n=encounterCount(e.kind,e.min)+(night?NIGHT_LONG.extraEnc:0);
+ const n=encounterCount(e.kind,e.min,e.star)+(night?NIGHT_LONG.extraEnc:0);
  let encAt=[];
  if(e.sim&&e.sim.members){try{encAt=runPartySim(e.sim).events.map(ev=>ev.at)}catch(err){console.warn("partySim",err);e.sim=null}}
  if(e.sim&&e.sim.members){}
@@ -7515,6 +7523,11 @@ const SHORT_PRESSURE=[
 // 목표(권장 레벨·같은 등급 장비 근접 빌드, 일반 몬스터 1:1 평균): ★1~2 약 3~5%(초반 유지) / ★3~4 8% / ★5~6 11% / ★7~8 16% / ★9~10 23% / ★11~12 30%.
 // 정예(★5~8, ea): 일반의 약 1.5배 — ★5~6 약 17% / ★7~8 약 24%. ★9 이상 정예는 원래 배율.
 // HP는 ×0.85 공통, 공격력 배율로 맞춤(시뮬레이션). 주변 수색에만 적용(장기·던전 그대로). ★13~15는 ★12와 같음.
+// 2026-11-20: ★1~9 장기·던전 몬스터 강화 배율(공격력 ×m, HP ×√m). ★10 이상은 1(변경 없음). 구버전 공동 탐사(sim.v<2) 재계산 땐 적용 안 함.
+let expBalV=2;
+// 목표(3시간·권장 레벨 1인): 장기 ★1~5는 HP 손실(15→27%), ★6~8은 생존율(★6 90%, ★7 85%, ★8 80%), ★9~12는 1(★9 조우율만 1.3배).
+// 던전은 같은 ★ 장기 탐사보다 생존율 약 17%p 낮게(15~20%p).
+const DUNGEON_HARD=[4.66,3.39,2.61,2.85,2.65,2.69,2.75,2.83,2.51,2.28,1.91,1.59,1.59,1.59,1.59],LONG_HARD=[2.66,1.68,1.24,1.40,1.18,1.83,2.02,2.08,1];
 const SHORT_EASE_STAR=[{h:.85,a:3},{h:.85,a:2.198},{h:.85,a:0.866},{h:.85,a:1.17},{h:.85,a:1.057,ea:1.35},{h:.85,a:0.926,ea:1.237},{h:.85,a:1.143,ea:1.315},{h:.85,a:0.881,ea:1.346},{h:.85,a:1.027},{h:.85,a:0.719},{h:.85,a:0.543},{h:.85,a:0.485},{h:.85,a:0.485},{h:.85,a:0.485},{h:.85,a:0.485}];
 const LONG_K=[.711,.934,.846,.945,.886,.870,.776,.789,.940,1.010,.936,1.076,1.019,1.077,1.118];
 const DUNGEON_K=[.604,.792,.586,.673,.575,.566,.492,.482,.485,.498,.443,.507,.483,.486,.467];
@@ -7546,6 +7559,7 @@ function scaleMonster(mon,star,opts={}){
    const k=(mode==="long"?LONG_K:DUNGEON_K)[s-1];
    const q=(mode==="long"?LONG_PARTY_Q:DUNGEON_PARTY_Q)[s-1][pn-1]||1;
    h*=k*q;a*=k*q;
+   if(expBalV>=2){const m=(mode==="long"?LONG_HARD:DUNGEON_HARD)[s-1]||1;h*=Math.sqrt(m);a*=m}
   }
   if(role==="boss"||opts.boss){h*=1.15;a*=1.15}
   // ★4 이상 몬스터의 공격력을 15% 낮춘다. (모든 탐사 모드·역할 공통)
