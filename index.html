@@ -3204,14 +3204,39 @@ function expeditionRisk(kind,min,members,tier){
  else if(kind==="long"&&t>=5)enc+=.35;
  return Math.max(0,Math.min(100,Math.round(Math.pow(perP,enc)*100)));
 }
+// 2026-11-20 예상 생존율: 실제 탐사 전투(runPartySim·autoBattle)를 지금 HP·장비·포션·부적 그대로 여러 번 모의 실행해 계산.
+// (예전 식은 몬스터 실제 수치와 무관한 근사라 표시와 실제가 크게 달랐다) 결과는 30초 캐시.
+const RISK_RUNS=40,riskCache=new Map();
+function expeditionRiskSim(kind,min){
+ const parts=[uid,...((me.partyId&&partyData)?proposalMatesHere():[])];
+ const base=buildPartySim({id:"risk",kind,min,startAt:Date.now()},parts);
+ if(!base||!base.members||!base.members[uid])return null;
+ const ck=[kind,min,base.star,base.night?1:0,JSON.stringify(base.members)].join("|");
+ const hit=riskCache.get(ck);if(hit&&Date.now()-hit.at<30000)return hit.v;
+ let alive=0,hpLeft=0,fights=0;const mk=Object.keys(base.members).sort().join(",");
+ for(let i=0;i<RISK_RUNS;i++){
+  const sim={...base,seed:hashSeed("risk:"+kind+":"+min+":"+i),dry:true};
+  let out=null;try{out=runPartySim(sim)}catch(e){console.warn("risk sim",e)}finally{simCache.delete(sim.seed+":"+sim.startAt+":"+mk)}
+  if(!out)continue;
+  let hp=base.members[uid].hp,fled=false;
+  const evs=[...(out.events||[]),out.boss,out.longBoss].filter(Boolean);
+  for(const ev of evs){if(!ev.alive||!ev.alive.includes(uid)||ev.avoid)continue;fights++;if(ev.after&&ev.after[uid]!=null)hp=+ev.after[uid];if(Array.isArray(ev.fled)&&ev.fled.includes(uid)){fled=true;break}if(hp<=0)break}
+  if(hp>0||fled){alive++;hpLeft+=hp/Math.max(1,base.members[uid].maxHp)}
+ }
+ const v={pct:Math.round(alive/RISK_RUNS*100),hp:alive?Math.round(hpLeft/alive*100):0,fights:+(fights/RISK_RUNS).toFixed(1),n:Object.keys(base.members).length,star:base.star};
+ riskCache.set(ck,{at:Date.now(),v});return v;
+}
 function renderExpeditionRisk(kind){
  const el=$(kind==="long"?"longrisk":"dunrisk");if(!el)return;
- const members=riskParty(),area=(()=>{try{return AR(me.area)}catch(e){return null}})(),tier=Math.max(1,(()=>{try{return areaTier()}catch(e){return 0}})()||parseInt((area&&area.diff)||"")||1),diffLabel=String(tier);
- const rows=[30,60,120,180].map(m=>{
-  const pct=expeditionRisk(kind,m,members,tier),band=riskBand(pct),cls=riskCls(band);
-  return `<div class="risk-row${expSel[kind]===m?" on":""}"><span class="risk-time">${durText(m)}</span><span class="risk-step ${cls}">${band}</span><b class="risk-pct ${cls}">${pct}%</b></div>`;
- }).join("");
- el.innerHTML=`<div class="risk-head"><b>예상 생존율</b><span class="dim">공격력·방어력·레벨 종합 · 지역 난도 ★${diffLabel} · 파티 ${members.length}명</span></div>${rows}`;
+ let rows="",n=1,star=1;
+ for(const m of [30,60,120,180]){
+  let r=null;try{r=expeditionRiskSim(kind,m)}catch(e){console.warn("risk",e)}
+  if(!r){const members=riskParty(),tier=Math.max(1,(()=>{try{return areaTier()}catch(e){return 0}})()||1);r={pct:expeditionRisk(kind,m,members,tier),hp:null,fights:null,n:members.length,star:tier}}
+  n=r.n;star=r.star;
+  const band=riskBand(r.pct),cls=riskCls(band);
+  rows+=`<div class="risk-row${expSel[kind]===m?" on":""}"><span class="risk-time">${durText(m)}${r.fights!=null?`<span class="dim sm"> · 전투 약 ${r.fights}회${r.pct>0?` · 남는 HP 약 ${r.hp}%`:""}</span>`:""}</span><span class="risk-step ${cls}">${band}</span><b class="risk-pct ${cls}">${r.pct}%</b></div>`;
+ }
+ el.innerHTML=`<div class="risk-head"><b>예상 생존율</b><span class="dim">지금 HP·장비·포션 기준 모의 전투 ${RISK_RUNS}회 · 지역 난도 ★${star} · 함께 가는 인원 ${n}명</span></div>${rows}`;
  el.hidden=false;
 }
 function openRisk(kind){
@@ -3381,7 +3406,7 @@ function runPartySim(sim){
   const fight=(mon,source,isBoss)=>{
    const alive=F.filter(f=>f.hp>0&&!f.out),before={};F.forEach(f=>before[f.id]=f.hp);
    const party=alive.map(f=>({self:false,name:f.name,st:f.st,hp:f.hp,maxHp:f.maxHp,potN:f.potN,potHeal:f.potHeal,charmN:f.charmN}));
-   const res=autoBattle(mon,party,{expedition:true,star,source,mode:kind,boss:isBoss,night,shared:true});
+   const res=autoBattle(mon,party,{expedition:true,star,source,mode:kind,boss:isBoss,night,shared:true,dry:!!sim.dry});
    const after={},pot={},fled=[];
    res.party.forEach((q,i)=>{const f=alive[i];pot[f.id]=Math.max(0,f.potN-(+q.potN||0));f.hp=Math.max(0,q.hp);f.potN=+q.potN||0;if(q.fled){f.out=true;f.charmN=Math.max(0,+q.charmN||0);fled.push(f.id)}});
    F.forEach(f=>after[f.id]=f.hp);
@@ -7597,7 +7622,7 @@ function battleDamageRange(minAtk,maxAtk,def,crit,cd){const lo=Math.max(0,+minAt
 function isHpPotion(n){const d=ITEM_BY_NAME[n]||{};const fx=info(n).fx||{};return (d.sub==="포션"||/포션|비약/.test(n))&&(fx.hp||0)>0}
 function isPotionAutoLocked(n){return Array.isArray(me.potionLock)&&me.potionLock.includes(String(n))}
 function isItemLocked(n){return Array.isArray(me.itemLock)&&me.itemLock.includes(String(n))}
-function autoBattle(mon,party,opts={}){try{codexMarkMonster(mon&&mon.name)}catch(e){}
+function autoBattle(mon,party,opts={}){if(!opts.dry){try{codexMarkMonster(mon&&mon.name)}catch(e){}}
  const shared=!!opts.shared; // 파티 공동 전투: 내 가방·장비를 건드리지 않고 스냅샷 수치로만 계산 (모든 파티원 화면에서 같은 결과)
  if(!shared){wearTool("은신 도구");
  const brokenAtStart={};
