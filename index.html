@@ -727,6 +727,8 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
   #gameRoot .game>.col:first-child{display:contents}
   #gameRoot .game>.col:nth-child(2){order:1}
   #gameRoot .game>.col:first-child>#questBox{order:2}
+  /* 모바일: '동행'도 '받은 의뢰' 바로 아래로 (2026-11-21). 같은 order라 HTML 순서(의뢰 → 동행)대로 놓인다. */
+  #gameRoot .game>.col:first-child>#ride{order:2}
   #gameRoot .game>.col:last-child{order:3}
 }
 @media (max-width:560px){
