@@ -7076,6 +7076,7 @@ function locText(){const w=W();
 // ---- 이동 계획 / 비용 ----
 const BASE={sub:10,area:20,cont:40},FOOD={sub:1,area:2,cont:4},MODE={walk:"도보",horse:"말",air:"비행선"};
 const quote=(k,n,m,baseMin)=>{
+ if(k==="sub")return {min:0,food:0,fuel:0}; // 2026-11-21: 소지역 이동은 이동 시간·재료 없음(즉시)
  const move=Math.max(-.5,Math.min(.7,(calcStats(me).moveSpeed||0)/100));
  const raw=baseMin!=null?baseMin:BASE[k]*n;
  // 비행선: 말(×0.6)의 3배 속도 = ×0.2, 이륙 1분 + 착륙 1분
@@ -7092,10 +7093,10 @@ function plan(kind,id){if(me.travel||me.expedition||me.rest||me.read||me.downed|
   const p=vm.length&&linePath(w.edges,me.area,id);return p?{kind,n:p.length,label,dest,modes:vm,via:p.slice(0,-1).map(i=>AR(i).name),baseMin}:null}
  if(me.area==="cap"||id===me.sub)return null;const a=AR(me.area);
  const dest={cont:me.cont,area:me.area,sub:id},label=a.nodes.find(n=>n.id===id).name;
- if(adj(a.edges,me.sub,id))return{kind,n:1,label,dest,modes:hasV("말")?["walk","horse"]:["walk"]};
- const p=hasV("말")&&linePath(a.edges,me.sub,id);return p?{kind,n:p.length,label,dest,modes:["horse"],via:p.slice(0,-1).map(i=>a.nodes.find(n=>n.id===i).name)}:null}
+ if(adj(a.edges,me.sub,id))return{kind,n:1,label,dest,modes:["walk"]};
+ const p=linePath(a.edges,me.sub,id);return p?{kind,n:p.length,label,dest,modes:["walk"],via:p.slice(0,-1).map(i=>a.nodes.find(n=>n.id===i).name)}:null}
 let mv=null;
-function openMove(p){if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 이동할 수 없습니다.");mv={...p,mode:p.modes[0]};drawMove();$("mvmodal").hidden=false}
+function openMove(p){if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 이동할 수 없습니다.");mv={...p,mode:p.modes[0]};if(p.kind==="sub"){$("mvgo").onclick();return}drawMove();$("mvmodal").hidden=false}
 function drawMove(){const q=quote(mv.kind,mv.n,mv.mode,mv.baseMin);
  const mat=[q.food?`건초 ${q.food}개`:"",q.fuel?`연료 ${q.fuel}`:""].filter(Boolean).join(", ")||"없음";
  const ok=count("건초")>=q.food&&(!q.fuel||airFuel()>=q.fuel);
@@ -7147,7 +7148,7 @@ const rideDismissed=new Set(),walkBusyNoted=new Set();
 const isWalkRide=r=>!!r&&r.mode==="walk";
 const RIDE_PROMPT_T=["동승 제안","동행 제안"],RIDE_WAIT_T=["동승 대기","동행 대기"];
 const popIs=list=>!$("pop").hidden&&list.includes($("pt").textContent);
-const walkReqText=r=>`‘${r.label}’(으)로 이동하려고 한다. 함께 갈까? 도보로 ${+r.min||0}분.`;
+const walkReqText=r=>`‘${r.label}’(으)로 이동하려고 한다. 함께 갈까? ${r.kind==="sub"?"바로 이동한다.":`도보로 ${+r.min||0}분.`}`;
 const rideResponding=new Set(),rideDoneLocal=new Set();
 const rideSeenHas=id=>String(me.rideSeen||"").split(",").includes(String(id));
 const rideSeenAdd=id=>{const a=String(me.rideSeen||"").split(",").filter(Boolean).filter(x=>x!==String(id));a.push(String(id));me.rideSeen=a.slice(-20).join(",")};
@@ -7168,7 +7169,7 @@ function departMove(m,o={}){
   if(count("건초")<q.food||(q.fuel&&airFuel()<q.fuel)){toast("이동 재료가 부족합니다.");return false}
   if(!starvationActionCost())return false;
   consume("건초",q.food);if(q.fuel){const a=airShip();if(a)a.fuel=Math.max(0,airFuel()-q.fuel)}
-  wearTool("나침반");
+  if(m.kind!=="sub")wearTool("나침반");
  }
  const start=o.startAt||Date.now(),min=o.min!=null?Math.max(0,+o.min||0):q.min;
  me.travel={end:start+min*60000,start,dest:m.dest,label:m.label,min,mode:m.mode};
@@ -7176,6 +7177,7 @@ function departMove(m,o={}){
  if(o.driver){me.travel.driver=true;me.travel.cost={food:q.food,fuel:q.fuel||0}}
  $("mvmodal").hidden=true;try{npcTalkSync()}catch(e){}bag();renderAll();try{render()}catch(e){}
  try{opts.save(cp(snap()))}catch(e){}
+ if(m.kind==="sub"&&min===0&&start<=Date.now())arrive();
  return true;
 }
 const ridePath=(pid,id)=>"partyRides/"+pid+(id?"/"+id:"");
@@ -7407,7 +7409,7 @@ function traitOnArrive(mode,d){
  try{const w=weatherAt(d.cont,d.area).id;if(["fog","wind","heat","rain","cold"].includes(w))tryBadTrait("길치")}catch(e){}
  try{if((+calcStats(me).weightPenalty||0)>0)tryGoodTrait("짐꾼")}catch(e){}
 }
-function arrive(){sfx("ok");playCompleteSound();const d=me.travel.dest,walkMin=Math.max(0,+me.travel.min||0),fromCont=me.cont,travelMode=me.travel.mode,travelRide=me.travel.ride;me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub??null;try{traitOnArrive(travelMode,d)}catch(e){}try{if(travelMode==="air")titleFlag("explore.airship");if(travelRide){const rr=(typeof partyRides!=="undefined"&&partyRides)?partyRides[travelRide]:null;if(rr&&rr.mode==="air"&&(1+Object.keys(rr.riders||{}).length)>=5)titleFlag("explore.airRide5")}titleSetAdd("explore.continents",me.cont);titleSetAdd("explore.areas",me.cont+"|"+me.area);if(me.area==="cap")titleSetAdd("explore.capitals",me.cont);if(me.cont==="마왕성")titleFlag("explore.majwangEntered");if(fromCont==="마왕성"&&me.cont!=="마왕성")titleFlag("explore.majwangReturned")}catch(e){}const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:(d.sub??null);addWalkMinutes(walkMin);bag();renderAll();try{render()}catch(e){};try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){};try{opts.save(cp(snap()))}catch(e){}}
+function arrive(){sfx("ok");playCompleteSound();const d=me.travel.dest,walkMin=Math.max(0,+me.travel.min||0),fromCont=me.cont,travelMode=me.travel.mode,travelRide=me.travel.ride;me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub??null;try{traitOnArrive(travelMode,d)}catch(e){}try{if(travelMode==="air")titleFlag("explore.airship");if(travelRide){const rr=(typeof partyRides!=="undefined"&&partyRides)?partyRides[travelRide]:null;if(rr&&rr.mode==="air"&&(1+Object.keys(rr.riders||{}).length)>=5)titleFlag("explore.airRide5")}titleSetAdd("explore.continents",me.cont);titleSetAdd("explore.areas",me.cont+"|"+me.area);if(me.area==="cap")titleSetAdd("explore.capitals",me.cont);if(me.cont==="마왕성")titleFlag("explore.majwangEntered");if(fromCont==="마왕성"&&me.cont!=="마왕성")titleFlag("explore.majwangReturned")}catch(e){}const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:(d.sub??null);addWalkMinutes(walkMin);bag();renderAll();try{render()}catch(e){};if(walkMin>0)try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){};try{opts.save(cp(snap()))}catch(e){}}
 T(()=>{if(me.travel){Date.now()>=me.travel.end?arrive():renderAll()}},1000);
 T(checkExpAct,1000);
 // ---- 날씨 (2026-11-10) ----
