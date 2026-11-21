@@ -2327,6 +2327,7 @@ function norm(c){const a=(v,d)=>Array.isArray(v)?v:d,pr=(v,d)=>Array.isArray(v)&
  o.exploreDay=typeof c.exploreDay==="string"?c.exploreDay:"";
  o.exploreCount=Math.max(0,Math.floor(+c.exploreCount||0));
  o.npcGiftDay=typeof c.npcGiftDay==="string"?c.npcGiftDay:"";
+ o.whTabs=Array.isArray(c.whTabs)?c.whTabs.filter(w=>w&&w.uid).slice(0,20).map(w=>({uid:String(w.uid),name:String(w.name||"플레이어").slice(0,24)})):[]; // 2026-11-22 귓속말 탭 목록(기기 간 유지)
  o.bookReads=c.bookReads&&typeof c.bookReads==="object"&&!Array.isArray(c.bookReads)?Object.fromEntries(Object.entries(c.bookReads).map(([k,v])=>[k,Math.max(0,Math.floor(+v||0))])):null;
  o.npcGifts=c.npcGifts&&typeof c.npcGifts==="object"&&!Array.isArray(c.npcGifts)?Object.fromEntries(Object.entries(c.npcGifts).map(([k,v])=>[k,Math.max(0,Math.floor(+v||0))])):{};
  o.hungerAt=isFinite(+c.hungerAt)?+c.hungerAt:Date.now();
@@ -3020,7 +3021,7 @@ const me={name:char.name,origin:char.origin,day,job:char.job,cont:char.cont||cha
  lastExplore:isFinite(+char.lastExplore)?+char.lastExplore:0,
  exploreDay:typeof char.exploreDay==="string"?char.exploreDay:"",
  exploreCount:Math.max(0,Math.floor(+char.exploreCount||0)),
- npcGiftDay:typeof char.npcGiftDay==="string"?char.npcGiftDay:"",bookReads:char.bookReads&&typeof char.bookReads==="object"&&!Array.isArray(char.bookReads)?{...char.bookReads}:null,npcGifts:char.npcGifts&&typeof char.npcGifts==="object"&&!Array.isArray(char.npcGifts)?{...char.npcGifts}:{},
+ npcGiftDay:typeof char.npcGiftDay==="string"?char.npcGiftDay:"",whTabs:Array.isArray(char.whTabs)?char.whTabs.filter(w=>w&&w.uid).slice(0,20).map(w=>({uid:String(w.uid),name:String(w.name||"플레이어").slice(0,24)})):[],bookReads:char.bookReads&&typeof char.bookReads==="object"&&!Array.isArray(char.bookReads)?{...char.bookReads}:null,npcGifts:char.npcGifts&&typeof char.npcGifts==="object"&&!Array.isArray(char.npcGifts)?{...char.npcGifts}:{},
  hungerAt:isFinite(+char.hungerAt)?+char.hungerAt:Date.now(),
  downed:opts.downed!==undefined?opts.downed:(char.downed&&typeof char.downed==="object"&&isFinite(+char.downed.until)?{...char.downed}:null),deadPending:false,
  expLogs:cp(Array.isArray(char.expLogs)?char.expLogs.slice(-200):[]),expMeta:char.expMeta&&typeof char.expMeta==="object"?{...char.expMeta}:null,
@@ -8868,6 +8869,8 @@ function renderWhisperTabs(){
 }
 function whisperSave(){
  if(!uid)return;
+ // 2026-11-22: 귓속말 탭 목록을 캐릭터 저장에도 남긴다(다른 기기·브라우저·새로고침 후에도 유지). 목록이 바뀔 때만 저장.
+ try{const nt=whisperTabs.slice(0,20).map(w=>({uid:String(w.uid),name:String(w.name||"플레이어").slice(0,24)}));if(JSON.stringify(nt)!==JSON.stringify(me.whTabs||[])){me.whTabs=nt;try{opts.save(cp(snap()))}catch(e){}}}catch(e){}
  try{
   localStorage.setItem("everfall_whisper_tabs_"+uid+"_"+charId,JSON.stringify(whisperTabs));
   if(cur==="whisper"&&whisperUser)localStorage.setItem("everfall_whisper_active_"+uid+"_"+charId,whisperUser.uid);
@@ -8899,6 +8902,8 @@ function restoreWhisper(){
   let list=[];
   const raw=localStorage.getItem("everfall_whisper_tabs_"+uid+"_"+charId);
   if(raw){const arr=JSON.parse(raw);if(Array.isArray(arr))list=arr}
+  // 캐릭터에 저장된 목록과 합친다(이 기기에 없던 대화도 복구)
+  (me.whTabs||[]).forEach(w=>{if(w&&w.uid&&!list.some(x=>x&&String(x.uid)===String(w.uid)))list.push(w)});
   whisperTabs=list.filter(w=>w&&w.uid&&String(w.uid)!==uid).map(w=>({uid:String(w.uid),name:String(w.name||"플레이어")}));
   if(!whisperTabs.length)return;
   const active=localStorage.getItem("everfall_whisper_active_"+uid+"_"+charId);
@@ -11385,12 +11390,13 @@ function openMailbox(){
  const durLabel=detail.item&&detail.item.dur!=null&&detail.item.max!=null?` <span class="dim">내구도 ${fmt1(+detail.item.dur)}/${safeNum(detail.item.max,0)}</span>`:"";
  const item=q?`<div class="mail-item"><span>첨부 : <b>${esc(detail.item.n)}</b>${tierLabel}${q>1?` ×${q}`:""}${durLabel}</span><button type="button" class="btn sm2" data-mclaim="${esc(mailSelected)}">받기</button></div>`:"";
  const gold=g?`<div class="mail-item"><span>골드 : <b>${g} G</b></span><button type="button" class="btn sm2" data-mgold="${esc(mailSelected)}">받기</button></div>`:"";
- const body=`<div class="mail-detail"><div class="mail-head"><b>${esc(detail.admin?"GM":(detail.fromName||"상대"))}</b><span class="dim">${clockOf(+detail.at||0)}</span></div><div class="mail-text">${esc(detail.text||"")}</div>${item}${gold}<div class="mail-act"><button type="button" class="btn alt sm2" data-mback>← 목록</button><button type="button" class="btn alt sm2" data-mdel="${esc(mailSelected)}">삭제</button></div></div>`;
+ const body=`<div class="mail-detail"><div class="mail-head"><b>${esc(detail.admin?"GM":(detail.fromName||"상대"))}</b><span class="dim">${clockOf(+detail.at||0)}</span></div><div class="mail-text">${esc(detail.text||"")}</div>${item}${gold}<div class="mail-act"><button type="button" class="btn alt sm2" data-mback>← 목록</button>${detail.from&&!detail.admin&&detail.from!==uid?`<button type="button" class="btn sm2" data-mreply="${esc(mailSelected)}">답장</button>`:""}<button type="button" class="btn alt sm2" data-mdel="${esc(mailSelected)}">삭제</button></div></div>`;
  mailOpen=true;
  pop("메세지함",body,[{t:"닫기"}],false,true);
  const pb=$("pb");
  if(pb)pb.onclick=e=>{
-  const cl=e.target.closest("[data-mback],[data-mclaim],[data-mgold],[data-mdel]");if(!cl)return;
+  const cl=e.target.closest("[data-mback],[data-mclaim],[data-mgold],[data-mdel],[data-mreply]");if(!cl)return;
+  if(cl.dataset.mreply!=null){const m=mailData[cl.dataset.mreply];if(m&&m.from){closePop();return openComposeNote(String(m.from),String(m.fromName||"상대"))}return} // 2026-11-22 답장
   if(cl.hasAttribute("data-mback")){mailSelected=null;closePop();return mailMenuOpen()}
   if(cl.dataset.mclaim!=null)return claimMailItem(cl.dataset.mclaim);
   if(cl.dataset.mgold!=null)return claimMailGold(cl.dataset.mgold);
@@ -11554,7 +11560,7 @@ if(uid){const p=pubProfile();p.at=Date.now();profileAt=Date.now();S.setProfile(u
 T(()=>{if(!uid)return;const p=pubProfile(),j=JSON.stringify(p);if(j!==lastProfile||Date.now()-profileAt>60000){lastProfile=j;profileAt=Date.now();p.at=profileAt;S.setProfile(uid,p).catch(()=>{})}},3000);
 T(itemLogTick,2000);setTimeout(itemLogTick,0);
 function savePartyBattleSeen(){try{opts.save(cp(snap()))}catch(e){}}
-const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,codexItems:me.codexItems||{},codexMonsters:me.codexMonsters||{},titles:titleSafeTitles(),speedPotionGrant:me.speedPotionGrant,dunBoxGrant1:!!me.dunBoxGrant1,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,proposalMissedId:me.proposalMissedId||null,rideSeen:me.rideSeen||"",inbox:me.inbox||[],outReqs:me.outReqs||[],friends:me.friends||{},party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,npcGiftDay:me.npcGiftDay||"",npcGifts:me.npcGifts||{},bookReads:me.bookReads||null,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
+const snap=()=>({cont:me.cont,area:me.area,sub:me.sub,gold:me.gold,items:me.inv,equipped:me.equipped,vehicles:me.vehicles,pet:me.pet,petAdoptLockUntil:me.petAdoptLockUntil,ground:me.ground,blocked:me.blocked,fx:me.fx,hp:me.hp,mp:me.mp,hunger:me.hunger,travel:me.travel,color:me.color,traits:me.traits,lastTraitDay:me.lastTraitDay,rest:me.rest,read:me.read,downed:me.downed,stats:me.stats,skills:me.skills,lv:me.lv,xp:me.xp,skillXp:me.skillXp,statPts:me.statPts,skillPts:me.skillPts,crafted:me.crafted,codexItems:me.codexItems||{},codexMonsters:me.codexMonsters||{},titles:titleSafeTitles(),speedPotionGrant:me.speedPotionGrant,dunBoxGrant1:!!me.dunBoxGrant1,speedPotionGrant2:!!me.speedPotionGrant2,mpGrant50:!!me.mpGrant50,partyBattleSeen:me.partyBattleSeen||"",itemLogSeq:me.itemLogSeq||0,pendingRun:me.pendingRun||null,proposalMissedId:me.proposalMissedId||null,rideSeen:me.rideSeen||"",inbox:me.inbox||[],outReqs:me.outReqs||[],friends:me.friends||{},party:me.party,partyId:me.partyId,partyLeader:me.partyLeader,lastExplore:me.lastExplore,exploreDay:me.exploreDay,npcGiftDay:me.npcGiftDay||"",whTabs:me.whTabs||[],npcGifts:me.npcGifts||{},bookReads:me.bookReads||null,exploreCount:me.exploreCount,hungerAt:me.hungerAt,guild:me.guild,intro:me.intro,expedition:me.expedition,logSeq:me.logSeq,expLogs:me.expLogs,expMeta:me.expMeta,expArchive:me.expArchive,walkDay:me.walkDay,walkMin:me.walkMin,walkRolls:me.walkRolls,potionGrant:me.potionGrant,potionGrant20:me.potionGrant20,mpAt:me.mpAt,mpCarry:me.mpCarry,potionLock:me.potionLock,itemLock:me.itemLock,guildId:me.guildId,photo:me.photo,mageTraitMagic5:me.mageTraitMagic5,priestTraitHeal5:me.priestTraitHeal5,gmTestWeapons:me.gmTestWeapons,tutorialSeen:!!me.tutorialSeen,affection:me.affection||{},specialBought:me.specialBought||{day:"",list:[]},affDecayDay:typeof me.affDecayDay==="number"?me.affDecayDay:null,badgeGiven:me.badgeGiven||{},quests:me.quests||{active:[],done:{}},p2pTalk:me.p2pTalk||{day:"",n:0},lastRestAt:me.lastRestAt||0,panicCureAt:me.panicCureAt||0,expChain:me.expChain||{n:0,lastEnd:0}});
 // 기존 캐릭터 1회 지급: 이동속도 증가 포션 20개
 const SPEED_POTION_GRANT_CUTOFF=Date.parse("2026-11-07T23:59:59+09:00");
 if(!me.speedPotionGrant&&(+char.createdAt||0)<SPEED_POTION_GRANT_CUTOFF){
