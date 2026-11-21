@@ -2659,7 +2659,10 @@ function migrateCharacterDurability(c){
 }
 const SLOTS=[["main","기본무기"],["sub","보조무기"],["armor","방어구"],["acc1","악세사리"],["acc2","악세사리"],["bag","가방"]];
 // 장비 강화 단계(2026-11-21): calcStats에서도 쓰므로 전역
-const UPG_MAX=5,UPG_ATK=.04,UPG_DEF=.06,UPG_HP=.04;
+const UPG_MAX=5,UPG_DEF=.06,UPG_HP=.04;
+// 2026-11-21: 무기 강화는 등급별 단계당 비율(최소·최고 공격력 둘 다). +5 = 바로 위 등급 +0과의 차이의 90% → 같은 계열에서 일반+0 < … < 일반+5 < 고급+0 < … < 신화+5.
+const UPG_ATK_G={"일반":.36,"고급":.18,"희귀":.15,"영웅":.108,"전설":.076,"신화":.076};
+const upAtkRate=n=>UPG_ATK_G[(ITEM_BY_NAME[n]||{}).grade]||.076;
 const upLv=x=>x&&typeof x==="object"?Math.max(0,Math.min(UPG_MAX,Math.floor(+x.up||0))):0;
 
 const WT={"녹슨 단검":2,"철검":3,"단궁":2,"철제 방패":4,"낡은 가죽 갑옷":5,"철제 흉갑":8,"구리 반지":0.2,"행운의 부적":0.2,"수습 인장":0.1,"작은 가방":1,"중간 가방":2,"큰 가방":3,"고대 기사의 장검":4,"고대 기사의 방패":5,"고대 기사의 갑주":9,"심연의 대검":7,"심연의 방패":7,"심연의 판금갑옷":12};
@@ -2730,7 +2733,7 @@ function calcStats(c){
   for(const slot of ["main","sub"]){
    const x=eq[slot];if(!usable(slot,x))continue;
    const n=nm(x);if(weaponKindOf(n)!==type)continue;
-   const um=1+UPG_ATK*upLv(x),it=info(n),atkMin=um*(it.atkMin!=null?it.atkMin:(it.atk?it.atk*.85:0)),atkMax=um*(it.atkMax!=null?it.atkMax:(it.atk?it.atk*1.15:0)),atk=(atkMin+atkMax)/2;
+   const um=1+upAtkRate(n)*upLv(x),it=info(n),atkMin=um*(it.atkMin!=null?it.atkMin:(it.atk?it.atk*.85:0)),atkMax=um*(it.atkMax!=null?it.atkMax:(it.atk?it.atk*1.15:0)),atk=(atkMin+atkMax)/2;
    if(!best||atk>best.atk)best={slot,n,atk,atkMin,atkMax,crit:+(it.crit||0),cd:+(it.cd||0)};
   }
   return best;
@@ -10661,7 +10664,7 @@ const UPG_POTIONS=[["일반 강화 촉진 포션",3],["고급 강화 촉진 포�
 let upPotion="";
 // +3→+4, +4→+5 시도에 실패하면 한 단계 내려감(+1~+3 시도는 실패해도 유지)
 const UPG_DROP_FROM=3;
-function upBonusText(x,lv){const n=nm(x),k=upKind(n);return k==="armor"?`방어력·최대 HP +${Math.round(lv*UPG_DEF*100)}%·+${Math.round(lv*UPG_HP*100)}%`:`공격력 +${Math.round(lv*UPG_ATK*100)}%`}
+function upBonusText(x,lv){const n=nm(x),k=upKind(n);return k==="armor"?`방어력·최대 HP +${Math.round(lv*UPG_DEF*100)}%·+${Math.round(lv*UPG_HP*100)}%`:`최소~최고 공격력 +${Math.round(lv*upAtkRate(n)*1000)/10}%`}
 let upList=[],upMsg="";
 function enhanceRender(){
  upList=[...Object.entries(me.equipped).filter(([,x])=>x&&typeof x==="object"&&upKind(nm(x))).map(([k,x])=>[x,"착용 중"]),...me.inv.filter(x=>x&&typeof x==="object"&&upKind(nm(x))).map(x=>[x,"소지품"])];
