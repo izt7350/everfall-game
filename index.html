@@ -3105,7 +3105,7 @@ function gainPlayerXP(amount){
   else if(me.lv>=3)me.skillPts++;
  }
  if(me.lv>=PLAYER_MAX)me.xp=0;
- if(ups){try{toast(`레벨 업! Lv ${me.lv}`)}catch(e){};try{syncPartyMemberPayload()}catch(e){};try{renderStatus();barsRender()}catch(e){};try{$("charSub").textContent=me.origin+" · Lv "+me.lv+" · 생존 "+me.day+"일째"}catch(e){}}
+ if(ups){try{if(syncMercs())partyRender()}catch(e){};try{toast(`레벨 업! Lv ${me.lv}`)}catch(e){};try{syncPartyMemberPayload()}catch(e){};try{renderStatus();barsRender()}catch(e){};try{$("charSub").textContent=me.origin+" · Lv "+me.lv+" · 생존 "+me.day+"일째"}catch(e){}}
  return ups;
 }
 function gainSkillXP(key,amount){
@@ -4972,7 +4972,7 @@ function triggerDowned(){
  ["tmodal","cmodal","rmodal","mvmodal","modal"].forEach(id=>{const el=$(id);if(el)el.hidden=true});
  if(uid){
   S.setDowned(uid,{name:me.name,cont:me.cont,area:me.area,sub:me.sub||"",place,since:now,until,startedAt:now,why}).catch(e=>console.warn("downed",e));
-  push(ref(realtimeDB,"chat/world"),{uid,name:"시스템",t:`${place}에 누군가 쓰러졌다. 아직 숨이 붙어있다.`,at:now,sys:"downed",place}).catch(e=>console.warn("downedChat",e));
+  if(!me.isAdmin)push(ref(realtimeDB,"chat/world"),{uid,name:"시스템",t:`${place}에 누군가 쓰러졌다. 아직 숨이 붙어있다.`,at:now,sys:"downed",place}).catch(e=>console.warn("downedChat",e)); // 2026-11-22: GM이 쓰러지면 세계 채팅 알림 없음
  }
  try{opts.save(cp(snap()))}catch(e){}
  syncPresence(true);updateDownedBar();bag();renderAll();try{render()}catch(e){}subscribeOwnDowned();
@@ -7752,7 +7752,7 @@ const DUNGEON_K=[.604,.792,.586,.673,.575,.566,.492,.482,.485,.498,.443,.507,.48
 // - 목표: 용병 4명을 데려가면 3시간 생존율이 혼자보다 약 +12%p.
 const MERC_POT={dungeon:[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],long:[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]};
 const mercPot=(mode,star)=>{const t=MERC_POT[mode];return t?Math.max(0,+t[clampStar(star)-1]||0):0};
-const MERC_W={dungeon:[1.59,1,1.36,1,1.23,1,.91,1.07,.87,1.02,.9,1.06,1.06,1.06,1.06],long:[1,1,1,1,1,1,1,1.18,1.08,1.18,.68,.63,.63,.63,.63]};
+const MERC_W={dungeon:[1,1,1,1,1,1,.91,1.07,.87,1.02,.9,1.06,1.06,1.06,1.06],long:[1,1,1,1,1,1,1,1.18,1.08,1.18,.68,.63,.63,.63,.63]};
 // 용병 수별 배율: 용병이 적을 때는 1명당 몬스터 강화를 덜 해서 1~2명만 데려가도 혼자보다 낫게(살아 있는 용병 수 기준).
 const MERC_LOOT_EXTRA=.0625,MERC_LOOT_DOWN=.05; // 용병 1명당 추가 전리품 확률 -6.25%(4명 -25%), 등급 하락 5%(4명 20%)
 const MERC_CNT_F={dungeon:[0,.86,.95,.98,1],long:[0,.6,.8,.93,1]}; // 던전 1명 .86 / 2명 .95 / 3명 .98 / 4명 1, 장기 .6 / .8 / .93 / 1
@@ -9504,6 +9504,22 @@ function addMercenary(){
  const skills={...DEFAULT_SKILLS,...jobSkillBonuses(job)};
  skills[style]=Math.max(skills[style]||0,Math.floor(lv/4));skills.survival=Math.max(skills.survival,Math.floor(lv/5));
  addAlly(normAlly({name:`용병 ${job}`,job,lv,stats:jobStats(stats,job),skills,equipped:mercGear(style,lv),traits:[],hp:[100,100],color:AVATAR_COLORS[Math.floor(Math.random()*AVATAR_COLORS.length)],ai:true}));
+}
+// 2026-11-22: 용병은 항상 플레이어 현재 레벨에 맞춘다. 예전에 고용한 용병(능력치 5 고정·장비 없음, 또는 고용 후 플레이어 레벨이 올라 뒤처진 용병)이
+// 몬스터 인원 보정만 올리고 도움은 안 되던 문제. 이름·직업·색은 유지하고 레벨·능력치·기능·장비를 다시 만든다. HP 비율은 유지.
+function isMerc(a){return !!(a&&a.ai&&!a.uid&&/^용병 /.test(String(a.name||"")))}
+function syncMercs(){
+ if(!Array.isArray(me.party))return 0;let n=0;
+ for(let i=0;i<me.party.length;i++){const a=me.party[i];if(!isMerc(a))continue;
+  const lv=Math.max(1,Math.min(PLAYER_MAX,+me.lv||1)),style=mercStyle(a.job),hasGear=!!(a.equipped&&a.equipped.main);
+  if((+a.lv||0)>=lv&&hasGear)continue;
+  const stats=jobStats(mercStats(style,POINTS+Math.floor(lv/2)),a.job),skills={...DEFAULT_SKILLS,...jobSkillBonuses(a.job)};
+  skills[style]=Math.max(skills[style]||0,Math.floor(lv/4));skills.survival=Math.max(skills.survival,Math.floor(lv/5));
+  const ratio=Array.isArray(a.hp)&&+a.hp[1]>0?Math.max(0,Math.min(1,(+a.hp[0]||0)/(+a.hp[1]))):1;
+  const na=normAlly({...a,lv,stats,skills,equipped:mercGear(style,lv),traits:[]});
+  try{const st=calcStats(na);na.hp=[Math.round(st.hpMax*ratio),Math.round(st.hpMax)]}catch(e){}
+  me.party[i]=na;n++}
+ return n;
 }
 function myPotionInfo(){let n=0,h=0;for(const x of me.inv||[]){const k=nm(x);if(isHpPotion(k)&&!isPotionAutoLocked(k)){n++;h+=potionHealVal(info(k).fx.hp||0)}}return {n,h:n?Math.round(h/n):0}}
 function memberPayload(){
@@ -11777,7 +11793,7 @@ function renderStatus(){
  const lvHead=`<div class="lvhead"><div><div class="lv">Lv ${me.lv}${maxed?" MAX":""}</div><div class="xpt">${maxed?"최고 레벨":`${me.xp} / ${need} XP`}</div></div><div class="ptline">능력치 <b>${statLeft}</b> · 기능 <b>${skillLeft}</b>${pendingTotal?` <span class="dim">(대기 ${pendingTotal})</span>`:""}</div></div><div class="xpbar"><i style="width:${xpPct}%"></i></div>`;
  const allocBar=canAlloc?`<div class="allocbar"><span>+ / − 로 조정한 뒤 <b>확인</b>을 눌러 확정하세요.</span><div class="row"><button class="btn alt sm2" id="statReset" ${pendingTotal?"":"disabled"}>초기화</button><button class="btn sm2" id="statConfirm" ${pendingTotal?"":"disabled"}>확인</button></div></div>`:"";
  const row=(l,v,c)=>`<div class="strow"><span>${l}</span><b class="${c||""}">${v}</b></div>`;
- const base=STATS.map((n,i)=>{const cur=+me.stats[i]||0,draft=+(statDraft[i]||0),val=cur+draft,btns=canStat?`<button class="pt" data-sp="${i}" data-d="-1" title="-1" ${draft<=0?"disabled":""}>−</button><button class="pt" data-sp="${i}" data-d="1" title="+1" ${statLeft<=0||val>=20?"disabled":""}>+</button>`:"";return `<div class="strow"><span>${n}</span><b class="${draft?"pending":""}">${val}${btns}</b></div>`}).join("");
+ const base=STATS.map((n,i)=>{const cur=+me.stats[i]||0,draft=+(statDraft[i]||0),val=cur+draft,btns=me.isAdmin?`<button class="pt" data-gmsp="${i}" data-d="-1" title="GM -1" ${cur<=1?"disabled":""}>−</button><button class="pt" data-gmsp="${i}" data-d="1" title="GM +1" ${cur>=999?"disabled":""}>+</button>`:canStat?`<button class="pt" data-sp="${i}" data-d="-1" title="-1" ${draft<=0?"disabled":""}>−</button><button class="pt" data-sp="${i}" data-d="1" title="+1" ${statLeft<=0||val>=20?"disabled":""}>+</button>`:"";return `<div class="strow"><span>${n}</span><b class="${draft?"pending":""}">${val}${btns}</b></div>`}).join("");
  const combat=[
   ["근접 공격력",fmtRange(st.meleeAtkMin,st.meleeAtkMax)],
   ["원거리 공격력",fmtRange(st.rangedAtkMin,st.rangedAtkMax)],
@@ -11814,7 +11830,7 @@ function renderStatus(){
   row("적재 한도",st.capacity),
   row("무게 패널티","-"+st.weightPenalty,st.weightPenalty>0?"warn":"ok")
  ].join("");
- const skills=SKILL_KEYS.map(k=>{const lv=Math.max(0,Math.min(SKILL_MAX,+(me.skills[k]||0))),draft=+(skillDraft[k]||0),final=Math.min(SKILL_MAX,lv+draft),sneed=SKILL_XP_TABLE[final]||0,pct=final>=SKILL_MAX?100:Math.min(100,((me.skillXp[k]||0)/(sneed||1))*100),btns=canSkill?`<button class="pt" data-sk="${k}" data-d="-1" title="-1" ${draft<=0?"disabled":""}>−</button><button class="pt" data-sk="${k}" data-d="1" title="+1" ${skillLeft<=0||final>=SKILL_MAX?"disabled":""}>+</button>`:"";const traitNote=k==="magic"&&jobKey()==="마법사"?' title="직업 특성 마법 +5 포함"':"";return `<div class="strow skrow"><span${traitNote}>${SKILL_NAMES[k]}</span><span class="skbar"><i style="width:${pct}%"></i></span><b class="${draft?"pending":""}">${final}${btns}</b></div>`}).join("");
+ const skills=SKILL_KEYS.map(k=>{const lv=Math.max(0,Math.min(SKILL_MAX,+(me.skills[k]||0))),draft=+(skillDraft[k]||0),final=Math.min(SKILL_MAX,lv+draft),sneed=SKILL_XP_TABLE[final]||0,pct=final>=SKILL_MAX?100:Math.min(100,((me.skillXp[k]||0)/(sneed||1))*100),btns=me.isAdmin?`<button class="pt" data-gmsk="${k}" data-d="-1" title="GM -1" ${lv<=0?"disabled":""}>−</button><button class="pt" data-gmsk="${k}" data-d="1" title="GM +1" ${lv>=SKILL_MAX?"disabled":""}>+</button>`:canSkill?`<button class="pt" data-sk="${k}" data-d="-1" title="-1" ${draft<=0?"disabled":""}>−</button><button class="pt" data-sk="${k}" data-d="1" title="+1" ${skillLeft<=0||final>=SKILL_MAX?"disabled":""}>+</button>`:"";const traitNote=k==="magic"&&jobKey()==="마법사"?' title="직업 특성 마법 +5 포함"':"";return `<div class="strow skrow"><span${traitNote}>${SKILL_NAMES[k]}</span><span class="skbar"><i style="width:${pct}%"></i></span><b class="${draft?"pending":""}">${final}${btns}</b></div>`}).join("");
  const fxRows=me.fx.map((f,i)=>{const d=statusDefOf(f);return `<div class="strow" data-fxopen="${i}" data-fxkey="${esc(f.id||f.label||f.n||i)}" style="cursor:pointer" title="클릭해서 상세 보기"><span><b class="${f.t==="buff"?"up":"dn"}">${esc(f.label||f.n)}</b>${f.stacks>1?` <small class="dim">×${safeNum(f.stacks,1)}</small>`:""} <small class="dim">${esc(d?d.sub:"")}</small></span><span><small class="dim">${esc(fxRemainText(f))}</small> <span class="dim" style="font-size:11px">상세 ›</span></span></div>`}).join("")||`<span class="dim">상태 효과가 없다.</span>`;
  const fxSection=`<h2 style="margin-top:14px">상태 효과 <span class="cnt">${me.fx.length} / 10</span></h2><div>${fxRows}</div><div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="btn alt sm2" id="statusCureBtn">치료하기</button></div>`;
  const tm=toolMods(),toolRows=[
@@ -11846,6 +11862,13 @@ function renderStatus(){
   fxSection+toolSection;
  if($("v-stat"))$("v-stat").scrollTop=statusScrollPos}
 $("v-stat").onclick=e=>{const sp=e.target.closest("[data-sp]"),sk=e.target.closest("[data-sk]"),fx=e.target.closest("[data-fxopen]");
+ // 2026-11-22: GM은 능력치·기능을 포인트 없이 바로 +1/-1 (능력치 1~999, 기능 0~최대)
+ const gsp=e.target.closest("[data-gmsp]"),gsk=e.target.closest("[data-gmsk]");
+ if((gsp||gsk)&&me.isAdmin){const d=+(gsp||gsk).dataset.d||0,before=calcStats(me);
+  if(gsp){const i=+gsp.dataset.gmsp;me.stats[i]=Math.max(1,Math.min(999,(+me.stats[i]||0)+d))}
+  else{const k=gsk.dataset.gmsk;me.skills[k]=Math.max(0,Math.min(SKILL_MAX,(+me.skills[k]||0)+d))}
+  try{gainVitals(before)}catch(err){}me.hp[0]=Math.max(me.downed?0:1,Math.min(me.hp[1],me.hp[0]));
+  try{opts.save(cp(snap()))}catch(err){}try{renderStatus();barsRender()}catch(err){}return}
  if(sp){stageStat(+sp.dataset.sp,+sp.dataset.d);return}
  if(sk){stageSkill(sk.dataset.sk,+sk.dataset.d);return}
  if(e.target.closest("#statConfirm")){confirmAlloc();return}
@@ -11878,6 +11901,7 @@ function tryBadTrait(name){
  if(!tr||tr.kind!=="negative")return false;
  return grantTrait(name,BAD_TRAIT_CHANCE[name]||0);
 }
+try{if(syncMercs()){partyRender();opts.save(cp(snap()))}}catch(e){console.warn("syncMercs",e)}
 applyOfflinePet();
 if(migrateDurableItems())try{opts.save(cp(snap()))}catch(e){}applyOfflineHunger();
 applyOfflineNightMp();
