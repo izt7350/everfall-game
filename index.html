@@ -3769,7 +3769,8 @@ function resolveExp(partial=false,why){
  const addLoot=names=>expAddLoot(rt,names);
  const clearProposal=()=>{if(proposalId&&me.partyId&&runLeader===uid){try{remove(ref(realtimeDB,"partyProposals/"+me.partyId)).catch(()=>{})}catch(e){}}};
  let chestData=null;
- const runBattle=(mon,source,isBoss=false)=>expRunBattle(e,ctx,mon,source,isBoss,Date.now()).res;
+ // 2026-11-22: 승리 = 파티가 이기고 본인도 살아 있음(expRunBattle의 win). 예전엔 res.win(파티 승리)만 봐서, 용병이 보스를 잡고 본인은 쓰러져도 보상 상자를 주고 "패배" 문구도 같이 떴다.
+ const runBattle=(mon,source,isBoss=false)=>{const r=expRunBattle(e,ctx,mon,source,isBoss,Date.now());return {...r.res,win:!!r.win}};
  const S=e.sim&&e.sim.members?runPartySim(e.sim):null;
  if(S&&!partial&&!rt.defeated&&!rt.escaped&&S.boss){
   const r=expSharedApply(e,ctx,S.boss);
