@@ -3132,6 +3132,41 @@ function awardAction(key,base,grade,cdKey=key){
 // 은신 기능: 도주에 성공하면 50% 확률로 경험치. 적 등급이 높을수록 많이 (일반 20 ~ 신화 100, GRADE_MULT)
 const FLEE_STEALTH_CHANCE=.5;
 function fleeStealthXP(){try{if(!battle||!battle.mon||Math.random()>=FLEE_STEALTH_CHANCE)return;const r=awardAction("stealth",ACTION_XP.flee,battle.mon.grade,"fleeStealth");if(r)battleLog(`몸을 숨겨 빠져나왔다. 은신 경험치 +${r.sx}`)}catch(e){}}
+// 2026-11-22: GM 계정 전용 — 자기 캐릭터의 레벨·능력치·기능 레벨·남은 포인트를 직접 입력해 바꾼다(테스트용).
+function openGmSpec(){
+ if(!me.isAdmin)return toast("GM 계정만 사용할 수 있습니다.");
+ const num=(id,v,min,max)=>`<input id="${id}" type="number" min="${min}" max="${max}" value="${v}" style="width:100%;height:32px;box-sizing:border-box">`;
+ const cell=(label,inner)=>`<label style="display:flex;flex-direction:column;gap:3px;font-size:12px">${esc(label)}${inner}</label>`;
+ const grid=h=>`<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 12px">${h}</div>`;
+ const body=`<p class="dim" style="margin:0 0 8px">입력한 값이 그대로 적용됩니다. 레벨을 바꿔도 포인트는 자동으로 바뀌지 않습니다. 경험치는 0이 됩니다.</p>`+
+  `<h4 class="sh">레벨 · 남은 포인트</h4>`+grid(cell("레벨 (1~"+PLAYER_MAX+")",num("gmLv",me.lv,1,PLAYER_MAX))+cell("능력치 포인트",num("gmSp",+me.statPts||0,0,999))+cell("기능 포인트",num("gmKp",+me.skillPts||0,0,999)))+
+  `<h4 class="sh">능력치</h4>`+grid(STATS.map((n,i)=>cell(n,num("gmSt"+i,+me.stats[i]||0,1,999))).join(""))+
+  `<h4 class="sh">기능 레벨 (0~${SKILL_MAX})</h4>`+grid(SKILL_KEYS.map(k=>cell(SKILL_NAMES[k]||k,num("gmSk_"+k,+(me.skills&&me.skills[k])||0,0,SKILL_MAX))).join(""))+
+  `<p class="dim" id="gmSpecNote" style="min-height:1.2em;margin:4px 0"></p><button type="button" class="btn" id="gmSpecGo" style="width:100%">적용</button>`;
+ pop("내 캐릭터 스펙 조정",body,[{t:"닫기"}],false,true);
+ const val=(id,min,max)=>{const v=Math.floor(+($(id)||{}).value);return isFinite(v)?Math.max(min,Math.min(max,v)):null};
+ $("gmSpecGo").onclick=()=>{
+  if(!me.isAdmin)return;
+  const lv=val("gmLv",1,PLAYER_MAX),sp=val("gmSp",0,999),kp=val("gmKp",0,999);
+  const st=STATS.map((_,i)=>val("gmSt"+i,1,999)),sk=Object.fromEntries(SKILL_KEYS.map(k=>[k,val("gmSk_"+k,0,SKILL_MAX)]));
+  if(lv==null||sp==null||kp==null||st.some(v=>v==null)||Object.values(sk).some(v=>v==null))return toast("숫자를 모두 입력해 주세요.");
+  const ch=[];
+  if(lv!==me.lv)ch.push(`Lv ${me.lv}→${lv}`);
+  STATS.forEach((n,i)=>{if(st[i]!==me.stats[i])ch.push(`${n} ${me.stats[i]}→${st[i]}`)});
+  SKILL_KEYS.forEach(k=>{const o=+(me.skills&&me.skills[k])||0;if(sk[k]!==o)ch.push(`${SKILL_NAMES[k]||k} ${o}→${sk[k]}`)});
+  if(sp!==(+me.statPts||0))ch.push(`능력치 포인트 ${+me.statPts||0}→${sp}`);
+  if(kp!==(+me.skillPts||0))ch.push(`기능 포인트 ${+me.skillPts||0}→${kp}`);
+  if(!ch.length){const n=$("gmSpecNote");if(n)n.textContent="바뀐 값이 없습니다.";return}
+  const before=calcStats(me);
+  me.lv=lv;me.xp=0;me.statPts=sp;me.skillPts=kp;me.stats=st;me.skills={...me.skills,...sk};
+  try{gainVitals(before)}catch(e){}
+  me.hp[0]=Math.max(me.downed?0:1,Math.min(me.hp[1],me.hp[0]));
+  try{logChar("admin",`GM 스펙 조정 · ${ch.join(", ")}`.slice(0,400),{changes:ch})}catch(e){}
+  try{opts.save(cp(snap()))}catch(e){}
+  try{barsRender();renderStatus();renderAll()}catch(e){}
+  closePop();toast(`스펙을 조정했습니다 · ${ch.slice(0,4).join(", ")}${ch.length>4?` 외 ${ch.length-4}개`:""}`);
+ };
+}
 function gainVitals(before){
  const after=calcStats(me);
  me.hp[1]=after.hpMax;me.mp[1]=after.mpMax;me.hunger[1]=after.hungerMax;
@@ -5395,7 +5430,7 @@ function openSettings(){const dark=isDark(),thNow=document.documentElement.datas
  <h4 class="sh">칭호</h4><div class="title-setting"><b>${esc(titleEquippedText()||"없음")}</b><button type="button" class="btn alt sm" data-opentitles>칭호 변경</button></div>
  <h4 class="sh">효과음</h4><div class="srow2"><button class="mode" data-sfx="1" aria-pressed="${sfxOn}">켜기</button><button class="mode" data-sfx="0" aria-pressed="${!sfxOn}">끄기</button></div>
  <h4 class="sh">튜토리얼</h4><div class="row"><button type="button" class="btn alt sm" data-tutrestart>튜토리얼 다시 보기</button></div>
-  ${me.isAdmin?`<h4 class="sh">관리자</h4><div class="row"><button type="button" class="btn alt sm" data-clearchat>채팅 전체 초기화</button></div>`:""}
+  ${me.isAdmin?`<h4 class="sh">관리자</h4><div class="row"><button type="button" class="btn alt sm" data-clearchat>채팅 전체 초기화</button><button type="button" class="btn alt sm" data-gmspec>내 캐릭터 스펙 조정</button></div>`:""}
  <h4 class="sh">차단한 계정 (${me.blocked.length})</h4>${me.blocked.length?me.blocked.map((u,i)=>`<div class="row" style="padding:3px 0"><span>${esc(u)}</span><button class="sm2" data-ub="${i}">해제</button></div>`).join(""):`<span class="dim">차단한 계정이 없다.</span>`}`,[{t:"닫기"}]);
  $("pb").onclick=e=>{const b=e.target.closest("button");if(!b)return;
   if(b.dataset.th){setTheme(b.dataset.th,1);$("pb").querySelectorAll("[data-th]").forEach(x=>x.setAttribute("aria-pressed",String(x.dataset.th===b.dataset.th)))}
@@ -5405,6 +5440,7 @@ function openSettings(){const dark=isDark(),thNow=document.documentElement.datas
   else if(b.hasAttribute("data-save-profile")){saveProfile()}
    else if(b.hasAttribute("data-opentitles")){try{$("pop").hidden=true}catch(e){};setTab("titles");return}
    else if(b.hasAttribute("data-tutrestart")){try{$("pop").hidden=true}catch(e){};try{tutStart(true)}catch(e){};return}
+   else if(b.hasAttribute("data-gmspec")){openGmSpec();return}
    else if(b.hasAttribute("data-clearchat")){pop("채팅 전체 초기화",`<p>현장·세계·공지·길드·귓속말의 모든 메시지를 삭제합니다. 되돌릴 수 없습니다.</p>`,[{t:"초기화",c:"bad",fn:resetAllChat},{t:"취소",fn:openSettings}]);return}
    else return;openSettings()};
  $("pb").onchange=e=>{if(e.target.id==="ncIn"){me.color=colorOf(e.target.value);applyColor()}}
