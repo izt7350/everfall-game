@@ -3246,9 +3246,12 @@ let riskJob=null;
 function riskBases(kind){
  const parts=[uid,...((me.partyId&&partyData)?proposalMatesHere():[])];
  const now=Date.now(),out={};
+ // 2026-11-22: 온라인 파티가 아니면 실제 탐사처럼 영입한 용병(me.party)도 함께 싸우는 것으로 계산(예전엔 빠져 있어 용병이 있으면 실제보다 높게 표시됨)
+ const mercs=(!me.partyId&&Array.isArray(me.party))?me.party.slice(0,4):[];
  for(const min of RISK_MINS){
   const base=buildPartySim({id:"risk",kind,min,startAt:now},parts);
   if(!base||!base.members||!base.members[uid])return null;
+  mercs.forEach((a,i)=>{try{const st=calcStats(a);base.members["~merc"+i]={name:String(a.name||"용병").slice(0,16),st:simSt(st),hp:Math.round(st.hpMax),maxHp:Math.round(st.hpMax),potN:mercPot(kind,base.star),potHeal:mercPotHeal(+a.lv||me.lv),charmN:0,merc:true}}catch(e){}});
   out[min]={base,ck:[kind,min,base.star,base.night?1:0,JSON.stringify(base.members)].join("|")};
  }
  return out;
@@ -3435,14 +3438,19 @@ function beginExp(kind,min,opts={}){
  renderAll();try{bag()}catch(e){};toast(`${EXPD[kind].label} 시작 · ${durText(min)}${me.expedition.night?" · 밤이라 몬스터가 더 강하고 정예가 자주 나타난다":""}`);try{closeRisk()}catch(e){};try{openExpRecord(0)}catch(e){}}
 // 2026-11-20: ★1~8 장기·던전은 조우 수 평균 1.3배(소수점은 확률로 반올림). ★9~12는 그대로(2026-11-21 ★9 제외). star를 안 넘기면(구버전 공동 탐사) 예전 그대로.
 const EXP_ENC_MUL=1.3,EXP_HARD_MAX_STAR=8;
-function encounterCount(kind,min,star){
+// 2026-11-22: 마왕성 장기·던전은 모든 ★에서 조우 1.3배(★1~8 규칙과 중복 적용 안 함). 공동 탐사는 sim.v>=4부터.
+const CASTLE="마왕성",CASTLE_ENC_MUL=1.3,CASTLE_SEARCH_MON=.325,CASTLE_TRAVEL_ENC=.35;
+// 몬스터 최소 속도(수동 전투): ★n = 14+n (★1 15 … ★8 22 … ★14 28). 원래 더 빠르면 그대로.
+// 민첩 5(속도 15)로 ★1, 이후 ★마다 민첩 +1이 필요(★8 = 민첩 12). 2026-11-22: 마왕성 전용 → 모든 지역으로 확대.
+const monSpeedFloor=star=>14+Math.max(1,Math.min(15,Math.floor(+star||1)));
+function encounterCount(kind,min,star,cont){
  const table=kind==="dungeon"
   ? {30:[1,2],60:[2,3],120:[2,4],180:[3,6]}
   : {30:[0,1],60:[0,2],120:[1,3],180:[1,4]};
  const key=[30,60,120,180].includes(+min)?+min:30,[lo,hi]=table[key];
  let n=lo+Math.floor(Math.random()*(hi-lo+1));
  const s=Math.floor(+star||0);
- if(s>=1&&s<=EXP_HARD_MAX_STAR){const x=n*EXP_ENC_MUL;n=Math.floor(x)+(Math.random()<x-Math.floor(x)?1:0)}
+ if((s>=1&&s<=EXP_HARD_MAX_STAR)||(cont===CASTLE&&s>=1)){const x=n*(cont===CASTLE?CASTLE_ENC_MUL:EXP_ENC_MUL);n=Math.floor(x)+(Math.random()<x-Math.floor(x)?1:0)}
  return n;
 }
 // ---- 파티 공동 탐사 (2026-11-14) ----
@@ -3465,7 +3473,7 @@ function buildPartySim(p,participants){
   }catch(err){}
  }
  let star=1;try{star=areaTier()||parseInt((AR(me.area)||{}).diff||"")||1}catch(e){}
- return {v:3,seed:hashSeed(p.id),startAt:+p.startAt||Date.now(),kind:p.kind,min:+p.min,cont:me.cont,area:me.area,sub:me.sub||null,star,night:p.kind==="long"&&isNightNow(),members};
+ return {v:4,seed:hashSeed(p.id),startAt:+p.startAt||Date.now(),kind:p.kind,min:+p.min,cont:me.cont,area:me.area,sub:me.sub||null,star,night:p.kind==="long"&&isNightNow(),members};
 }
 const simCache=new Map();
 function runPartySim(sim){
@@ -3475,17 +3483,17 @@ function runPartySim(sim){
  try{
  const out=withSeed(sim.seed,()=>{
   const kind=sim.kind,min=+sim.min,star=+sim.star||1,night=!!sim.night,start=+sim.startAt,span=min*60000;
-  const F=Object.keys(sim.members||{}).sort().map(id=>{const m=sim.members[id];return {id,name:m.name,st:m.st||{},hp:+m.hp||1,maxHp:+m.maxHp||1,potN:+m.potN||0,potHeal:+m.potHeal||0,charmN:+m.charmN||0,out:false}});
+  const F=Object.keys(sim.members||{}).sort().map(id=>{const m=sim.members[id];return {id,name:m.name,st:m.st||{},hp:+m.hp||1,maxHp:+m.maxHp||1,potN:+m.potN||0,potHeal:+m.potHeal||0,charmN:+m.charmN||0,merc:!!m.merc,out:false}});
   const fight=(mon,source,isBoss)=>{
    const alive=F.filter(f=>f.hp>0&&!f.out),before={};F.forEach(f=>before[f.id]=f.hp);
-   const party=alive.map(f=>({self:false,name:f.name,st:f.st,hp:f.hp,maxHp:f.maxHp,potN:f.potN,potHeal:f.potHeal,charmN:f.charmN}));
+   const party=alive.map(f=>({self:false,name:f.name,st:f.st,hp:f.hp,maxHp:f.maxHp,potN:f.potN,potHeal:f.potHeal,charmN:f.charmN,merc:!!f.merc}));
    const res=autoBattle(mon,party,{expedition:true,star,source,mode:kind,boss:isBoss,night,shared:true,dry:!!sim.dry});
    const after={},pot={},fled=[];
    res.party.forEach((q,i)=>{const f=alive[i];pot[f.id]=Math.max(0,f.potN-(+q.potN||0));f.hp=Math.max(0,q.hp);f.potN=+q.potN||0;if(q.fled){f.out=true;f.charmN=Math.max(0,+q.charmN||0);fled.push(f.id)}});
    F.forEach(f=>after[f.id]=f.hp);
    return {mon,source,boss:!!isBoss,win:res.win,rounds:res.rounds,log:res.log.slice(-60),trace:res.trace.slice(0,120),mMax:res.mMax,before,after,pot,fled,alive:alive.map(f=>f.id)};
   };
-  const n=encounterCount(kind,min,(+sim.v||1)>=2?star:0)+(night?NIGHT_LONG.extraEnc:0),at=[];
+  const n=encounterCount(kind,min,(+sim.v||1)>=2?star:0,(+sim.v||1)>=4?sim.cont:null)+(night?NIGHT_LONG.extraEnc:0),at=[];
   for(let i=0;i<n;i++)at.push(start+Math.floor((.05+.9*Math.random())*span));
   at.sort((a,b)=>a-b);
   const events=[];
@@ -3563,7 +3571,7 @@ function expStartAt(e){return (+e.end||Date.now())-(+e.min||0)*60000}
 function expInitRT(e,legacy){
  if(e.rt&&typeof e.rt==="object")return expFixRT(e.rt);
  const start=expStartAt(e),night=!!e.night&&e.kind==="long";
- const n=encounterCount(e.kind,e.min,e.star)+(night?NIGHT_LONG.extraEnc:0);
+ const n=encounterCount(e.kind,e.min,e.star,e.cont)+(night?NIGHT_LONG.extraEnc:0);
  let encAt=[];
  if(e.sim&&e.sim.members){try{encAt=runPartySim(e.sim).events.map(ev=>ev.at)}catch(err){console.warn("partySim",err);e.sim=null}}
  if(e.sim&&e.sim.members){}
@@ -3579,6 +3587,7 @@ function expFixRT(rt){
  rt.found=arr(rt.found).filter(x=>typeof x==="string");
  rt.battles=arr(rt.battles).filter(b=>b&&typeof b==="object").map(b=>({...b,log:arr(b.log)}));
  rt.allyHp=rt.allyHp&&typeof rt.allyHp==="object"?rt.allyHp:{};
+ rt.allyPot=rt.allyPot&&typeof rt.allyPot==="object"?rt.allyPot:{};
  for(const k of ["encDone","segDone","lost","enc","gain","sxp","dmg","used","hpBefore","hungerBefore","mpBefore"])rt[k]=+rt[k]||0;
  rt.encDone=Math.min(rt.encDone,rt.encAt.length);
  rt.defeated=!!rt.defeated;rt.bossDefeat=!!rt.bossDefeat;rt.escaped=!!rt.escaped;rt.escapedBoss=!!rt.escapedBoss;
@@ -3592,17 +3601,17 @@ function expCtx(e){
  const pm=e.proposalId&&partyExpedition&&partyExpedition.members?partyExpedition.members:null;
  const joined=id=>{if(!pm)return true;const m=pm[id];return !!m&&(m.proposalId?m.proposalId===e.proposalId:(+m.at||0)>=expStartAt(e)-120000)};
  const allyList=(me.partyId?onlineAllies():me.party||[]).filter(a=>(!participants||participants.includes(a.uid))&&(!e.proposalId||joined(a.uid))).slice(0,4);
- const party=[{self:true,name:me.name,st:calcStats(me),hp:me.hp[0],maxHp:me.hp[1]},...allyList.map(a=>{const st=calcStats(a),key=a.uid||a.name,h=rt.allyHp?rt.allyHp[key]:null;return{self:false,name:a.name,ally:a,st,hp:h!=null?Math.max(0,Math.min(h,st.hpMax)):st.hpMax,maxHp:st.hpMax,key}})];
- return {areaObj,tier,party,nightRun:!!e.night&&e.kind==="long",cfg:EXPD[e.kind]||EXPD.long};
+ const party=[{self:true,name:me.name,st:calcStats(me),hp:me.hp[0],maxHp:me.hp[1]},...allyList.map(a=>{const st=calcStats(a),key=a.uid||a.name,h=rt.allyHp?rt.allyHp[key]:null,merc=!me.partyId,pk=rt.allyPot?rt.allyPot[key]:null;return{self:false,name:a.name,ally:a,st,hp:h!=null?Math.max(0,Math.min(h,st.hpMax)):st.hpMax,maxHp:st.hpMax,key,merc,potN:merc?(pk!=null?Math.max(0,+pk||0):mercPot(e.kind,tier)):0,potHeal:merc?mercPotHeal(+a.lv||me.lv):0}})];
+ return {areaObj,tier,party,mercN:party.filter(f=>f.merc).length,nightRun:!!e.night&&e.kind==="long",cfg:EXPD[e.kind]||EXPD.long};
 }
 function expAddLoot(rt,names,why){try{itemReason(why||"탐사 전리품",true)}catch(e){}for(const n of names){if(!n)continue;registerItem(n);const d=ITEM_BY_NAME[n],item=lootObj(n);if(canAdd(item)){addItem(item);rt.found.push(n);if(d)awardAction("search",d.grade==="일반"?ACTION_XP.search:ACTION_XP.rareSearch,d.grade,"search")}else rt.lost++}}
 function expRunBattle(e,ctx,mon,source,isBoss,at){
  const rt=e.rt,party=ctx.party,tier=ctx.tier;
  party[0].hp=me.hp[0];party[0].maxHp=me.hp[1];party[0].st=calcStats(me);
- const syncParty=()=>{me.hp[0]=Math.max(0,Math.min(party[0].maxHp,party[0].hp));for(const f of party.slice(1)){if(f.ally)f.ally.hp=[f.hp,f.maxHp];if(rt.allyHp)rt.allyHp[f.key]=f.hp}};
+ const syncParty=()=>{me.hp[0]=Math.max(0,Math.min(party[0].maxHp,party[0].hp));for(const f of party.slice(1)){if(f.ally)f.ally.hp=[f.hp,f.maxHp];if(rt.allyHp)rt.allyHp[f.key]=f.hp;if(f.merc){if(!rt.allyPot)rt.allyPot={};rt.allyPot[f.key]=Math.max(0,+f.potN||0)}}};
  const before=party[0].hp,res=autoBattle(mon,party,{expedition:true,star:tier,source,mode:e.kind,boss:isBoss,night:ctx.nightRun});
  rt.used+=res.used||0;
- for(let i=0;i<party.length;i++)party[i].hp=res.party[i].hp;
+ for(let i=0;i<party.length;i++){party[i].hp=res.party[i].hp;if(!party[i].self)party[i].potN=res.party[i].potN}
  syncParty();
  const tag=mon.role==="정예"?"[정예] ":mon.role==="보스"?"[보스] ":"",leaderAlive=res.party[0].hp>0,win=res.win&&leaderAlive;
  if(res.escaped&&!win){ // 2026-11-19 비상 탈출 부적 자동 사용 → 탐사 중단·귀환
@@ -3623,7 +3632,7 @@ function expRunBattle(e,ctx,mon,source,isBoss,at){
   try{questKill(mon,tier,source)}catch(err){}
   const self=res.party[0],sx=Math.max(1,(mon.killSkillXp||Math.ceil((mon.xp||40)/5))+(mon.finisherXp||20));
   gainSkillXP(self.skill||"melee",sx);rt.sxp+=sx;
-  expAddLoot(rt,capBattleLoot(rollLoot(tier,source,mon.grade,ctx.areaObj,e.min),tier),`${ctx.cfg.label} 전투 전리품 · ${mon.name}`);
+  expAddLoot(rt,capBattleLoot(rollLoot(tier,source,mon.grade,ctx.areaObj,e.min,ctx.mercN),tier),`${ctx.cfg.label} 전투 전리품 · ${mon.name}`);
   logAct(`전투: ${tag}${mon.name} · ${res.rounds}턴 승리`,at);
  }else{
   rt.defeated=true;
@@ -3656,7 +3665,7 @@ function expAdvance(upTo,live){
  let changed=!!ctx;
  while(rt.segDone<segsDue){
   rt.segDone++;changed=true;
-  if(!rt.defeated&&!rt.escaped&&Math.random()<C().cfg.find)expAddLoot(rt,rollLoot(C().tier,"gather",null,C().areaObj),`${C().cfg.label} 채집`);
+  if(!rt.defeated&&!rt.escaped&&Math.random()<C().cfg.find)expAddLoot(rt,rollLoot(C().tier,"gather",null,C().areaObj,null,C().mercN),`${C().cfg.label} 채집`);
   spendHunger(2);
   const mp=e.kind==="dungeon"?1:(rt.segDone%2===0?2:0);
   if(mp)spendMp(Math.min(+me.mp[0]||0,mp));
@@ -3758,7 +3767,7 @@ function resolveExp(partial=false,why){
  // 장기 탐사 완료 시에만 전용 보상 판정 (중도 귀환·전투 패배 시 없음).
  if(!partial&&!defeated&&!rt.escaped&&e.kind==="long"){
   const exclChance=(Array.isArray(cfg.excl)&&+cfg.excl[idx])||0;
-  if(exclChance>0&&Math.random()<exclChance){
+  if(exclChance>0&&Math.random()<exclChance*(1-Math.min(4,ctx.mercN||0)*MERC_LOOT_EXTRA)){
    const g=rollRegionGrade(tier),tools=LONG_EXCL_TOOLS[g]||[];
    const exclName=(tools.length&&Math.random()<.5)?take(tools):(LONG_EXCL[g]||take(tools));
    if(exclName){addLoot([exclName]);logAct(`장기 탐사 전용 보상: ${exclName}`)}
@@ -3797,6 +3806,7 @@ function resolveExp(partial=false,why){
  if(me.downed)lines.push(`<p style="color:var(--bad)">쓰러졌다. 90분 안에 소생이 필요하다.</p>`);
  if(partial)lines.push(`<p class="dim">${Math.floor(elapsed)}분 진행 · 완료한 ${segs*30}분만큼의 보상</p>`);
  if(found.length)lines.push(`<p><b>획득</b> ${esc(tally(found))}</p>`);
+ if(ctx.mercN>0)lines.push(`<p class="dim">용병 ${ctx.mercN}명 동행 · 추가 전리품 확률 -${Math.round(ctx.mercN*MERC_LOOT_EXTRA*100)}% · 전리품 등급 하락 ${Math.round(ctx.mercN*MERC_LOOT_DOWN*100)}%</p>`);
  if(!partial&&box)lines.push(`<p><b>던전 보상 상자</b>를 얻었다.</p>`);
  if(segs)lines.push(`<p>몬스터 조우 ${enc}회 · 경험치 +${gain} · HP -${hpUsed} · 허기 -${hungerUsed}${mpUsed?` · 정신력 -${mpUsed}`:""}</p>`);
  if(bossDefeat)lines.push(e.kind==="dungeon"?`<p class="dim">보스에게 패배해 HP 1로 귀환했다. 던전 보상 상자는 얻지 못했다.</p>`:`<p class="dim">보스에게 패배해 HP 1로 귀환했다. 탐사 완료 보상은 얻지 못했다.</p>`);
@@ -4371,61 +4381,66 @@ function pickItem(category,grade,tag,source){
  }
  return null;
 }
-function rollLoot(star,source,monsterGrade=null,areaObj=null,minutes=null){
+// 2026-11-22: 용병 동행 전리품 패널티 — mercN = 탐사에 데려간 용병 수(온라인 파티원 제외).
+// 추가 아이템 확률(기본 지급 외의 확률 판정·탐색 등급업·2개 획득·탐사 책)을 용병 1명당 MERC_LOOT_EXTRA씩 낮추고, 아이템마다 용병 1명당 MERC_LOOT_DOWN 확률로 한 등급 낮춘다.
+function rollLoot(star,source,monsterGrade=null,areaObj=null,minutes=null,mercN=0){
+ const mN=Math.max(0,Math.min(4,Math.floor(+mercN||0))),xKeep=1-mN*MERC_LOOT_EXTRA,downP=mN*MERC_LOOT_DOWN;
+ const rnd=()=>Math.random()/Math.max(.01,xKeep); // rnd()<p 의 확률 = p×xKeep
  star=Math.max(1,Math.min(12,+star||1));
  const tag=areaDropTag(areaObj),base=monsterGrade||rollRegionGrade(star),out=[];
  const find=Math.max(0,Math.min(50,(calcStats(me).itemFind||0)));
  const SEARCH_ORDER=["일반","고급","희귀","영웅","전설","신화"],upP=searchUpChance(me),doubleP=searchDoubleChance(me);
  const add=(category,src=source)=>{let g=adjustGrade(base,String(category).split(":")[0],src,minutes),n=null;
   const capFood=c=>{if(c==="소모품:요리"&&SEARCH_ORDER.indexOf(g)>SEARCH_ORDER.indexOf(GATHER_FOOD_MAX))g=GATHER_FOOD_MAX};capFood(category);
+  if(downP>0&&Math.random()<downP){const gi=SEARCH_ORDER.indexOf(g);if(gi>0){const dn=pickItem(category,SEARCH_ORDER[gi-1],tag,src);if(dn){out.push(dn);return}}}
   // 탐색 기능: 레벨당 1% 확률로 한 등급 위 아이템 (그 등급에 후보가 없으면 원래 등급)
-  if(upP>0&&Math.random()<upP){const i=SEARCH_ORDER.indexOf(g);if(i>=0&&i<SEARCH_ORDER.length-1&&!(category==="소모품:요리"&&SEARCH_ORDER[i+1]!==g&&SEARCH_ORDER.indexOf(SEARCH_ORDER[i+1])>SEARCH_ORDER.indexOf(GATHER_FOOD_MAX)))n=pickItem(category,SEARCH_ORDER[i+1],tag,src)}
+  if(upP>0&&rnd()<upP){const i=SEARCH_ORDER.indexOf(g);if(i>=0&&i<SEARCH_ORDER.length-1&&!(category==="소모품:요리"&&SEARCH_ORDER[i+1]!==g&&SEARCH_ORDER.indexOf(SEARCH_ORDER[i+1])>SEARCH_ORDER.indexOf(GATHER_FOOD_MAX)))n=pickItem(category,SEARCH_ORDER[i+1],tag,src)}
   if(!n)n=pickItem(category,g,tag,src);
-  if(n){out.push(n);if(doubleP>0&&Math.random()<doubleP){const n2=pickItem(category,g,tag,src);if(n2)out.push(n2)}}};
+  if(n){out.push(n);if(doubleP>0&&rnd()<doubleP){const n2=pickItem(category,g,tag,src);if(n2)out.push(n2)}}};
  if(source==="fieldNamed"){
   add("재료");
-  if(Math.random()<.30)add("장비");
-  if(Math.random()<.25)add("귀중품");
-   if(find>0&&Math.random()<find/100){wearTool("탐사 책");add("재료")}
+  if(rnd()<.30)add("장비");
+  if(rnd()<.25)add("귀중품");
+   if(find>0&&rnd()<find/100){wearTool("탐사 책");add("재료")}
   return out;
  }
  if(source==="dungeonBoss"){
   const mins=+minutes||120,extra=()=>add(pickWeighted(CATEGORY_WEIGHTS.dungeonBossExtra),"dungeonBoss"),extraNoGear=()=>add(pickWeighted(CATEGORY_WEIGHTS.dungeonBossExtra.filter(([c])=>c!=="장비")),"dungeonBoss");
   if(mins<=30){
    add("재료");
-   if(Math.random()<.50)extraNoGear();
-   if(find>0&&Math.random()<find/100){wearTool("탐사 책");extraNoGear()}
+   if(rnd()<.50)extraNoGear();
+   if(find>0&&rnd()<find/100){wearTool("탐사 책");extraNoGear()}
   }else if(mins<=60){
    add("재료");
-   if(Math.random()<.50)add("장비");
-   if(Math.random()<.50)extra();
-   if(find>0&&Math.random()<find/100){wearTool("탐사 책");extra()}
+   if(rnd()<.50)add("장비");
+   if(rnd()<.50)extra();
+   if(find>0&&rnd()<find/100){wearTool("탐사 책");extra()}
   }else if(mins<=120){
    add("장비");add("재료");
-   if(Math.random()<.50)extra();
-   if(find>0&&Math.random()<find/100){wearTool("탐사 책");extra()}
+   if(rnd()<.50)extra();
+   if(find>0&&rnd()<find/100){wearTool("탐사 책");extra()}
   }else{
    add("장비");add("재료");
-   if(Math.random()<.30)add("장비");
-   for(let i=0;i<2;i++)if(Math.random()<.50)extra();
-   if(find>0&&Math.random()<find/100){wearTool("탐사 책");extra()}
+   if(rnd()<.30)add("장비");
+   for(let i=0;i<2;i++)if(rnd()<.50)extra();
+   if(find>0&&rnd()<find/100){wearTool("탐사 책");extra()}
   }
   return out;
  }
  if(source==="dungeonChest"){
   add("장비");
-  if(Math.random()<.50)add(pickWeighted(CATEGORY_WEIGHTS.dungeonChestExtra),"dungeonChest");
-   if(find>0&&Math.random()<find/100){wearTool("탐사 책");add(pickWeighted(CATEGORY_WEIGHTS.dungeonChestExtra),"dungeonChest")}
+  if(rnd()<.50)add(pickWeighted(CATEGORY_WEIGHTS.dungeonChestExtra),"dungeonChest");
+   if(find>0&&rnd()<find/100){wearTool("탐사 책");add(pickWeighted(CATEGORY_WEIGHTS.dungeonChestExtra),"dungeonChest")}
   return out;
  }
- const slots=source==="fieldNormal"?(Math.random()<.70?1+(Math.random()<.10?1:0):0)
-  :source==="fieldElite"?1+(Math.random()<.30?1:0)
-  :source==="dungeonNormal"?(Math.random()<.80?1+(Math.random()<.20?1:0):0)
-  :source==="dungeonElite"?1+(Math.random()<.50?1:0)
-  :source==="gather"?1+(Math.random()<.20?1:0):1;
+ const slots=source==="fieldNormal"?(Math.random()<.70?1+(rnd()<.10?1:0):0)
+  :source==="fieldElite"?1+(rnd()<.30?1:0)
+  :source==="dungeonNormal"?(Math.random()<.80?1+(rnd()<.20?1:0):0)
+  :source==="dungeonElite"?1+(rnd()<.50?1:0)
+  :source==="gather"?1+(rnd()<.20?1:0):1;
  let count=slots;
- if(source==="gather"){const gb=Math.max(0,traitTotal("gather"));count+=Math.floor(gb);if(Math.random()<(gb%1))count++}
-  if(find>0&&Math.random()<find/100){wearTool("탐사 책");count++}
+ if(source==="gather"){const gb=Math.max(0,traitTotal("gather"));count+=Math.floor(gb);if(rnd()<(gb%1))count++}
+  if(find>0&&rnd()<find/100){wearTool("탐사 책");count++}
  for(let i=0;i<count;i++){
   const category=source==="gather"?pickWeighted(GATHER_WEIGHTS):pickWeighted(CATEGORY_WEIGHTS[source]||CATEGORY_WEIGHTS.fieldNormal);
   add(category);
@@ -7174,6 +7189,8 @@ function departMove(m,o={}){
  }
  const start=o.startAt||Date.now(),min=o.min!=null?Math.max(0,+o.min||0):q.min;
  me.travel={end:start+min*60000,start,dest:m.dest,label:m.label,min,mode:m.mode};
+ // 2026-11-22: 마왕성 안 지역 이동은 도착할 때 이동 중 조우(칸마다 35%)를 자동 전투로 정산
+ if(m.kind==="area"&&me.cont===CASTLE&&m.dest&&m.dest.cont===CASTLE){const tierOf=id=>{try{return parseInt((AR(id)||{}).diff||"")||0}catch(e){return 0}};me.travel.castle={hops:Math.max(1,Math.floor(+m.n||1)),star:Math.max(8,tierOf(me.area),tierOf(m.dest.area))}}
  if(o.rideId){me.travel.ride=o.rideId;me.travel.start=start}
  if(o.driver){me.travel.driver=true;me.travel.cost={food:q.food,fuel:q.fuel||0}}
  $("mvmodal").hidden=true;try{npcTalkSync()}catch(e){}bag();renderAll();try{render()}catch(e){}
@@ -7410,7 +7427,53 @@ function traitOnArrive(mode,d){
  try{const w=weatherAt(d.cont,d.area).id;if(["fog","wind","heat","rain","cold"].includes(w))tryBadTrait("길치")}catch(e){}
  try{if((+calcStats(me).weightPenalty||0)>0)tryGoodTrait("짐꾼")}catch(e){}
 }
-function arrive(){sfx("ok");playCompleteSound();const d=me.travel.dest,walkMin=Math.max(0,+me.travel.min||0),fromCont=me.cont,travelMode=me.travel.mode,travelRide=me.travel.ride;me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub??null;try{traitOnArrive(travelMode,d)}catch(e){}try{if(travelMode==="air")titleFlag("explore.airship");if(travelRide){const rr=(typeof partyRides!=="undefined"&&partyRides)?partyRides[travelRide]:null;if(rr&&rr.mode==="air"&&(1+Object.keys(rr.riders||{}).length)>=5)titleFlag("explore.airRide5")}titleSetAdd("explore.continents",me.cont);titleSetAdd("explore.areas",me.cont+"|"+me.area);if(me.area==="cap")titleSetAdd("explore.capitals",me.cont);if(me.cont==="마왕성")titleFlag("explore.majwangEntered");if(fromCont==="마왕성"&&me.cont!=="마왕성")titleFlag("explore.majwangReturned")}catch(e){}const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:(d.sub??null);addWalkMinutes(walkMin);bag();renderAll();try{render()}catch(e){};if(walkMin>0)try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){};try{opts.save(cp(snap()))}catch(e){}}
+function arrive(){sfx("ok");playCompleteSound();const castleT=me.travel.castle||null,d=me.travel.dest,walkMin=Math.max(0,+me.travel.min||0),fromCont=me.cont,travelMode=me.travel.mode,travelRide=me.travel.ride;me.travel=null;me.cont=d.cont;me.area=d.area;me.sub=d.sub??null;try{traitOnArrive(travelMode,d)}catch(e){}try{if(travelMode==="air")titleFlag("explore.airship");if(travelRide){const rr=(typeof partyRides!=="undefined"&&partyRides)?partyRides[travelRide]:null;if(rr&&rr.mode==="air"&&(1+Object.keys(rr.riders||{}).length)>=5)titleFlag("explore.airRide5")}titleSetAdd("explore.continents",me.cont);titleSetAdd("explore.areas",me.cont+"|"+me.area);if(me.area==="cap")titleSetAdd("explore.capitals",me.cont);if(me.cont==="마왕성")titleFlag("explore.majwangEntered");if(fromCont==="마왕성"&&me.cont!=="마왕성")titleFlag("explore.majwangReturned")}catch(e){}const gate=WORLD[d.cont]&&WORLD[d.cont].gate&&WORLD[d.cont].gate.id===d.area;view.area=(d.area==="cap"||gate)?null:d.area;view.sel=d.area==="cap"?"cap":gate?d.area:(d.sub??null);addWalkMinutes(walkMin);bag();renderAll();try{render()}catch(e){};if(walkMin>0)try{const a=AR(d.area),tier=parseInt((a&&a.diff)||"")||1;awardAction("survival",ACTION_XP.travel,areaGrade(tier),"survival")}catch(e){};try{opts.save(cp(snap()))}catch(e){}if(castleT)try{castleTravelBattles(castleT)}catch(e){console.warn("castleTravel",e)}}
+// 2026-11-22: 마왕성 이동 중 조우 — 칸마다 CASTLE_TRAVEL_ENC 확률로 자동 전투(장기 탐사 기준 몬스터·용병 동행). 도착 후 정산 창.
+// 지면 쓰러진 채 도착(구사일생 판정 적용). 비상 탈출 부적이 터지면 남은 조우 없이 도착.
+function castleTravelBattles(ct){
+ const hops=Math.max(1,Math.min(8,Math.floor(+ct.hops||1))),star=Math.max(8,Math.min(15,Math.floor(+ct.star||8)));
+ const areaObj=(()=>{try{return AR(me.area)}catch(e){return null}})();
+ const hpBefore=+me.hp[0]||0,rows=[],got=[];let enc=0,wins=0,lost=false,fled=false,avoid=0,xp=0,lostItems=0;
+ const mercs=(!me.partyId&&Array.isArray(me.party))?me.party.slice(0,4):[],mercN=mercs.length;
+ const party=[{self:true,name:me.name,st:calcStats(me),hp:me.hp[0],maxHp:me.hp[1]},...mercs.map(a=>{const st=calcStats(a);return {self:false,name:a.name,ally:a,st,hp:st.hpMax,maxHp:st.hpMax,merc:true,potN:mercPot("long",star),potHeal:mercPotHeal(+a.lv||me.lv)}})];
+ for(let h=0;h<hops;h++){
+  if(Math.random()>=CASTLE_TRAVEL_ENC)continue;
+  if((+me.hp[0]||0)<=0)break;
+  const mon=rollShortMonster(star,"long",.10);if(!mon)continue;
+  enc++;
+  const tag=mon.role==="정예"?"[정예] ":"";
+  if(mon.role==="정예"&&me.hp[0]/Math.max(1,me.hp[1])<.5){avoid++;rows.push(`${tag}${mon.name} · 회피`);continue}
+  party[0].st=calcStats(me);party[0].hp=me.hp[0];party[0].maxHp=me.hp[1];
+  const src=mon.role==="정예"?"fieldElite":"fieldNormal";
+  const res=autoBattle(mon,party,{expedition:true,star,source:src,mode:"long"});
+  for(let i=0;i<party.length;i++){party[i].hp=res.party[i].hp;if(!party[i].self)party[i].potN=res.party[i].potN}
+  me.hp[0]=Math.max(0,Math.min(me.hp[1],Math.round(res.party[0].hp)));
+  for(const f of party.slice(1))if(f.ally)f.ally.hp=[Math.max(0,Math.round(f.hp)),f.maxHp];
+  if(res.escaped&&!res.win){fled=true;rows.push(`${tag}${mon.name} · 비상 탈출 부적으로 벗어남 (${res.rounds}턴)`);break}
+  if(res.win&&me.hp[0]>0){
+   wins++;const x=Math.max(1,Math.floor(+(mon.xp||40)||0));xp+=x;gainPlayerXP(x);
+   try{questKill(mon,star,src)}catch(e){}
+   const loot=capBattleLoot(rollLoot(star,src,mon.grade,areaObj,null,mercN),star);
+   try{itemReason("마왕성 이동 중 전투 전리품",true)}catch(e){}
+   for(const n of loot){if(!n)continue;registerItem(n);const it=lootObj(n);if(canAdd(it)){addItem(it);got.push(n)}else lostItems++}
+   rows.push(`${tag}${mon.name} · 승리 (${res.rounds}턴)`);
+  }else{lost=true;me.hp[0]=0;rows.push(`${tag}${mon.name} · 패배 (${res.rounds}턴)`);break}
+ }
+ try{logChar("battle",`마왕성 이동 중 조우 ${enc}회 · 승리 ${wins}${lost?" · 패배":""}${fled?" · 탈출":""}`,{kind:"castleTravel",star,enc,wins,lost,esc:fled,before:hpBefore,after:me.hp[0],hp:me.hp[0],maxHp:me.hp[1],loot:got.slice(0,30)})}catch(e){}
+ let fate="";
+ if(lost){
+  try{triggerDowned()}catch(e){console.warn("castleTravel downed",e)}
+  if(me.downed)fate=`<p style="color:var(--bad)">전투에서 져서 쓰러진 채 도착했다. 90분 안에 소생이 필요하다.</p>`;
+  else{try{$("modal").hidden=true}catch(e){}fate=`<p><b>구사일생</b> · 쓰러지기 직전, 생존 본능으로 버텨 냈다. HP 1로 도착했다.</p>`}
+ }
+ try{opts.save(cp(snap()))}catch(e){}
+ try{barsRender();bag();renderAll()}catch(e){}
+ const body=`<p>이동 중 조우 <b>${enc}회</b>${enc?` · 승리 ${wins}회${avoid?` · 정예 회피 ${avoid}회`:""}${lost?" · 패배 1회":""}${fled?" · 탈출":""}`:" · 무사히 도착했다."}</p>`+
+  (rows.length?`<div class="explog-pop">${rows.map(r=>`<div class="explog-line">${esc(r)}</div>`).join("")}</div>`:"")+
+  (got.length?`<p><b>획득</b> ${esc(tally(got))}</p>`:"")+(lostItems?`<p class="dim">가방이 가득 차서 ${lostItems}개를 두고 왔다.</p>`:"")+
+  (xp?`<p class="dim">경험치 +${xp}</p>`:"")+`<p class="dim">HP ${hpBefore} → ${me.hp[0]}/${me.hp[1]}${mercN?` · 용병 ${mercN}명 동행`:""}</p>`+fate;
+ pop("마왕성 이동 정산",body,[{t:"확인"}],true);
+}
 T(()=>{if(me.travel){Date.now()>=me.travel.end?arrive():renderAll()}},1000);
 T(checkExpAct,1000);
 // ---- 날씨 (2026-11-10) ----
@@ -7646,6 +7709,18 @@ const SHORT_EASE_STAR=[{h:.85,a:3},{h:.85,a:2.198},{h:.85,a:0.866},{h:.85,a:1.17
 const LONG_K=[.711,.934,.846,.945,.886,.870,.776,.789,.940,1.010,.936,1.076,1.019,1.077,1.118];
 const DUNGEON_K=[.604,.792,.586,.673,.575,.566,.492,.482,.485,.498,.443,.507,.483,.486,.467];
 // index 0 = 1인, 1 = 2인, 2 = 3인, 3 = 4인, 4 = 5인
+// 2026-11-22: 용병(온라인 파티가 아닌 me.party 동료) 보정 — 장기·던전 탐사 한정.
+// - 탐사마다 용병 1명당 레벨 등급 회복 포션 MERC_POT[모드][★-1]개(HP 30% 이하에서 자동 사용, 탐사 중 남은 수 유지).
+// - 몬스터 인원 보정에서 용병 1명 = MERC_W[모드][★-1]명으로 센다(소수 인원은 표 사이를 이어서 계산).
+// - 목표: 용병 4명을 데려가면 3시간 생존율이 혼자보다 약 +12%p.
+const MERC_POT={dungeon:[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2],long:[2,2,2,2,2,2,2,2,2,2,2,2,2,2,2]};
+const mercPot=(mode,star)=>{const t=MERC_POT[mode];return t?Math.max(0,+t[clampStar(star)-1]||0):0};
+const MERC_W={dungeon:[1.59,1,1.36,1,1.23,1,.91,1.07,.87,1.02,.9,1.06,1.06,1.06,1.06],long:[1,1,1,1,1,1,1,1.18,1.08,1.18,.68,.63,.63,.63,.63]};
+// 용병 수별 배율: 용병이 적을 때는 1명당 몬스터 강화를 덜 해서 1~2명만 데려가도 혼자보다 낫게(살아 있는 용병 수 기준).
+const MERC_LOOT_EXTRA=.0625,MERC_LOOT_DOWN=.05; // 용병 1명당 추가 전리품 확률 -6.25%(4명 -25%), 등급 하락 5%(4명 20%)
+const MERC_CNT_F={dungeon:[0,.86,.95,.98,1],long:[0,.6,.8,.93,1]}; // 던전 1명 .86 / 2명 .95 / 3명 .98 / 4명 1, 장기 .6 / .8 / .93 / 1
+const mercW=(mode,star)=>{const t=MERC_W[mode];return t?(+t[clampStar(star)-1]||1):1};
+function mercPotHeal(lv){const g=["일반","고급","희귀","영웅","전설","신화"][lv>=38?5:lv>=32?4:lv>=25?3:lv>=18?2:lv>=11?1:0];try{return potionHealVal(info(g+" 회복 포션").fx.hp||0)}catch(e){return 50}}
 const LONG_PARTY_Q=[
  [1,2.13,2.84,3.16,4.00],[1,1.44,2.09,2.72,3.30],[1,1.52,1.57,2.03,2.30],[1,1.60,1.91,2.01,2.40],[1,1.61,2.13,2.20,2.10],
  [1,1.61,2.10,2.41,2.20],[1,1.72,2.20,2.69,2.90],[1,1.65,2.18,2.67,3.10],[1,1.52,2.00,2.40,2.80],[1,1.49,1.86,2.48,2.60],
@@ -7672,7 +7747,7 @@ function monAtkRef(star,mode){
  return monAtkRefCache[k]=v.length?v[Math.floor((v.length-1)/2)]:0;
 }
 function scaleMonster(mon,star,opts={}){
- const s=clampStar(star),mode=opts.mode||"legacy",pn=Math.max(1,Math.min(5,Math.floor(+opts.partySize||1)));
+ const s=clampStar(star),mode=opts.mode||"legacy",pn=Math.max(1,Math.min(7,+opts.partySize||1));
  if(mode==="short"||mode==="long"||mode==="dungeon"){
   const role=mon.role==="보스"?"boss":mon.role==="정예"?"elite":"normal";
   const base=role==="normal"?SHORT_NORMAL[s-1]:SHORT_ELITE[s-1];
@@ -7681,7 +7756,7 @@ function scaleMonster(mon,star,opts={}){
   if(mode==="short"){const pr=SHORT_PRESSURE[s-1]||{h:1,a:1,d:1};h*=pr.h;a*=pr.a;d*=pr.d;const ez=SHORT_EASE_STAR[s-1]||{h:1,a:1};h*=ez.h;a*=ez.a;if(role==="elite"){h*=ez.eh||1;a*=ez.ea||1}}
   if(mode!=="short"){
    const k=(mode==="long"?LONG_K:DUNGEON_K)[s-1];
-   const q=(mode==="long"?LONG_PARTY_Q:DUNGEON_PARTY_Q)[s-1][pn-1]||1;
+   const Qt=(mode==="long"?LONG_PARTY_Q:DUNGEON_PARTY_Q)[s-1],qlo=Math.floor(pn),qhi=Math.ceil(pn),q=pn>5?(Qt[4]||1)*pn/5:(Qt[qlo-1]||1)+((Qt[qhi-1]||1)-(Qt[qlo-1]||1))*(pn-qlo); // 소수 인원(용병 보정)은 사이값, 5명 초과(용병 가중)는 5명 값에 비례
    h*=k*q;a*=k*q;
    if(expBalV>=2){const m=(mode==="long"?LONG_HARD:DUNGEON_HARD)[s-1]||1;h*=Math.sqrt(m);a*=m}
   }
@@ -7771,9 +7846,9 @@ function autoBattle(mon,party,opts={}){if(!opts.dry){try{codexMarkMonster(mon&&m
  const brokenAtStart={};
  for(const k of ["main","sub","armor","acc1","acc2"]){const x=me.equipped[k];if(x&&typeof x==="object"&&x.dur!=null&&+x.dur<=0)brokenAtStart[k]=1}
  battleEquipSnapshot=brokenAtStart;}
- const pn=Math.max(1,party.length),role=mon.role==="보스"?"boss":mon.role==="정예"?"elite":"normal",mode=opts.mode||"legacy";
+ const mode=opts.mode||"legacy",_alive=party.filter(p=>(p.hp??p.maxHp)>0),_mx=mode==="long"||mode==="dungeon",_mc=_mx?_alive.filter(p=>p.merc).length:0,pnW=Math.max(1,_alive.length-_mc+_mc*mercW(mode,opts.star||1)*((MERC_CNT_F[mode]||[])[Math.min(4,_mc)]||1)),pn=Math.max(1,Math.min(5,Math.round(pnW))),role=mon.role==="보스"?"boss":mon.role==="정예"?"elite":"normal"; // 2026-11-22: 쓰러진 동료 제외, 용병은 MERC_W명
  const psc=(mode==="long"||mode==="dungeon")?{hp:1,atk:1,def:1}:(role==="boss"?BOSS_PARTY_SCALE[pn]:(role==="elite"?NORMAL_PARTY_SCALE.elite[pn]:NORMAL_PARTY_SCALE.normal[pn]));
- const scaled=scaleMonster(mon,opts.star||1,{mode,partySize:pn,boss:!!opts.boss});
+ const scaled=scaleMonster(mon,opts.star||1,{mode,partySize:pnW,boss:!!opts.boss});
  const nk=opts.night?NIGHT_LONG.stat:1; // 밤 장기 탐사 보정
  const m={...scaled,maxHp:Math.max(1,Math.floor(scaled.hp*(psc.hp||1)*nk)),hp:0,atk:scaled.atk*(psc.atk||1)*nk,atkMin:scaled.atkMin*(psc.atk||1)*nk,atkMax:scaled.atkMax*(psc.atk||1)*nk,def:scaled.def*(psc.def||1)*nk};m.hp=m.maxHp;
  const fs=party.map(p=>({...p,hp:Math.min(p.hp??p.maxHp,p.maxHp),maxHp:p.maxHp,skill:p.skill||"melee",potionCd:0})),log=[],trace=[];
@@ -7785,7 +7860,7 @@ function autoBattle(mon,party,opts={}){if(!opts.dry){try{codexMarkMonster(mon&&m
   for(const f of fs)if(f.potionCd>0)f.potionCd--;
   for(const f of fs){
    if(f.hp<=0||f.fled)continue;
-   if(shared&&(+f.potN||0)>0&&f.hp/f.maxHp<=.3&&!(f.potionCd>0)){const heal=Math.max(0,Math.round(+f.potHeal||0));f.potN--;f.hp=Math.min(f.maxHp,f.hp+heal);f.potionCd=3;L(`${f.name}이(가) 회복 포션을 사용해 HP +${heal}`);continue}
+   if((shared||!f.self)&&(+f.potN||0)>0&&f.hp/f.maxHp<=.3&&!(f.potionCd>0)){const heal=Math.max(0,Math.round(+f.potHeal||0));f.potN--;f.hp=Math.min(f.maxHp,f.hp+heal);f.potionCd=3;L(`${f.name}이(가) 회복 포션을 사용해 HP +${heal}`);continue}
    if(f.self&&f.hp/f.maxHp<=.3&&!(f.potionCd>0)){
     const idxs=[];me.inv.forEach((x,i)=>{const n=nm(x);if(isHpPotion(n)&&!isPotionAutoLocked(n))idxs.push(i)});
     if(idxs.length){itemReason("전투 중 자동 포션",true);const ix=idxs[Math.floor(Math.random()*idxs.length)],x=me.inv.splice(ix,1)[0],n=nm(x),heal=potionHealVal(info(n).fx.hp||0);f.hp=Math.min(f.maxHp,f.hp+heal);me.hp[0]=f.hp;if(heal>0)wearTool("생존 책");f.potionCd=3;used++;applyItemStatus(n,info(n));L(`${f.name}이(가) ${n}을(를) 사용해 HP +${heal} (턴 소모, 쿨타임 2턴)`);continue}
@@ -7908,8 +7983,9 @@ function startBattle(mon,opts={}){try{codexMarkMonster(mon&&mon.name)}catch(e){}
  battle={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),mon:{...scaled,maxHp:hp,hp,atk,def},star,source:opts.source||"fieldNormal",areaObj:opts.areaObj||null,difficulty:"normal",boss:false,bossRole:false,partySize:1,allies:[],log:[],miss:0,evaded:0,done:false,skill:bestSk,win:false,result:null,sync:false,potionCd:0,preemptive:false,startHp:me.hp[0],startFx:(me.fx||[]).map(f=>f&&(f.label||f.n))};
  const tag=mon.role==="정예"?"[정예] ":mon.role==="보스"?"[보스] ":"";
  battleLog(`${tag}${mon.name}이(가) 나타났다.`);
- battle.playerFirst=!(mon.speed>st.speed);
- if(mon.speed>st.speed){
+ {const fl=monSpeedFloor(star);if(!(+battle.mon.speed>=fl))battle.mon.speed=fl}
+ battle.playerFirst=!(battle.mon.speed>st.speed);
+ if(battle.mon.speed>st.speed){
   battleLog("몬스터가 먼저 움직인다.");
   battle.preemptive=true;
   monsterStrike();
@@ -8149,7 +8225,7 @@ $("explore").onclick=()=>{if(actionLock("휴식 중에는 수색할 수 없습�
   if(got.length){const d=ITEM_BY_NAME[got[0]];if(d)awardAction("search",d.grade==="일반"?ACTION_XP.search:ACTION_XP.rareSearch,d.grade,"search");try{titleAdd("explore.gathers");const herb=got.filter(n=>n==="약초"||n==="치유초").length;if(herb)titleAdd("gather.herb",herb)}catch(e){}}
   modal("아이템 획득",got.length?`${esc(tally(got))}을(를) 얻었다.`:"쓸 만한 것을 찾지 못했다.")
  }
- else if(r<.6+.25*(1-encRed)){const mon=rollShortMonster(tier,"short",shortEliteChance(tier));if(mon)metMonster=encounterMonster(mon,{star:tier,source:mon.role==="정예"?"fieldElite":"fieldNormal",areaObj});else modal("아무것도 없음","주변을 샅샅이 뒤졌지만 쓸 만한 것은 없다.")}
+ else if(r<.6+(me.cont===CASTLE?CASTLE_SEARCH_MON:.25)*(1-encRed)){const mon=rollShortMonster(tier,"short",shortEliteChance(tier));if(mon)metMonster=encounterMonster(mon,{star:tier,source:mon.role==="정예"?"fieldElite":"fieldNormal",areaObj});else modal("아무것도 없음","주변을 샅샅이 뒤졌지만 쓸 만한 것은 없다.")}
  else modal("아무것도 없음","주변을 샅샅이 뒤졌지만 쓸 만한 것은 없다.");
  if(!battle&&!metMonster){
     if(me.hunger[0]<=0)applyStatus("starvation",{silent:true});
