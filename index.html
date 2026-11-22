@@ -11414,12 +11414,38 @@ function mailMenuPos(){
 }
 function mailMenuClose(){if(mailMenuEl)mailMenuEl.hidden=true;mailOpen=false}
 function mailMenuOutside(e){if(!e.target.closest("#mailBtn,#mailMenu"))mailMenuClose()}
+// 2026-11-22: 쪽지함 [쪽지 보내기] — 받는 사람 캐릭터 이름을 직접 입력(정확히 일치, 영문은 대소문자 무시)
+async function findCharByName(name){
+ const q=String(name||"").trim().toLowerCase();if(!q)return null;
+ const eq=x=>String(x||"").trim().toLowerCase()===q;
+ for(const p of (presenceList||[]))if(p&&p.uid&&eq(p.name))return {uid:String(p.uid),name:String(p.name)};
+ let profs=friendView.profiles&&Object.keys(friendView.profiles).length?friendView.profiles:null;
+ if(!profs){try{const sn=await get(ref(realtimeDB,"profiles"));profs=sn.val()||{}}catch(e){profs={}}}
+ const hit=Object.entries(profs).filter(([id,p])=>p&&eq(p.name)).sort((a,b)=>(+b[1].at||0)-(+a[1].at||0))[0];
+ return hit?{uid:String(hit[0]),name:String(hit[1].name)}:null;
+}
+function openNoteByName(prev=""){
+ if(me.downed||me.deadPending)return toast("쓰러진 상태에서는 쪽지를 보낼 수 없습니다.");
+ let busy=false;
+ const go=async()=>{
+  if(busy)return;const inp=$("ntName"),v=inp?inp.value.trim():"";
+  if(!v){toast("받는 사람 이름을 입력하세요.");return}
+  busy=true;const msg=$("ntMsg");if(msg)msg.textContent="찾는 중…";
+  const r=await findCharByName(v);busy=false;
+  if(!r){if(msg)msg.textContent=`'${v}' 캐릭터를 찾을 수 없습니다. 이름을 정확히 입력해 주세요.`;return}
+  if(r.uid===uid){if(msg)msg.textContent="자신에게는 쪽지를 보낼 수 없습니다.";return}
+  closePop();openComposeNote(r.uid,r.name);
+ };
+ pop("쪽지 보내기",`<div class="note-compose"><input id="ntName" maxlength="16" placeholder="받는 사람 캐릭터 이름" value="${esc(prev)}" autocomplete="off"><p class="dim" id="ntMsg" style="margin:6px 0 0;min-height:1.2em"></p><button type="button" class="btn" id="ntGo" style="width:100%;margin-top:8px">다음</button></div>`,[{t:"취소"}],false,true);
+ const inp=$("ntName");if(inp){inp.focus();inp.onkeydown=e=>{if(e.key==="Enter"){e.preventDefault();go()}}}
+ const b=$("ntGo");if(b)b.onclick=go;
+}
 function mailMenuOpen(){
  const el=mailMenuDom(),list=mailEntries();
  if(inboxMenuEl&&!inboxMenuEl.hidden)inboxMenuClose();
  if(!$("pop").hidden&&["메세지함","알림함"].includes($("pt").textContent))closePop();
  const unreadM=list.filter(m=>!m.read).length;
- el.innerHTML=(unreadM?`<button type="button" class="mail-menu-all" data-mall>모두 읽음으로 표시</button>`:"")+(list.length?list.map(m=>{
+ el.innerHTML=`<button type="button" class="mail-menu-all" data-mnew>✉ 쪽지 보내기</button>`+(unreadM?`<button type="button" class="mail-menu-all" data-mall>모두 읽음으로 표시</button>`:"")+(list.length?list.map(m=>{
   const who=m.admin?"GM":(m.fromName||"상대");
   return `<button type="button" class="mail-menu-row" data-mopen="${esc(m.id)}">${MAIL_ICON}<b>${esc(who)}의 쪽지</b>${m.read?"":`<span class="mail-menu-dot"></span>`}</button>`;
  }).join(""):`<div class="mail-menu-empty">받은 쪽지가 없습니다.</div>`);
@@ -11429,7 +11455,7 @@ function mailMenuOpen(){
   mailMenuBound=true;
   document.addEventListener("click",mailMenuOutside,true);
   window.addEventListener("resize",mailMenuPos);
-  el.onclick=e=>{if(e.target.closest("[data-mall]")){mailReadAll();return}const b=e.target.closest("[data-mopen]");if(!b)return;mailMenuClose();openMailDetail(b.dataset.mopen)};
+  el.onclick=e=>{if(e.target.closest("[data-mnew]")){mailMenuClose();openNoteByName();return}if(e.target.closest("[data-mall]")){mailReadAll();return}const b=e.target.closest("[data-mopen]");if(!b)return;mailMenuClose();openMailDetail(b.dataset.mopen)};
  }
 }
 // 2026-11-20 쪽지함 모두 읽음: mail/{uid}/{mid}/read 를 한 번에 true로
