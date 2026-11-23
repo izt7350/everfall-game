@@ -4361,6 +4361,9 @@ const CATEGORY_WEIGHTS={
 // 2026-11-14 조정: 재료 65(캠핑 포함, 재료 일반 아이템처럼) / 회복·기타 10 / 포션+요리 12 / 특수+귀중품 10 / 도구 2 / 장비 1
 const GATHER_WEIGHTS=[["재료",65],["소모품:회복/기타",10],["소모품:포션",6.5],["소모품:요리",5.5],["특수",5.5],["귀중품",4.5],["도구",2],["장비",1]];
 const GATHER_FOOD_MAX="고급";
+// 2026-11-23: 마왕성에서는 전리품·수색·채집의 귀중품 비중을 30%로(골드 인플레 대응). 줄어든 몫은 다른 분류로 자연히 나뉜다.
+const CASTLE_TREASURE_MUL=.3;
+const castleTreasureW=list=>(me&&me.cont===CASTLE)?list.map(([k,w])=>[k,k==="귀중품"?w*CASTLE_TREASURE_MUL:w]):list;
 function pickWeighted(list){
  const total=list.reduce((a,[,w])=>a+w,0);let r=Math.random()*total;
  for(const[k,w]of list){r-=w;if(r<0)return k}
@@ -4437,7 +4440,7 @@ function rollLoot(star,source,monsterGrade=null,areaObj=null,minutes=null,mercN=
  if(source==="fieldNamed"){
   add("재료");
   if(rnd()<.30)add("장비");
-  if(rnd()<.25)add("귀중품");
+  if(rnd()<.25*(me&&me.cont===CASTLE?CASTLE_TREASURE_MUL:1))add("귀중품");
    if(find>0&&rnd()<find/100){wearTool("탐사 책");add("재료")}
   return out;
  }
@@ -4479,7 +4482,7 @@ function rollLoot(star,source,monsterGrade=null,areaObj=null,minutes=null,mercN=
  if(source==="gather"){const gb=Math.max(0,traitTotal("gather"));count+=Math.floor(gb);if(rnd()<(gb%1))count++}
   if(find>0&&rnd()<find/100){wearTool("탐사 책");count++}
  for(let i=0;i<count;i++){
-  const category=source==="gather"?pickWeighted(GATHER_WEIGHTS):pickWeighted(CATEGORY_WEIGHTS[source]||CATEGORY_WEIGHTS.fieldNormal);
+  const category=pickWeighted(castleTreasureW(source==="gather"?GATHER_WEIGHTS:(CATEGORY_WEIGHTS[source]||CATEGORY_WEIGHTS.fieldNormal)));
   add(category);
  }
  return out;
@@ -10213,9 +10216,12 @@ function applyItemRefund(quiet){
 // 특정 아이템의 고정 거래가. 구매/판매 모두 상인·특성·도구 보정 없이 동일하게 적용된다.
 const FIXED_PRICE={"이동속도 증가 포션":15};
 const fixedPrice=n=>+FIXED_PRICE[n]||0;
+// 2026-11-23: 골드 인플레 대응 — 상점 판매가에 등급 배율(B안). 구매가·고정가·삭제 아이템 환불가는 그대로. 귀중품 고정 판매가에도 적용.
+const SELL_GRADE_MUL={"일반":1,"고급":1,"희귀":.75,"영웅":.5,"전설":.35,"신화":.2};
+const sellGradeMul=n=>{const d=ITEM_BY_NAME[n];return d&&SELL_GRADE_MUL[d.grade]!=null?SELL_GRADE_MUL[d.grade]:1};
 function shopSellUnit(n){
  if(FIXED_PRICE[n])return fixedPrice(n);
- if(TREASURE_SELL[n]){const cm=citySellMod(n);return Math.max(1,Math.round(treasureSell(n)*(cm?cm.m:1)))}
+ if(TREASURE_SELL[n]){const cm=citySellMod(n);return Math.max(1,Math.round(treasureSell(n)*(cm?cm.m:1)*sellGradeMul(n)))}
  const g=curGoods.find(x=>x[0]===n),d=ITEM_BY_NAME[n]||info(n);
  let base=null;
  if(g){
@@ -10224,7 +10230,7 @@ function shopSellUnit(n){
  }else if(d)base=price(n,marketBasePrice(d,n));
  if(base==null)return 1;
  const cm=citySellMod(n);
- return Math.max(1,Math.round(sellP(base)*(cm?cm.m:1)));
+ return Math.max(1,Math.round(sellP(base)*(cm?cm.m:1)*sellGradeMul(n)));
 }
 function shopBuyMax(n,unit){
  const item=lootObj(n),stackable=stackItem(item),room=Math.max(0,cap()-usedSlots());
