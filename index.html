@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <title>Everfall</title>
 <link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -10059,6 +10059,12 @@ function insertChatNewline(){const el=$("inp");if(!el)return;if((el.value||"").l
 $("btn").onclick=send;
 $("nlbtn").onclick=insertChatNewline;
 $("inp").addEventListener("input",growChatInput);
+// 2026-11-28: 모바일 키보드가 올라오면 채팅 입력줄이 가려지던 문제 — 입력 중에는 입력줄(+바로 위 메시지)이 보이도록 스크롤.
+// (meta viewport의 interactive-widget=resizes-content로 안드로이드 크롬은 키보드만큼 화면이 줄어들고, 나머지 브라우저는 visualViewport로 보정)
+{const showInp=()=>{const el=$("inp");if(!el||document.activeElement!==el)return;const row=el.closest(".send")||el;try{row.scrollIntoView({block:"end",behavior:"smooth"})}catch(e){row.scrollIntoView(false)}
+  const vv=window.visualViewport;if(vv){const r=row.getBoundingClientRect(),bottom=vv.offsetTop+vv.height;if(r.bottom>bottom-4)window.scrollBy(0,r.bottom-bottom+12)}};
+ $("inp").addEventListener("focus",()=>{[120,350,700].forEach(t=>setTimeout(showInp,t))});
+ if(window.visualViewport)window.visualViewport.addEventListener("resize",()=>setTimeout(showInp,60));}
 $("inp").onkeydown=e=>{if(e.key!=="Enter"||e.isComposing)return;if(e.shiftKey&&cur==="notice")return;e.preventDefault();send()};
 render();
 if(uid){syncPresence(true);subscribeChat("world");subscribeChat("notice");subscribeDownedMap();subscribeGraves();subscribeWhisperPing();restoreWhisper();try{syncGuildChatTab()}catch(e){};try{syncPartyChatTab()}catch(e){};T(()=>{handleProposalPopup();startProposalRun();maybeStartProposalExp();try{tryPendingRun()}catch(e){}},5000);T(()=>syncPresence(true),60000);T(()=>syncPartyMemberPayload(),60000);setTimeout(()=>{try{syncPartyMemberPayload()}catch(e){}},4000)}
