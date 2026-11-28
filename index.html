@@ -987,6 +987,18 @@ body{background:var(--bg);color:var(--text);font:14px/22px "Noto Sans KR","Malgu
 @media (max-width:820px){#gameRoot .loc{white-space:normal;overflow-wrap:anywhere}}
 #gameRoot .topbar .tbr>*{white-space:nowrap}
 #gameRoot .topbar #cd{white-space:normal;word-break:keep-all}
+/* 2026-11-28: 모바일 상단바 2줄 배치 — 1줄: 로비로 · 날짜 · 시계(한 줄) / 2줄: 화면 모드 · 알림·쪽지·제보·설정 */
+@media (max-width:700px){
+ #gameRoot .topbar{display:flex;flex-wrap:wrap;align-items:center;row-gap:8px;column-gap:8px;padding:8px 12px}
+ #gameRoot .topbar .tbr{display:contents}
+ #gameRoot .topbar .back{order:1}
+ #gameRoot .topbar #cd{order:2;margin-left:auto;white-space:nowrap;font-size:12px}
+ #gameRoot .topbar #ck{order:3;white-space:nowrap;font-size:14px}
+ #gameRoot .topbar::after{content:"";order:4;flex-basis:100%;height:0}
+ #gameRoot .topbar .theme-toggle{order:5}
+ #gameRoot .topbar .inbox-btn,#gameRoot .topbar .gear{order:6}
+ #gameRoot .topbar #inboxBtn{margin-left:auto}
+}
 /* 도감 */
 #gameRoot .codex{display:flex;flex-direction:column;gap:10px;min-height:0}
 #gameRoot .codex-head{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
